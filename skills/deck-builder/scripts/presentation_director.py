@@ -395,6 +395,7 @@ ADDITIONAL_UI_COPY: dict[str, dict[str, str]] = {
         "image_style_saved_title": "图片风格已保存",
         "image_style_saved_message": "图片风格门禁已保存。agent 会检测 images-style.ready 并继续。",
         "image_style_error_title": "图片风格门禁未通过",
+        "image_confirm_required": "⚠️ ask-before-use 模式下，选择 pre-v1 生图模式后必须逐条勾选下方的 Prompt 草稿确认框，然后再保存。未确认的 target：",
         "image_placement_gate": "图片插入门禁",
         "image_placement_title": "确认 v1 后图片插入",
         "image_placement_intro": "请基于 v1 预览选择哪些位置需要补充图片。PPTX 会用 targeted edit；HTML-only 会重新生成 v2/final.html。",
@@ -494,6 +495,7 @@ ADDITIONAL_UI_COPY: dict[str, dict[str, str]] = {
         "image_style_saved_title": "Image style saved",
         "image_style_saved_message": "Image style gate saved. The agent will detect images-style.ready and continue.",
         "image_style_error_title": "Image style gate failed",
+        "image_confirm_required": "⚠️ In ask-before-use mode with a pre-v1 image mode selected, you must check every Prompt draft confirmation box below before saving. Unconfirmed targets:",
         "image_placement_gate": "Image Placement Gate",
         "image_placement_title": "Confirm Post-v1 Image Placement",
         "image_placement_intro": "Use the v1 preview to decide where generated images should be added. PPTX uses targeted edit; HTML-only regenerates v2/final.html.",
@@ -566,6 +568,10 @@ ADDITIONAL_UI_COPY: dict[str, dict[str, str]] = {
         "nav_visual": "Visuelle Richtung",
         "nav_style": "Visuelle Prüfung",
         "nav_compare": "Vergleich",
+        "image_style_title": "KI-Bildmodus bestätigen",
+        "image_style_error_title": "Bildstil-Gate fehlgeschlagen",
+        "image_confirm_required": "⚠️ Im ask-before-use-Modus mit einem pre-v1-Bildmodus müssen alle Prompt-Entwürfe unten einzeln bestätigt werden, bevor gespeichert werden kann. Nicht bestätigte Targets:",
+        "save_image_style": "Bildstil-Gate speichern",
     },
 }
 
@@ -2818,9 +2824,9 @@ def apply_image_style_selection(brief: JsonDict, form: dict[str, list[str]]) -> 
             if str(target.get("id", "")) not in confirmed_targets
         ]
         if missing_confirmations:
+            ui_lang: str = ui_language_from_brief(brief)
             errors.append(
-                "ask-before-use pre-v1 mode requires prompt confirmation for: "
-                + ", ".join(missing_confirmations)
+                t(ui_lang, "image_confirm_required") + " " + ", ".join(missing_confirmations)
             )
 
     html_motion_level: str = first_form_value(form, "html_motion_level", "subtle")
@@ -3559,9 +3565,15 @@ def render_image_style(task_dir: Path, error_messages: list[str] | None = None) 
 
     errors_html: str = ""
     if error_messages:
-        errors_html = "<section class='warning-box'><ul>" + "".join(
-            f"<li>{html.escape(message)}</li>" for message in error_messages
-        ) + "</ul></section>"
+        error_title: str = t(ui_language, "image_style_error_title")
+        errors_html = (
+            f"<div style='position:sticky;top:0;z-index:999;background:#7f1d1d;"
+            f"border:2px solid #ef4444;border-radius:8px;padding:14px 20px;margin-bottom:20px;'>"
+            f"<strong style='color:#fca5a5;font-size:.95em;display:block;margin-bottom:6px'>"
+            f"⛔ {html.escape(error_title)}</strong><ul style='margin:0;padding-left:1.4em'>"
+            + "".join(f"<li style='color:#fecaca;font-size:.85em;margin-bottom:4px'>{html.escape(m)}</li>" for m in error_messages)
+            + "</ul></div>"
+        )
 
     html_motion_section: str = ""
     if output_format in {"html-revealjs", "both"}:
