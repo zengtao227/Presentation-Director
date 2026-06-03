@@ -1623,12 +1623,23 @@ def validate_generation_guard(task_dir: Path) -> list[str]:
         }
         planned_target_ids.discard("")
         active_target_ids |= planned_target_ids
-        successful_target_ids: set[str] = successful_asset_target_ids(task_dir)
-        missing_successes: list[str] = sorted(planned_target_ids - successful_target_ids)
-        if missing_successes:
+        successful_prompts: dict[str, str] = successful_asset_prompts(task_dir)
+        plan_prompt_by_id: dict[str, str] = {
+            str(item.get("id", "")).strip(): str(item.get("prompt_draft", "")).strip()
+            for item in raw_targets
+            if isinstance(item, dict) and str(item.get("phase", "pre-v1")) == "pre-v1"
+            and str(item.get("id", "")).strip()
+        }
+        stale_or_missing: list[str] = []
+        for target_id in sorted(planned_target_ids):
+            if target_id not in successful_prompts:
+                stale_or_missing.append(target_id)
+            elif successful_prompts[target_id].strip() != plan_prompt_by_id.get(target_id, "").strip():
+                stale_or_missing.append(f"{target_id} (prompt changed — regenerate)")
+        if stale_or_missing:
             errors.append(
-                "Pre-v1 image targets are not successful in image-assets.json: "
-                + ", ".join(missing_successes)
+                "Pre-v1 image targets missing or have a stale prompt: "
+                + ", ".join(stale_or_missing)
             )
 
     output_format: str = output_format_from_brief(brief, "pptx")
@@ -1870,6 +1881,26 @@ def successful_asset_target_ids(task_dir: Path) -> set[str]:
         if target_id:
             target_ids.add(target_id)
     return target_ids
+
+
+def successful_asset_prompts(task_dir: Path) -> dict[str, str]:
+    """Return target_id → prompt used in the last successful attempt."""
+    result: dict[str, str] = {}
+    for record in image_asset_records(task_dir):
+        if record.get("final_status") != "success":
+            continue
+        target_id: str = str(record.get("target_id", record.get("id", ""))).strip()
+        if not target_id:
+            continue
+        attempts_any: Any = record.get("attempts", [])
+        attempts: list[JsonDict] = [a for a in attempts_any if isinstance(a, dict)] if isinstance(attempts_any, list) else []
+        prompt: str = ""
+        for attempt in reversed(attempts):
+            if attempt.get("status") == "success":
+                prompt = str(attempt.get("prompt", ""))
+                break
+        result[target_id] = prompt
+    return result
 
 
 def failed_image_asset_messages(task_dir: Path) -> list[str]:
@@ -3518,12 +3549,12 @@ def render_image_placement(task_dir: Path) -> str:
 <form method="post" action="/api/image-placement">
   <section class="section">
     <h2>{html.escape(t(ui_language, "placement_rows"))}</h2>
-    <p class="meta notice">{"This form supports up to 6 placement rows. For decks requiring more than 6 post-v1 images, run additional Image Placement Gate rounds or add them manually after generation." if ui_language == "en" else "此表单最多支持 6 条插入请求。如需超过 6 张 post-v1 图片，可在生成后再次打开门禁或手动添加。"}</p>
+    <p class="meta notice">{"This form supports up to 6 placement rows per round. Each submission replaces the previous placement request — the agent must process these into a new version before you re-open the gate for additional placements." if ui_language == "en" else "此表单每轮最多支持 6 条插入请求。每次提交会覆盖上一轮请求；请等 agent 将本轮处理成新版本后，再重新打开门禁添加更多。"}</p>
     {''.join(row_html)}
   </section>
   <section class="section">
     <h2>{"Overall notes" if ui_language == "en" else "整体备注"}</h2>
-    <textarea name="placement_global_notes" placeholder="{"Optional: overall notes for this placement round." if ui_language == "en" else "可选：本轮图片插入的整体说明。"}"></textarea>
+    <textarea name="placement_global_notes" placeholder="{"Optional: overall notes for this placement round." if ui_language == "en" else "可选：本轮图片插入的整体说明。"}">{html.escape(str(existing_request.get("notes", "")))}</textarea>
   </section>
   <div class="actions">
     <button type="submit">{html.escape(t(ui_language, "save_image_placement"))}</button>
