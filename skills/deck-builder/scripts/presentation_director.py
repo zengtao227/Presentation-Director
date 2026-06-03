@@ -1080,6 +1080,49 @@ HTML_THEME_OPTIONS: tuple[tuple[str, str], ...] = (
 
 HTML_THEME_DESCRIPTIONS: dict[str, str] = dict(HTML_THEME_OPTIONS)
 
+HTML_THEME_OPTIONS_L10N: dict[str, dict[str, str]] = {
+    "zh": {
+        "auto": "自动跟随视觉方向（推荐）",
+        "minimal-white": "简洁产品页、内部更新、轻量商业演示",
+        "editorial-serif": "叙事、文化、长篇解说类",
+        "swiss-grid": "结构化报告、运营分析、精确对比",
+        "corporate-clean": "董事会、咨询、高管汇报",
+        "academic-paper": "学术研究、临床医学、证据密集型演示",
+        "blueprint": "架构设计、系统说明、技术解释",
+        "engineering-whiteprint": "工程方案，更轻的技术底色",
+        "terminal-green": "开发者、安全、CLI、基础设施叙事",
+        "pitch-deck-vc": "投资人路演、市场规模、融资演示",
+        "news-broadcast": "实时简报、体育/新闻分析、快讯",
+        "magazine-bold": "编辑发布、品牌故事、大开篇",
+        "aurora": "科学、能源、AI、前沿技术叙事",
+        "glassmorphism": "产品、工作室、高端品牌、柔和深度",
+        "cyberpunk-neon": "未来感演示、夜生活、高能概念",
+    },
+    "de": {
+        "auto": "Folgt der visuellen Richtung automatisch (Empfohlen)",
+        "minimal-white": "Saubere Produktpräsentation, interne Updates, ruhige Geschäfts-Decks",
+        "editorial-serif": "Narrative, Essay, Kultur, ausführliche Erklärungen",
+        "swiss-grid": "Strukturierte Berichte, Betrieb, präzise Vergleiche",
+        "corporate-clean": "Vorstandssitzung, Beratung, Management-Zusammenfassungen",
+        "academic-paper": "Forschung, Klinik, Medizin, evidenzlastige Präsentationen",
+        "blueprint": "Architektur, Systeme, technische Erklärungen",
+        "engineering-whiteprint": "Ingenieurpläne mit hellerem technischen Hintergrund",
+        "terminal-green": "Entwickler, Sicherheit, CLI, Infrastruktur-Storytelling",
+        "pitch-deck-vc": "Investor, Launch, Marktgröße, Fundraising-Präsentationen",
+        "news-broadcast": "Live-Briefing, Sport-/Nachrichtenanalyse, Schnellfakten",
+        "magazine-bold": "Redaktionelle Launches, Markenstorys, große Abschnittsöffner",
+        "aurora": "Wissenschaft, Energie, KI, Technologie-Narrative",
+        "glassmorphism": "Produkt, Studio, Premium-Marke, weiche Tiefe",
+        "cyberpunk-neon": "Futuristische Demos, Nachtleben, hochenergetische Konzepte",
+    },
+}
+
+
+def html_theme_best_for(theme_key: str, ui_language: str) -> str:
+    """Return localized best_for description for an HTML theme key."""
+    l10n: dict[str, str] = HTML_THEME_OPTIONS_L10N.get(ui_language, {})
+    return l10n.get(theme_key) or HTML_THEME_DESCRIPTIONS.get(theme_key, theme_key)
+
 
 CONTEXT_LAYOUT_MAP: dict[str, list[str]] = {
     "pitch": ["cover-hero", "stat-highlight", "kpi-grid", "claim-bullets", "cta-close"],
@@ -3225,9 +3268,9 @@ def render_visual_inspiration(task_dir: Path) -> str:
     html_theme_section: str = ""
     if show_html_fields:
         theme_option_labels: list[str] = []
-        for theme_key, best_for in HTML_THEME_OPTIONS:
+        for theme_key, _best_for in HTML_THEME_OPTIONS:
             checked: str = " checked" if theme_key == current_theme_key else ""
-            label_text: str = t(ui_language, "html_theme_auto") if theme_key == "auto" else best_for
+            label_text: str = html_theme_best_for(theme_key, ui_language)
             theme_option_labels.append(
                 f"""<label class="option">
   <input type="radio" name="html_theme_key" value="{html.escape(theme_key)}"{checked}>
@@ -3524,9 +3567,10 @@ def render_image_style(task_dir: Path, error_messages: list[str] | None = None) 
     if output_format in {"html-revealjs", "both"}:
         current_theme_key: str = str(brief.get("html_theme_key", "auto"))
         theme_options: list[str] = []
-        for theme_key, best_for in HTML_THEME_OPTIONS:
+        for theme_key, _best_for in HTML_THEME_OPTIONS:
             checked: str = " checked" if theme_key == current_theme_key else ""
-            label: str = t(ui_language, "html_theme_auto") if theme_key == "auto" else f"{theme_key} — {best_for}"
+            theme_desc: str = html_theme_best_for(theme_key, ui_language)
+            label: str = f"{theme_key} — {theme_desc}"
             theme_options.append(
                 f"""<label class="option">
   <input type="radio" name="html_theme_key" value="{html.escape(theme_key)}"{checked}>
