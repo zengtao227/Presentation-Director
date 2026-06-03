@@ -328,7 +328,8 @@ ADDITIONAL_UI_COPY: dict[str, dict[str, str]] = {
         "next_visual": "下一步：视觉候选",
         "visual_gate": "视觉方向门禁",
         "visual_title": "选择第一版视觉方向",
-        "visual_intro": "这些候选会根据主题、PPT 类型和听众动态生成。它们借鉴 design-lock、ui-ux-pro-max、HTML deck/theme catalog 的做法，但最终仍交给 Codex Presentations 生成可编辑 PPTX。",
+        "visual_intro": "这些候选会根据主题、PPT 类型和听众动态生成，借鉴 design-lock 和 ui-ux-pro-max 规律，确定配色、字体和版式方向。",
+        "visual_intro_html": "这些候选决定 Reveal.js HTML 演示的视觉主题、过渡动画和动效密度。选好方向后直接写出可在浏览器演示的 HTML 文件，无需 Codex Presentations 插件。每个候选已预先关联最适合的 HTML 主题和动效档位。",
         "current_topic": "当前主题",
         "visual_notes": "视觉补充要求",
         "visual_notes_placeholder": "例如：更像顶级咨询公司、更少卡片、背景更有层次、适合医学研究听众。",
@@ -426,7 +427,8 @@ ADDITIONAL_UI_COPY: dict[str, dict[str, str]] = {
         "next_visual": "Next: visual candidates",
         "visual_gate": "Visual Inspiration Gate",
         "visual_title": "Choose the First-Draft Visual Direction",
-        "visual_intro": "These candidates are generated from the topic, PPT type, and audience. They borrow from design-locks, ui-ux-pro-max, and HTML deck/theme catalog patterns, while Codex Presentations still creates the editable PPTX.",
+        "visual_intro": "These candidates are generated from the topic, PPT type, and audience. They draw from design-locks and ui-ux-pro-max patterns to define palette, typography, and layout direction.",
+        "visual_intro_html": "These candidates determine the visual theme, transition style, and animation density for your Reveal.js HTML deck. The output is a browser-ready HTML file — no Codex Presentations plugin required. Each candidate is pre-matched to an HTML theme and animation profile.",
         "current_topic": "Current Topic",
         "visual_notes": "Additional Visual Requirements",
         "visual_notes_placeholder": "For example: more like a top-tier consulting deck, fewer cards, richer backgrounds, or suitable for a medical research audience.",
@@ -524,7 +526,8 @@ ADDITIONAL_UI_COPY: dict[str, dict[str, str]] = {
         "next_visual": "Weiter: visuelle Kandidaten",
         "visual_gate": "Tor für visuelle Richtung",
         "visual_title": "Visuelle Richtung für den ersten Entwurf wählen",
-        "visual_intro": "Diese Kandidaten werden aus Thema, PPT-Typ und Zielgruppe abgeleitet. Sie nutzen Muster aus design-locks, ui-ux-pro-max und HTML deck/theme catalogs; Codex Presentations erstellt daraus weiterhin eine editierbare PPTX.",
+        "visual_intro": "Diese Kandidaten werden aus Thema, PPT-Typ und Zielgruppe abgeleitet. Sie nutzen Muster aus design-locks und ui-ux-pro-max, um Farbpalette, Typografie und Layout-Richtung festzulegen.",
+        "visual_intro_html": "Diese Kandidaten bestimmen visuelles Thema, Übergangseffekte und Animationsdichte für das Reveal.js-HTML-Deck. Das Ergebnis ist eine browserfähige HTML-Datei — kein Codex-Presentations-Plugin erforderlich.",
         "current_topic": "Aktuelles Thema",
         "visual_notes": "Zusätzliche visuelle Anforderungen",
         "visual_notes_placeholder": "Zum Beispiel: näher an einer Top-Consulting-Präsentation, weniger Karten, mehr Tiefe im Hintergrund oder passend für ein medizinisches Forschungspublikum.",
@@ -1075,6 +1078,8 @@ HTML_THEME_OPTIONS: tuple[tuple[str, str], ...] = (
     ("cyberpunk-neon", "Futuristic demos, nightlife, high-energy concepts"),
 )
 
+HTML_THEME_DESCRIPTIONS: dict[str, str] = dict(HTML_THEME_OPTIONS)
+
 
 CONTEXT_LAYOUT_MAP: dict[str, list[str]] = {
     "pitch": ["cover-hero", "stat-highlight", "kpi-grid", "claim-bullets", "cta-close"],
@@ -1237,7 +1242,7 @@ INTAKE_QUESTIONS: tuple[Question, ...] = (
         prompt="第一版视觉方向怎么处理?",
         default="delegate",
         choices=(
-            Choice("delegate", "AI 自主决策", "由生成引擎根据主题、听众和视觉候选自主选择最优方案。Codex 环境下由 Presentations 插件主导；Claude Code 环境下由 AI 根据 brief 自主决策。"),
+            Choice("delegate", "AI 自主决策", "由 AI 根据主题、听众和视觉候选自主选择最优视觉方案。"),
             Choice("restrained", "更正式克制", "适合严肃汇报。"),
             Choice("technical", "更科技 / 工程感", "适合技术方案和架构解释。"),
             Choice("investor", "更投资人路演 / 高对比", "适合 pitch 或评审。"),
@@ -1251,7 +1256,7 @@ INTAKE_QUESTIONS: tuple[Question, ...] = (
         prompt="是否有参考 deck 或风格样张?",
         default="none",
         choices=(
-            Choice("none", "没有参考，按内容生成", "由 Presentations 自主设计。"),
+            Choice("none", "没有参考，按内容生成", "由 AI 根据内容和视觉候选自主设计。"),
             Choice("quality-only", "有参考，但只作为质量标杆", "beat reference, do not clone。"),
             Choice("visual-style", "有参考，需要接近其视觉风格", "继承风格但不盲目复制。"),
             Choice("existing-ppt", "有已有 PPT，需要在它基础上改", "作为 source/template。"),
@@ -3208,7 +3213,7 @@ def render_visual_inspiration(task_dir: Path) -> str:
     ]
     body: str = f"""<div class="topline">{html.escape(t(ui_language, "visual_gate"))}</div>
 <h1>{html.escape(t(ui_language, "visual_title"))}</h1>
-<p>{html.escape(t(ui_language, "visual_intro"))}</p>
+<p>{html.escape(t(ui_language, "visual_intro_html" if show_html_fields else "visual_intro"))}</p>
 <section class="section">
   <h2>{html.escape(t(ui_language, "current_topic"))}</h2>
   <p><strong>{html.escape(topic)}</strong></p>
@@ -3256,7 +3261,14 @@ def render_visual_candidate_card(
         )
     html_fields: str = ""
     if show_html_fields:
-        html_fields = f"""<div class="section" style="margin-top: 12px; padding: 10px;">
+        theme_key: str = candidate.suggested_html_theme or "auto"
+        theme_desc: str = HTML_THEME_DESCRIPTIONS.get(theme_key, "")
+        theme_label: str = f"{theme_key} — {theme_desc}" if theme_desc else theme_key
+        html_fields = f"""<div class="section" style="margin-top: 12px; padding: 10px; border-left: 3px solid #4f46e5;">
+  <div class="html-field" style="margin-bottom: 6px;">
+    <span class="label" style="font-weight:600;">{html.escape(t(ui_language, "html_theme_key"))}</span>
+    <span class="value" style="font-weight:600; color:#4f46e5;">{html.escape(theme_label)}</span>
+  </div>
   <div class="html-field">
     <span class="label">{html.escape(t(ui_language, "html_transition"))}</span>
     <span class="value">{html.escape(candidate.html_transition)}</span>
