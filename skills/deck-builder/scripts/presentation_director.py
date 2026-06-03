@@ -2711,6 +2711,10 @@ def apply_visual_selection(selected: JsonDict, form: dict[str, list[str]]) -> Js
     selected_key: str = first_form_value(form, "visual_candidate", candidates[0].key)
     candidate: VisualCandidate = next((item for item in candidates if item.key == selected_key), candidates[0])
     updated: JsonDict = dict(selected)
+    valid_theme_keys: set[str] = {key for key, _ in HTML_THEME_OPTIONS}
+    chosen_theme: str = first_form_value(form, "html_theme_key", "").strip()
+    if chosen_theme not in valid_theme_keys:
+        chosen_theme = candidate.suggested_html_theme or "auto"
     updated["visual_direction"] = {
         "selected_candidate": visual_candidate_to_json(candidate),
         "available_candidates": [visual_candidate_to_json(item) for item in candidates],
@@ -2718,6 +2722,7 @@ def apply_visual_selection(selected: JsonDict, form: dict[str, list[str]]) -> Js
         "notes": first_form_value(form, "visual_notes", "").strip(),
         "selected_at": datetime.now().isoformat(timespec="seconds"),
     }
+    updated["html_theme_key"] = chosen_theme
     updated["updated_at"] = datetime.now().isoformat(timespec="seconds")
     updated["confirmed"] = False
     return updated
@@ -3211,6 +3216,30 @@ def render_visual_inspiration(task_dir: Path) -> str:
         render_visual_candidate_card(candidate, current_key == candidate.key, ui_language, show_html_fields)
         for candidate in candidates
     ]
+    current_candidate: VisualCandidate = next((c for c in candidates if c.key == current_key), candidates[0])
+    current_theme_key: str = (
+        str(selected.get("html_theme_key", "")).strip()
+        or current_candidate.suggested_html_theme
+        or "auto"
+    )
+    html_theme_section: str = ""
+    if show_html_fields:
+        theme_option_labels: list[str] = []
+        for theme_key, best_for in HTML_THEME_OPTIONS:
+            checked: str = " checked" if theme_key == current_theme_key else ""
+            label_text: str = t(ui_language, "html_theme_auto") if theme_key == "auto" else best_for
+            theme_option_labels.append(
+                f"""<label class="option">
+  <input type="radio" name="html_theme_key" value="{html.escape(theme_key)}"{checked}>
+  <strong>{html.escape(theme_key)}</strong>
+  <p>{html.escape(label_text)}</p>
+</label>"""
+            )
+        html_theme_section = f"""<section class="section">
+  <h2>{html.escape(t(ui_language, "html_theme_key"))}</h2>
+  <div class="grid">{''.join(theme_option_labels)}</div>
+</section>
+"""
     body: str = f"""<div class="topline">{html.escape(t(ui_language, "visual_gate"))}</div>
 <h1>{html.escape(t(ui_language, "visual_title"))}</h1>
 <p>{html.escape(t(ui_language, "visual_intro_html" if show_html_fields else "visual_intro"))}</p>
@@ -3222,7 +3251,7 @@ def render_visual_inspiration(task_dir: Path) -> str:
   <div class="grid">
     {''.join(candidate_cards)}
   </div>
-  <section class="section">
+  {html_theme_section}<section class="section">
     <h2>{html.escape(t(ui_language, "visual_notes"))}</h2>
     <textarea name="visual_notes" placeholder="{html.escape(t(ui_language, "visual_notes_placeholder"))}">{html.escape(str(visual_direction.get("notes", "") if isinstance(visual_direction, dict) else ""))}</textarea>
   </section>
