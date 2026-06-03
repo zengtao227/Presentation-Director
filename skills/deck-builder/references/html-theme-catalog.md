@@ -11,29 +11,38 @@ Internalized theme guidance for native Reveal.js decks. This catalog is inspired
 
 ## Theme Keys
 
-| Key | Best For | Visual System |
-|-----|----------|---------------|
-| `minimal-white` | teaching, clean explainers, internal updates | white background, black text, restrained accent, high readability |
-| `editorial-serif` | essays, policy, research narratives | serif headlines, warm off-white paper, narrow measure, quiet rules |
-| `swiss-grid` | consulting, structured analysis | visible grid rhythm, strong alignment, compact labels, low decoration |
-| `corporate-clean` | executive and business reviews | neutral surfaces, concise KPI blocks, conservative accent use |
-| `academic-paper` | science, medical, literature review | citation-friendly layout, restrained color, table and annotation support |
-| `blueprint` | architecture, systems, engineering | blue technical grid, thin lines, diagram-first composition |
-| `engineering-whiteprint` | architecture on light backgrounds | light grid, dark ink, technical diagrams, readable code snippets |
-| `terminal-green` | developer tools, infra, DevOps | dark terminal surface, monospace accents, command/status blocks |
-| `pitch-deck-vc` | investor or competition decks | high contrast, big numbers, bold section breaks, short copy |
-| `product-launch` | product demos and launches | hero media slots, feature comparison, workflow and adoption visuals |
-| `news-broadcast` | sports, market updates, live operations | lower-third labels, scorecard rhythm, large current-state metrics |
-| `magazine-bold` | brand storytelling, campaigns | oversized editorial type, image-led sections, strong pacing |
-| `aurora` | science/tech talks that need energy | light gradient wash, glow accents, animated emphasis, high contrast text |
-| `glassmorphism` | premium product or SaaS demo | translucent panels over subtle background, careful contrast checks |
-| `cyberpunk-neon` | dramatic developer/AI demos | dark background, neon accents, use sparingly for short decks |
+This is a curated subset of the 36 verified theme keys shipped by `lewislulu/html-ppt-skill` (`assets/themes/*.css`). Each is a CSS-tokens file overriding shared variables (`--bg`, `--accent`, `--accent-2/3`, `--font-display`, etc.). Hex and font values below are read directly from the repo's theme files (verified facts, not copyrightable). Reproduce the *direction* as local Reveal.js CSS variables; do not import the source files.
+
+`Source` legend: `repo` = verified key + tokens in html-ppt-skill; `general` = generic Reveal.js / web design knowledge.
+
+| Key | Best For | Visual System (verified tokens) | Source |
+|-----|----------|---------------|--------|
+| `minimal-white` | teaching, clean explainers, internal updates | white bg `#ffffff`, near-black ink `#0c0d10`, near-black accent `#111216`, Inter display, very low shadow | repo |
+| `editorial-serif` | essays, policy, research narratives | warm paper `#faf7f2`, brick accent `#8a2a1c` / terracotta `#c97a4a`, Playfair Display serif throughout | repo |
+| `swiss-grid` | consulting, structured analysis | white bg, signal-red accent `#d6001c`, Helvetica/Inter, strong grid alignment, low decoration | repo |
+| `corporate-clean` | executive and business reviews | white bg, navy ink `#0a2540`, royal-blue accent `#1d4ed8`, Inter, conservative borders | repo |
+| `academic-paper` | science, medical, literature review | off-white `#fdfcf8`, indigo accent `#1a3a7a` + maroon `#8a1a1a`, serif body (Latin Modern/Playfair), citation-friendly | repo |
+| `blueprint` | architecture, systems, engineering | deep blue bg `#0b3a6f`, white/cyan accents, JetBrains Mono, grid texture, diagram-first | repo |
+| `engineering-whiteprint` | architecture on light backgrounds | white bg, navy ink `#0a1e46`, blue accent `#1e5ac4` + red `#c42a10`, Mono display over Inter body, graph-paper grid | repo |
+| `terminal-green` | developer tools, infra, DevOps | near-black bg `#030a04`, neon-green accent `#00ff88`, JetBrains Mono, glow text | repo |
+| `pitch-deck-vc` | investor or competition decks | white bg, blue→purple→pink accents `#0070f3`/`#7928ca`/`#ff4ecb`, Inter, large whitespace | repo |
+| `news-broadcast` | sports, market updates, live operations | white bg, broadcast-red accent `#e11d2d` + yellow `#ffd100`, Oswald uppercase display, hard shadow | repo |
+| `magazine-bold` | brand storytelling, campaigns | cream bg `#f5efe2`, orange spot `#ea5a1a`, oversized Playfair display over Inter body | repo |
+| `aurora` | science/tech talks that need energy | DARK bg `#06091c`, mint/blue/violet glow accents `#5ef2c6`/`#7aa2ff`/`#c984ff`, gradient + blur, high-contrast text | repo |
+| `glassmorphism` | premium product or SaaS demo | DARK navy bg `#0b1024`, translucent surfaces (white at low alpha), sky/violet accents `#7dd3fc`/`#c084fc`; verify contrast | repo |
+| `cyberpunk-neon` | dramatic developer/AI demos | pure-black bg `#000000`, neon magenta `#ff2bd6` + cyan `#00f0ff` + yellow `#f9f871`, Mono display; use sparingly | repo |
+
+> Note: `product-launch` was previously listed here as a theme. It is **not** a theme in the source repo — it is a full-deck *template* (`templates/full-decks/product-launch/`). For a launch deck, choose a theme (e.g. `glassmorphism`, `aurora`, `pitch-deck-vc`) and apply launch layouts locally.
+
+### Other verified theme keys (repo, not expanded above)
+
+`soft-pastel`, `sharp-mono`, `arctic-cool`, `sunset-warm`, `catppuccin-latte`, `catppuccin-mocha`, `dracula`, `tokyo-night`, `nord`, `solarized-light`, `gruvbox-dark`, `rose-pine`, `neo-brutalism`, `bauhaus`, `xiaohongshu-white`, `rainbow-gradient`, `memphis-pop`, `y2k-chrome`, `retro-tv`, `japanese-minimal`, `vaporwave`, `midcentury`. (Source: repo `assets/themes/*.css`. Reproduce direction locally; do not import.)
 
 ## Selection Heuristics
 
 - `research` context: prefer `academic-paper`, `editorial-serif`, or `aurora`.
 - `engineering` context: prefer `engineering-whiteprint`, `blueprint`, or `terminal-green`.
-- `market` / `pitch`: prefer `pitch-deck-vc`, `product-launch`, or `magazine-bold`.
+- `market` / `pitch`: prefer `pitch-deck-vc` or `magazine-bold` (apply launch *layouts* on top of the theme; there is no `product-launch` theme).
 - `sports` / live operations: prefer `news-broadcast`.
 - Long source-heavy decks should start from quieter themes; use high-energy themes only for cover, section, and conclusion contrast.
 
