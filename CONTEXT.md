@@ -184,6 +184,28 @@ output_format: "html-revealjs" | "pptx" | "both"
 
 新 brief 必须先经过 `serve-wait --open-page image-style --for images-style`；旧 brief 如果没有 `image_generation_mode`，`guard` 会跳过图片门禁以保持兼容。pre-v1 生图必须写 `image-plan.json` 和 `image-assets.json`，其中 `final_status: "success"` 只能在输出图片文件存在且非空后写入；失败按 retry-2-then-stop 处理，不能静默降级成 CSS 渐变或 SVG 占位。`post-v1-slot-review` 和 `hybrid` 在 v1 preview artifact 就绪后，再通过 `serve-wait --open-page image-placement --for images-placement` 写 `image-placement-request.json`，然后生成 v2。
 
+### HTML Theme & Motion
+
+Image Style Gate 完成后，`brief-confirmed.json` 的 `html_config` 对象包含以下字段（仅 `html-revealjs` 和 `both` 格式有效；PPTX 路径忽略这些字段）：
+
+| 字段 | 说明 |
+|---|---|
+| `theme_key` | 选定的 HTML 主题（如 `aurora`、`blueprint`、`academic-paper`）；用户可在 Image Style Gate 手动选，否则由 Visual Direction 候选自动推断 |
+| `motion_level` | 动效强度：`subtle`（仅 fade/rise-in）、`expressive`（加 zoom-pop/counter-up）、`cinematic`（封面/章节/结束页可用 spotlight/kenburns，CSS-only） |
+| `motion_profile` | 风格家族：`pitch`、`tech`、`editorial`、`product`、`presenter` |
+| `layout_families` | 推荐布局序列（来自 html-layout-catalog.md），如 `["cover-hero","architecture-map","flow-diagram","code-terminal","timeline"]` |
+| `transition` | Reveal.js 页面切换效果（`fade`/`slide`/`zoom`/`convex`）|
+| `effects_runtime` | 固定为 `css-only`；Canvas/WebGL 为未来能力 |
+
+生成 HTML 时必须遵守：
+- 用 CSS `:root` 变量实现主题 token（`--deck-bg`、`--deck-ink`、`--deck-accent`、`--deck-muted`）
+- 所有文字/图表/表格放在 `.slide-safe`（left:54px; top:70px; width:1172px; height:590px）
+- AI 背景图用 `.bleed`（position:absolute; inset:0）
+- 加载 Reveal.js Notes plugin；每页有 `<aside class="notes">`
+- 数据幻灯片使用 Chart.js 4.x，直接数据标签，不用图例
+
+pre-v1 图片生成使用 `skills/deck-builder/scripts/generate_images.py`（支持 `--api stub/dall-e-3/flux`）。
+
 ### PPTX Editability
 
 最终 `.pptx` 是主要可编辑交付物。小改不需要重新生成整套 deck：文字替换、元素左右移动、颜色微调、替换图片、添加少量图片或图表，都应优先作为 PowerPoint 手工编辑或 Codex `Presentations` targeted-edit 处理。为了保留可回退历史，agent 修改现有 PPTX 时应复制成新版本，例如 `PPTX/<task-slug>/v2/final.pptx`，再重新生成 HTML companion。

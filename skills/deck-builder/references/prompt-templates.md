@@ -33,7 +33,15 @@ python3 scripts/presentation_director.py serve-wait \
   --open-page image-style \
   --for images-style
 
-# 4. Print the generation handoff prompt
+# 4. Generate pre-v1 AI images (skip if image_generation_mode = none or post-v1-slot-review)
+#    Use --api stub for testing without an API key.
+python3 skills/deck-builder/scripts/generate_images.py \
+  --task-dir "PPTX/<short task slug>" \
+  --api dall-e-3
+#    Verify guard passes before proceeding:
+python3 scripts/presentation_director.py guard --task "<short task slug>"
+
+# 5. Print the generation handoff prompt
 python3 scripts/presentation_director.py prompt --task "<short task slug>" --kind initial
 ```
 

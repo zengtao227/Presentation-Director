@@ -1775,20 +1775,33 @@ def html_motion_profile_from_brief(brief: JsonDict) -> str:
     return "presenter"
 
 
+_LAYOUT_FAMILIES_BY_PROFILE: dict[str, list[str]] = {
+    "pitch":     ["cover-hero", "stat-highlight", "kpi-grid", "claim-bullets", "cta-close"],
+    "tech":      ["cover-hero", "architecture-map", "flow-diagram", "code-terminal", "timeline"],
+    "editorial": ["cover-hero", "claim-bullets", "evidence-table", "chart-bar-line", "big-quote"],
+    "product":   ["cover-hero", "process-steps", "diff-before-after", "kpi-grid", "cta-close"],
+    "presenter": ["cover-hero", "claim-bullets", "two-column-proof", "chart-bar-line", "cta-close"],
+}
+
+
 def html_config_from_brief(brief: JsonDict, motion_level: str) -> JsonDict:
     candidate: JsonDict = selected_visual_candidate_from_brief(brief)
-    # User may override theme key via Image Style Gate; "auto" means use candidate suggestion.
     user_theme: str = str(brief.get("html_theme_key", "auto")).strip()
     candidate_theme: str = str(candidate.get("html_theme_key", "minimal-white")).strip()
     resolved_theme: str = candidate_theme if user_theme in ("auto", "") else user_theme
+    motion_profile: str = html_motion_profile_from_brief(brief)
+    layout_families: list[str] = _LAYOUT_FAMILIES_BY_PROFILE.get(
+        motion_profile, _LAYOUT_FAMILIES_BY_PROFILE["presenter"]
+    )
     return {
         "theme_key": resolved_theme,
-        "motion_profile": html_motion_profile_from_brief(brief),
+        "motion_profile": motion_profile,
         "motion_level": motion_level,
         "animation_density": html_animation_density_for_level(motion_level),
         "transition": str(candidate.get("html_transition", "fade")),
         "animation": str(candidate.get("html_animation", "minimal")),
         "gradient": str(candidate.get("html_gradient", "")),
+        "layout_families": layout_families,
         "effects_runtime": "css-only",
         "canvas_fx": False,
     }
