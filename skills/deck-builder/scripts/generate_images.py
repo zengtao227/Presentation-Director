@@ -9,12 +9,16 @@ AUTOMATIC backends (no human involvement):
   --api flux        fal.ai Flux      (FAL_KEY, ~$0.003/image)
 
 MANUAL workflow — best zero-cost option:
-  --api prompt-only  Export optimized prompts to image-prompts.md.
-                     Paste into any free online tool, download image,
-                     then run `place` to register it.
+  show               Print concise prompts to stdout for chat handoff.
+  --api prompt-only  Export the same concise prompts to image-prompts.md.
+                     Paste into any tool, then run `place` to register it.
 
 REGISTER manually downloaded images:
   place              Scan assets/images/ for plan targets and record them.
+  place --source ~/Downloads/cover.png --target-id cover-background
+                     Copy one arbitrary source image to the planned output path.
+  place --sources '{"cover-background":"~/Downloads/cover.png"}'
+                     Copy and record multiple arbitrary source images.
 
 Free online tools that accept these prompts (no API key needed):
   • Microsoft Copilot / Bing Image Creator  →  copilot.microsoft.com  (DALL-E 3, generous free)
@@ -26,6 +30,7 @@ Free online tools that accept these prompts (no API key needed):
 Usage:
   python3 generate_images.py --task-dir PPTX/<slug> --api stub
   python3 generate_images.py --task-dir PPTX/<slug> --api hf
+  python3 generate_images.py --task-dir PPTX/<slug> show
   python3 generate_images.py --task-dir PPTX/<slug> --api prompt-only
   python3 generate_images.py --task-dir PPTX/<slug> place
 """
@@ -34,6 +39,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import struct
 import subprocess
 import sys
@@ -85,6 +91,41 @@ def write_solid_png(path: Path, width: int, height: int, rgb: tuple[int, int, in
 
 def _base_prompt(target: dict) -> str:
     return str(target.get("prompt_draft", "Abstract textured background, minimal, no text, no people"))
+
+
+def read_pre_v1_targets(task_dir: Path) -> list[dict]:
+    plan_path: Path = task_dir / "image-plan.json"
+    if not plan_path.exists():
+        print(f"No image-plan.json at {plan_path}.")
+        return []
+
+    with plan_path.open(encoding="utf-8") as f:
+        plan: dict = json.load(f)
+
+    return [
+        target for target in plan.get("targets", [])
+        if isinstance(target, dict) and str(target.get("phase", "pre-v1")) == "pre-v1"
+    ]
+
+
+def target_id(target: dict) -> str:
+    return str(target.get("id", "unknown"))
+
+
+def target_output_path(task_dir: Path, target: dict) -> Path:
+    target_name: str = target_id(target)
+    raw_path: str = str(target.get("output_path", f"assets/images/{target_name}.png"))
+    path: Path = Path(raw_path).expanduser()
+    if path.is_absolute():
+        return path
+    return task_dir / path
+
+
+def target_by_id(targets: list[dict], requested_target_id: str) -> dict | None:
+    for target in targets:
+        if target_id(target) == requested_target_id:
+            return target
+    return None
 
 
 def _platform_prompts(target: dict) -> dict[str, str]:
@@ -242,132 +283,148 @@ def record_attempt(
 # Prompt-only export
 # ---------------------------------------------------------------------------
 
-def export_prompts(task_dir: Path) -> None:
-    """Write image-prompts.md with platform-specific prompts for each target."""
-    plan_path = task_dir / "image-plan.json"
-    if not plan_path.exists():
-        print(f"No image-plan.json at {plan_path}.")
-        return
+def conversation_prompt_lines(task_dir: Path, targets: list[dict]) -> list[str]:
+    if not targets:
+        return ["No pre-v1 targets found."]
 
-    with plan_path.open(encoding="utf-8") as f:
-        plan: dict = json.load(f)
-
-    targets = [
-        t for t in plan.get("targets", [])
-        if isinstance(t, dict) and str(t.get("phase", "pre-v1")) == "pre-v1"
+    lines: list[str] = [
+        f"需要生成 {len(targets)} 张图片:",
+        "",
     ]
+    for index, target in enumerate(targets, start=1):
+        current_target_id: str = target_id(target)
+        out_path: Path = target_output_path(task_dir, target)
+        prompt: str = _base_prompt(target)
+        lines.extend([
+            f"{index}. [{current_target_id}] -> 保存到: {out_path}",
+            f"   提示词: {prompt}",
+            "   推荐工具: Copilot / Ideogram / Firefly",
+            "",
+        ])
+    lines.extend([
+        "生成后告诉我文件路径，或直接拖入上述文件夹，我会自动注册。",
+        "注册命令示例:",
+        f"python3 skills/deck-builder/scripts/generate_images.py --task-dir {task_dir} place --source <image-path> --target-id <target-id>",
+    ])
+    return lines
+
+
+def show_prompts(task_dir: Path) -> None:
+    targets: list[dict] = read_pre_v1_targets(task_dir)
+    print("\n".join(conversation_prompt_lines(task_dir, targets)))
+
+
+def export_prompts(task_dir: Path) -> None:
+    """Write concise manual-generation prompts for each pre-v1 target."""
+    targets: list[dict] = read_pre_v1_targets(task_dir)
     if not targets:
         print("No pre-v1 targets found.")
         return
 
-    out_md = task_dir / "image-prompts.md"
+    out_md: Path = task_dir / "image-prompts.md"
     lines: list[str] = [
-        "# Image Prompts for Manual Generation",
+        "# Image Prompts",
         "",
-        "## Recommended free tools (no API key needed)",
-        "",
-        "| Tool | URL | Quality | Limit |",
-        "|---|---|---|---|",
-        "| **Microsoft Copilot** | copilot.microsoft.com | ★★★★★ (DALL-E 3) | Generous daily free |",
-        "| **Google ImageFX** | aitestkitchen.withgoogle.com/tools/image-fx | ★★★★ | Free, Google account |",
-        "| **Ideogram** | ideogram.ai | ★★★★ | Free tier |",
-        "| **Adobe Firefly** | firefly.adobe.com | ★★★★ | 25 free credits/month |",
-        "| **Leonardo.ai** | leonardo.ai | ★★★★ | Free daily credits |",
-        "",
-        "**Tip:** Microsoft Copilot is the easiest — no upload limit, no subscription, DALL-E 3 quality.",
-        "",
-        "## After generating each image",
-        "",
-        "Download it and save to the path shown below, then run:",
-        "```bash",
-        f"python3 skills/deck-builder/scripts/generate_images.py --task-dir {task_dir} place",
-        "```",
-        "",
-        "---",
+        *conversation_prompt_lines(task_dir, targets),
         "",
     ]
-
-    for target in targets:
-        target_id = str(target.get("id", "unknown"))
-        out_path = str(target.get("output_path", f"assets/images/{target_id}.png"))
-        prompts = _platform_prompts(target)
-        slide_role = str(target.get("slide_role", "cover"))
-
-        lines += [
-            f"## Image: `{target_id}`",
-            f"**Save to:** `{task_dir / out_path}`",
-            f"**Slide role:** {slide_role} &nbsp;|&nbsp; **Required size:** 1920×1080 px (16:9)",
-            "",
-            "### Use this prompt (works for Copilot, Firefly, Ideogram, Leonardo)",
-            "```",
-            prompts["generic"],
-            "```",
-            "",
-            "### Midjourney (Discord)",
-            "```",
-            prompts["midjourney"],
-            "```",
-            "",
-            "### Stable Diffusion / ComfyUI",
-            "**Positive prompt:**",
-            "```",
-            prompts["sd_positive"],
-            "```",
-            "**Negative prompt:**",
-            "```",
-            prompts["sd_negative"],
-            "```",
-            "",
-            "---",
-            "",
-        ]
-
     out_md.write_text("\n".join(lines), encoding="utf-8")
-    print(f"✓ Prompts written to: {out_md}")
-    print()
-    print("Steps:")
-    for target in targets:
-        target_id = str(target.get("id", "unknown"))
-        out_path = str(target.get("output_path", f"assets/images/{target_id}.png"))
-        print(f"  1. Open image-prompts.md, copy prompt for [{target_id}]")
-        print(f"  2. Paste into copilot.microsoft.com or any tool above")
-        print(f"  3. Download image → save to: {task_dir / out_path}")
-    print()
-    print(f"  4. Run: python3 {Path(__file__).name} --task-dir {task_dir} place")
+    print(f"Prompts written to: {out_md}")
 
 
 # ---------------------------------------------------------------------------
 # Place manually downloaded images
 # ---------------------------------------------------------------------------
 
-def place_manual(task_dir: Path, director_script: Path) -> None:
-    """Scan assets/images/ for files matching plan targets and record them."""
-    plan_path = task_dir / "image-plan.json"
-    if not plan_path.exists():
-        print(f"No image-plan.json at {plan_path}.")
+def copy_and_record_source(
+    task_dir: Path,
+    director_script: Path,
+    targets: list[dict],
+    requested_target_id: str,
+    source_value: str,
+) -> bool:
+    target: dict | None = target_by_id(targets, requested_target_id)
+    if target is None:
+        print(f"  ✗ [{requested_target_id}] target not found in image-plan.json")
+        return False
+
+    source_path: Path = Path(source_value).expanduser().resolve()
+    if not source_path.exists() or source_path.stat().st_size <= 0:
+        print(f"  ✗ [{requested_target_id}] source missing or empty: {source_path}")
+        return False
+
+    out_path: Path = target_output_path(task_dir, target)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    if source_path != out_path:
+        shutil.copy2(source_path, out_path)
+
+    prompt: str = _base_prompt(target)
+    record_attempt(director_script, task_dir, requested_target_id, prompt, out_path, "success")
+    print(f"  ✓ [{requested_target_id}] copied and recorded: {out_path} ({out_path.stat().st_size // 1024} KB)")
+    return True
+
+
+def parse_sources_json(sources_json: str) -> dict[str, str]:
+    try:
+        value: object = json.loads(sources_json)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"--sources must be a JSON object: {exc}") from exc
+    if not isinstance(value, dict):
+        raise ValueError("--sources must be a JSON object mapping target_id to source path")
+    parsed: dict[str, str] = {}
+    for key, source_value in value.items():
+        target_name: str = str(key).strip()
+        source_text: str = str(source_value).strip()
+        if target_name and source_text:
+            parsed[target_name] = source_text
+    return parsed
+
+
+def place_manual(
+    task_dir: Path,
+    director_script: Path,
+    source: str = "",
+    target_id_value: str = "",
+    sources_json: str = "",
+) -> None:
+    """Register manual images by copying sources or scanning planned output paths."""
+    targets: list[dict] = read_pre_v1_targets(task_dir)
+    if not targets:
+        print("No pre-v1 targets found.")
         return
 
-    with plan_path.open(encoding="utf-8") as f:
-        plan: dict = json.load(f)
+    if sources_json:
+        source_map: dict[str, str] = parse_sources_json(sources_json)
+        found: int = 0
+        missing: int = 0
+        for requested_target_id, source_value in source_map.items():
+            if copy_and_record_source(task_dir, director_script, targets, requested_target_id, source_value):
+                found += 1
+            else:
+                missing += 1
+        print(f"\n{found} recorded, {missing} missing.")
+        return
 
-    targets = [
-        t for t in plan.get("targets", [])
-        if isinstance(t, dict) and str(t.get("phase", "pre-v1")) == "pre-v1"
-    ]
+    if source:
+        if not target_id_value:
+            raise ValueError("--target-id is required when --source is used")
+        copied: bool = copy_and_record_source(task_dir, director_script, targets, target_id_value, source)
+        print("\n1 recorded, 0 missing." if copied else "\n0 recorded, 1 missing.")
+        return
 
-    found = missing = 0
+    found: int = 0
+    missing: int = 0
     for target in targets:
-        target_id = str(target.get("id", "unknown"))
-        prompt = _base_prompt(target)
-        raw_path = str(target.get("output_path", f"assets/images/{target_id}.png"))
-        out_path = Path(raw_path) if Path(raw_path).is_absolute() else task_dir / raw_path
+        current_target_id: str = target_id(target)
+        prompt: str = _base_prompt(target)
+        out_path: Path = target_output_path(task_dir, target)
 
         if out_path.exists() and out_path.stat().st_size > 0:
-            record_attempt(director_script, task_dir, target_id, prompt, out_path, "success")
-            print(f"  ✓ [{target_id}] recorded ({out_path.stat().st_size // 1024} KB)")
+            record_attempt(director_script, task_dir, current_target_id, prompt, out_path, "success")
+            print(f"  ✓ [{current_target_id}] recorded ({out_path.stat().st_size // 1024} KB)")
             found += 1
         else:
-            print(f"  ✗ [{target_id}] not found: {out_path}")
+            print(f"  ✗ [{current_target_id}] not found: {out_path}")
             missing += 1
 
     print(f"\n{found} recorded, {missing} missing.")
@@ -383,18 +440,7 @@ def place_manual(task_dir: Path, director_script: Path) -> None:
 # ---------------------------------------------------------------------------
 
 def generate_targets(task_dir: Path, api: str, director_script: Path) -> None:
-    plan_path = task_dir / "image-plan.json"
-    if not plan_path.exists():
-        print(f"No image-plan.json at {plan_path}. Nothing to generate.")
-        return
-
-    with plan_path.open(encoding="utf-8") as f:
-        plan: dict = json.load(f)
-
-    targets = [
-        t for t in plan.get("targets", [])
-        if isinstance(t, dict) and str(t.get("phase", "pre-v1")) == "pre-v1"
-    ]
+    targets: list[dict] = read_pre_v1_targets(task_dir)
     if not targets:
         print("No pre-v1 targets. Nothing to generate.")
         return
@@ -403,25 +449,24 @@ def generate_targets(task_dir: Path, api: str, director_script: Path) -> None:
     success_count = fail_count = 0
 
     for target in targets:
-        target_id = str(target.get("id", "unknown"))
-        prompt = _base_prompt(target)
-        raw_path = str(target.get("output_path", f"assets/images/{target_id}.png"))
-        out_path = Path(raw_path) if Path(raw_path).is_absolute() else task_dir / raw_path
+        current_target_id: str = target_id(target)
+        prompt: str = _base_prompt(target)
+        out_path: Path = target_output_path(task_dir, target)
 
         final_status = "failed"
 
         for attempt in range(1, MAX_ATTEMPTS + 1):
             try:
-                print(f"  [{target_id}] attempt {attempt}/{MAX_ATTEMPTS} …", end=" ", flush=True)
+                print(f"  [{current_target_id}] attempt {attempt}/{MAX_ATTEMPTS} ...", end=" ", flush=True)
                 run_backend(api, target, out_path)
-                record_attempt(director_script, task_dir, target_id, prompt, out_path, "success")
+                record_attempt(director_script, task_dir, current_target_id, prompt, out_path, "success")
                 final_status = "success"
-                print("✓")
+                print("OK")
                 break
             except Exception as exc:
                 err = str(exc)
-                record_attempt(director_script, task_dir, target_id, prompt, out_path, "failed", err)
-                print(f"✗  {err}")
+                record_attempt(director_script, task_dir, current_target_id, prompt, out_path, "failed", err)
+                print(f"FAILED  {err}")
                 if attempt < MAX_ATTEMPTS:
                     time.sleep(4)
 
@@ -429,7 +474,7 @@ def generate_targets(task_dir: Path, api: str, director_script: Path) -> None:
             success_count += 1
         else:
             fail_count += 1
-            print(f"  [{target_id}] FAILED after {MAX_ATTEMPTS} attempts.", file=sys.stderr)
+            print(f"  [{current_target_id}] FAILED after {MAX_ATTEMPTS} attempts.", file=sys.stderr)
 
     print(f"\nDone: {success_count} succeeded, {fail_count} failed.")
     if fail_count:
@@ -471,8 +516,15 @@ def main() -> None:
     parser.add_argument(
         "command",
         nargs="?",
-        choices=["place"],
-        help="place: record manually downloaded images into image-assets.json",
+        choices=["show", "place"],
+        help="show: print prompts to stdout | place: record manually downloaded images into image-assets.json",
+    )
+    parser.add_argument("--source", default="", help="Source image path for one manual placement.")
+    parser.add_argument("--target-id", default="", help="Target id used with --source.")
+    parser.add_argument(
+        "--sources",
+        default="",
+        help='JSON object mapping target ids to source image paths, e.g. \'{"cover":"~/cover.png"}\'.',
     )
     args = parser.parse_args()
 
@@ -489,8 +541,14 @@ def main() -> None:
         print(f"Director script not found: {director_script}", file=sys.stderr)
         sys.exit(1)
 
-    if args.command == "place":
-        place_manual(task_dir, director_script)
+    if args.command == "show":
+        show_prompts(task_dir)
+    elif args.command == "place":
+        try:
+            place_manual(task_dir, director_script, args.source, args.target_id, args.sources)
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            sys.exit(2)
     elif args.api == "prompt-only":
         export_prompts(task_dir)
     else:

@@ -182,7 +182,7 @@ output_format: "html-revealjs" | "pptx" | "both"
 
 `image_policy` 保持现有 intake 权限枚举：`none`、`abstract-only`、`cover-section`、`ask-before-use`、`custom`。执行层另由 Image Style Gate 写入 `image_generation_mode`：`none`、`global-background`、`cover-section-auto`、`post-v1-slot-review`、`hybrid`。
 
-新 brief 必须先经过 `serve-wait --open-page image-style --for images-style`；旧 brief 如果没有 `image_generation_mode`，`guard` 会跳过图片门禁以保持兼容。pre-v1 生图必须写 `image-plan.json` 和 `image-assets.json`，其中 `final_status: "success"` 只能在输出图片文件存在且非空后写入；失败按 retry-2-then-stop 处理，不能静默降级成 CSS 渐变或 SVG 占位。`post-v1-slot-review` 和 `hybrid` 在 v1 preview artifact 就绪后，再通过 `serve-wait --open-page image-placement --for images-placement` 写 `image-placement-request.json`，然后生成 v2。
+新 brief 必须先经过 `serve-wait --open-page image-style --for images-style`；旧 brief 如果没有 `image_generation_mode`，`guard` 会跳过图片门禁以保持兼容。pre-v1 生图必须写 `image-plan.json` 和 `image-assets.json`，其中 `final_status: "success"` 只能在输出图片文件存在且非空后写入；失败不能静默降级成 CSS 渐变或 SVG 占位。交互式默认流程是运行 `generate_images.py show` 把 prompt 展示给用户，用户用任意工具生成图片后，通过 `generate_images.py place --source <path> --target-id <id>` 或 `--sources '{...}'` 复制并注册图片；`--api stub/dall-e-3/flux/hf` 仅作为显式自动化或测试后端。`post-v1-slot-review` 和 `hybrid` 在 v1 preview artifact 就绪后，再通过 `serve-wait --open-page image-placement --for images-placement` 写 `image-placement-request.json`，然后生成 v2。
 
 ### HTML Theme & Motion
 
@@ -198,13 +198,13 @@ Image Style Gate 完成后，`brief-confirmed.json` 的 `html_config` 对象包�
 | `effects_runtime` | 固定为 `css-only`；Canvas/WebGL 为未来能力 |
 
 生成 HTML 时必须遵守：
-- 用 CSS `:root` 变量实现主题 token（`--deck-bg`、`--deck-ink`、`--deck-accent`、`--deck-muted`）
+- 用 CSS `:root` 变量实现主题 token（`--deck-bg`、`--deck-ink`、`--deck-muted`、`--deck-accent`、`--deck-accent-2`、`--deck-line`）
 - 所有文字/图表/表格放在 `.slide-safe`（left:54px; top:70px; width:1172px; height:590px）
 - AI 背景图用 `.bleed`（position:absolute; inset:0）
 - 加载 Reveal.js Notes plugin；每页有 `<aside class="notes">`
 - 数据幻灯片使用 Chart.js 4.x，直接数据标签，不用图例
 
-pre-v1 图片生成使用 `skills/deck-builder/scripts/generate_images.py`（支持 `--api stub/dall-e-3/flux`）。
+pre-v1 图片默认使用 `skills/deck-builder/scripts/generate_images.py show` 在对话中展示 prompt，然后用 `place --source/--target-id` 或 `place --sources` 注册用户提供的任意路径图片。自动后端保留给显式选择和测试使用。
 
 ### PPTX Editability
 

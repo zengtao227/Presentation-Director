@@ -33,12 +33,23 @@ python3 scripts/presentation_director.py serve-wait \
   --open-page image-style \
   --for images-style
 
-# 4. Generate pre-v1 AI images (skip if image_generation_mode = none or post-v1-slot-review)
-#    Use --api stub for testing without an API key.
+# 4. Show pre-v1 image prompts when image_generation_mode needs pre-v1 images
 python3 skills/deck-builder/scripts/generate_images.py \
   --task-dir "PPTX/<short task slug>" \
-  --api dall-e-3
-#    Verify guard passes before proceeding:
+  show
+#    Present the prompts to the user. After the user provides image paths, register them:
+python3 skills/deck-builder/scripts/generate_images.py \
+  --task-dir "PPTX/<short task slug>" \
+  place \
+  --source "<user image path>" \
+  --target-id "<target id>"
+#    Or register multiple paths at once:
+python3 skills/deck-builder/scripts/generate_images.py \
+  --task-dir "PPTX/<short task slug>" \
+  place \
+  --sources '{"cover-background":"~/Downloads/cover.png"}'
+#    Optional explicit automation/testing remains available: --api stub, --api dall-e-3, --api flux, --api hf.
+#    Verify guard passes before proceeding.
 python3 scripts/presentation_director.py guard --task "<short task slug>"
 
 # 5. Print the generation handoff prompt
@@ -209,26 +220,28 @@ Internal catalogs (do NOT import as runtime dependencies):
 - Do not fabricate numbers, logos, or missing data
 
 [Build Requirements]
-- CDN (pinned): reveal.js@5.1.0 reset.css, reveal.css, black.css, reveal.js
-  Plus Notes plugin: <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/notes/notes.js"></script>
+- CDN (pinned): reveal.js@5.1.0 reset.css, reveal.css, a built-in theme, reveal.js
+  Plus Notes plugin: import RevealNotes from https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/notes/notes.esm.js
   Init: Reveal.initialize({ transition: "<from html_config>", plugins: [RevealNotes] });
 - Theme: use html_config.theme_key from brief; implement as CSS :root token variables:
-  :root { --deck-bg: …; --deck-ink: …; --deck-accent: …; --deck-muted: …; }
+  :root { --deck-bg: …; --deck-ink: …; --deck-muted: …; --deck-accent: …; --deck-accent-2: …; --deck-line: …; }
   Consume tokens everywhere; no per-slide hard-coded hex values.
 - Safe-area (required on every slide):
-  .slide-safe { position:absolute; left:54px; top:70px; width:1172px; height:590px; overflow:hidden; }
-  .bleed { position:absolute; inset:0; z-index:0; }  /* AI background images only */
+  .slide-safe { position:absolute; left:54px; top:70px; width:1172px; height:590px; }
+  .bleed { position:absolute; inset:0; }  /* AI background images only */
 - Animation keyframes (add once in <style>):
   @keyframes rise-in { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes fade-up { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
   .rise-in { animation: rise-in .55s ease both; }
   .stagger > * { animation: rise-in .5s ease both; }
   .stagger > *:nth-child(2) { animation-delay:.08s; }
   .stagger > *:nth-child(3) { animation-delay:.16s; }
+  .stagger > *:nth-child(4) { animation-delay:.24s; }
   @media(prefers-reduced-motion:reduce) { * { animation:none!important; } }
   motion_level subtle → fade-up/rise-in/stagger only
   motion_level expressive → also zoom-pop, counter-up on KPI numbers
   motion_level cinematic → also spotlight/kenburns on cover and section slides only (no Canvas/WebGL)
-- Data slides: use Chart.js 4.x (https://cdn.jsdelivr.net/npm/chart.js), direct data labels, no legend
+- Data slides: use Chart.js 4.x (https://cdn.jsdelivr.net/npm/chart.js) plus chartjs-plugin-datalabels, direct data labels, no legend
 - Speaker notes: <aside class="notes">…</aside> on every slide (Notes plugin must be loaded)
 - Do not repeat the same layout family 3 slides in a row
 - Every slide needs one proof object (chart, diagram, table, quote, or image)

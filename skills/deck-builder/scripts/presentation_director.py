@@ -384,12 +384,12 @@ ADDITIONAL_UI_COPY: dict[str, dict[str, str]] = {
         "image_prompt_confirm": "我确认这条 prompt 可以进入 image-plan.json",
         "image_style_notes": "图片风格补充说明",
         "image_style_notes_placeholder": "例如：更抽象、更像医学期刊封面、不要人物、不要文字。",
-        "html_theme_key_label": "HTML 主题",
-        "html_theme_auto": "跟随视觉方向自动选（推荐）",
         "html_motion_profile": "HTML 动效方案",
         "html_motion_profile_subtle": "Subtle: 稳定、轻量、CSS-only",
         "html_motion_profile_expressive": "Expressive: 更强转场与元素入场，CSS-only",
         "html_motion_profile_cinematic": "Cinematic: 强化 CSS 动效；Canvas/WebGL 暂不启用",
+        "html_theme_key": "HTML 主题",
+        "html_theme_auto": "跟随视觉方向自动选（推荐）",
         "save_image_style": "保存图片风格门禁",
         "image_style_saved_title": "图片风格已保存",
         "image_style_saved_message": "图片风格门禁已保存。agent 会检测 images-style.ready 并继续。",
@@ -482,12 +482,12 @@ ADDITIONAL_UI_COPY: dict[str, dict[str, str]] = {
         "image_prompt_confirm": "I approve this prompt for image-plan.json",
         "image_style_notes": "Additional image style notes",
         "image_style_notes_placeholder": "For example: more abstract, medical-journal cover feel, no people, no text.",
-        "html_theme_key_label": "HTML theme",
-        "html_theme_auto": "Follow visual direction automatically (recommended)",
         "html_motion_profile": "HTML motion profile",
         "html_motion_profile_subtle": "Subtle: stable, light, CSS-only",
         "html_motion_profile_expressive": "Expressive: stronger transitions and element entrances, CSS-only",
         "html_motion_profile_cinematic": "Cinematic: stronger CSS motion; Canvas/WebGL is not enabled yet",
+        "html_theme_key": "HTML theme",
+        "html_theme_auto": "Follow visual direction automatically (Recommended)",
         "save_image_style": "Save image style gate",
         "image_style_saved_title": "Image style saved",
         "image_style_saved_message": "Image style gate saved. The agent will detect images-style.ready and continue.",
@@ -1054,7 +1054,35 @@ class VisualCandidate:
     html_transition: str = "slide"
     html_animation: str = "minimal"
     html_gradient: str = ""
-    html_theme_key: str = "minimal-white"
+    suggested_html_theme: str = ""
+
+
+HTML_THEME_OPTIONS: tuple[tuple[str, str], ...] = (
+    ("auto", "Follow visual direction automatically"),
+    ("minimal-white", "Clean product, internal updates, quiet business decks"),
+    ("editorial-serif", "Narrative, essay, culture, long-form explanation"),
+    ("swiss-grid", "Structured reports, operations, precise comparisons"),
+    ("corporate-clean", "Boardroom, consulting, executive summaries"),
+    ("academic-paper", "Research, clinical, medical, evidence-heavy decks"),
+    ("blueprint", "Architecture, systems, technical explainers"),
+    ("engineering-whiteprint", "Engineering plans with a lighter technical surface"),
+    ("terminal-green", "Developer, security, CLI, infra storytelling"),
+    ("pitch-deck-vc", "Investor, launch, market-sizing, fundraising decks"),
+    ("news-broadcast", "Live briefing, sports/news analysis, fast facts"),
+    ("magazine-bold", "Editorial launches, brand stories, bold section openers"),
+    ("aurora", "Science, energy, AI, emerging technology narratives"),
+    ("glassmorphism", "Product, studio, premium brand, soft depth"),
+    ("cyberpunk-neon", "Futuristic demos, nightlife, high-energy concepts"),
+)
+
+
+CONTEXT_LAYOUT_MAP: dict[str, list[str]] = {
+    "pitch": ["cover-hero", "stat-highlight", "kpi-grid", "claim-bullets", "cta-close"],
+    "engineering": ["cover-hero", "architecture-map", "flow-diagram", "code-terminal", "timeline"],
+    "research": ["cover-hero", "claim-bullets", "evidence-table", "chart-bar-line", "big-quote"],
+    "product": ["cover-hero", "process-steps", "diff-before-after", "kpi-grid", "cta-close"],
+    "default": ["cover-hero", "claim-bullets", "two-column-proof", "chart-bar-line", "cta-close"],
+}
 
 
 INTAKE_QUESTIONS: tuple[Question, ...] = (
@@ -1775,35 +1803,43 @@ def html_motion_profile_from_brief(brief: JsonDict) -> str:
     return "presenter"
 
 
-_LAYOUT_FAMILIES_BY_PROFILE: dict[str, list[str]] = {
-    "pitch":     ["cover-hero", "stat-highlight", "kpi-grid", "claim-bullets", "cta-close"],
-    "tech":      ["cover-hero", "architecture-map", "flow-diagram", "code-terminal", "timeline"],
-    "editorial": ["cover-hero", "claim-bullets", "evidence-table", "chart-bar-line", "big-quote"],
-    "product":   ["cover-hero", "process-steps", "diff-before-after", "kpi-grid", "cta-close"],
-    "presenter": ["cover-hero", "claim-bullets", "two-column-proof", "chart-bar-line", "cta-close"],
-}
+def html_layout_families_for_profile(profile: str) -> list[str]:
+    context_key: str = {
+        "tech": "engineering",
+        "engineering": "engineering",
+        "editorial": "research",
+        "research": "research",
+        "presenter": "default",
+    }.get(profile, profile)
+    return list(CONTEXT_LAYOUT_MAP.get(context_key, CONTEXT_LAYOUT_MAP["default"]))
+
+
+def html_theme_key_from_brief(brief: JsonDict, candidate: JsonDict) -> str:
+    selected_theme: str = str(brief.get("html_theme_key", "auto")).strip() or "auto"
+    if selected_theme != "auto":
+        return selected_theme
+    return (
+        str(candidate.get("suggested_html_theme", "")).strip()
+        or str(candidate.get("html_theme_key", "")).strip()
+        or "minimal-white"
+    )
 
 
 def html_config_from_brief(brief: JsonDict, motion_level: str) -> JsonDict:
     candidate: JsonDict = selected_visual_candidate_from_brief(brief)
-    user_theme: str = str(brief.get("html_theme_key", "auto")).strip()
-    candidate_theme: str = str(candidate.get("html_theme_key", "minimal-white")).strip()
-    resolved_theme: str = candidate_theme if user_theme in ("auto", "") else user_theme
     motion_profile: str = html_motion_profile_from_brief(brief)
-    layout_families: list[str] = _LAYOUT_FAMILIES_BY_PROFILE.get(
-        motion_profile, _LAYOUT_FAMILIES_BY_PROFILE["presenter"]
-    )
     return {
-        "theme_key": resolved_theme,
+        "theme_key": html_theme_key_from_brief(brief, candidate),
         "motion_profile": motion_profile,
         "motion_level": motion_level,
         "animation_density": html_animation_density_for_level(motion_level),
         "transition": str(candidate.get("html_transition", "fade")),
         "animation": str(candidate.get("html_animation", "minimal")),
         "gradient": str(candidate.get("html_gradient", "")),
-        "layout_families": layout_families,
+        "layout_families": html_layout_families_for_profile(motion_profile),
         "effects_runtime": "css-only",
         "canvas_fx": False,
+        "notes": "Canvas/WebGL effects are future capability; current cinematic mode uses CSS-only motion.",
     }
 
 
@@ -1988,7 +2024,8 @@ def visual_candidate_to_json(candidate: VisualCandidate) -> JsonDict:
         "html_transition": candidate.html_transition,
         "html_animation": candidate.html_animation,
         "html_gradient": candidate.html_gradient,
-        "html_theme_key": candidate.html_theme_key,
+        "suggested_html_theme": candidate.suggested_html_theme,
+        "html_theme_key": candidate.suggested_html_theme,
     }
 
 
@@ -2011,29 +2048,29 @@ def classify_visual_context(topic: str, selections: JsonDict) -> str:
 
 def html_profile_for_candidate(context: str, candidate: VisualCandidate) -> tuple[str, str, str, str]:
     text: str = f"{context} {candidate.key} {candidate.name} {candidate.summary}".lower()
-    if any(token in text for token in ("pitch", "investor", "studio-pitch", "路演", "投资")):
+    if any(token in text for token in ("pitch", "investor", "launch", "studio-pitch", "路演", "投资")):
         return "zoom", "rich", "linear-gradient(135deg, #1a1a2e, #16213e, #0f3460)", "pitch-deck-vc"
-    if any(token in text for token in ("product", "launch", "brand", "studio-visual", "creative", "产品", "创意")):
-        return "convex", "rich", "linear-gradient(135deg, #667eea, #764ba2)", "glassmorphism"
-    if "aurora" in text:
-        return "zoom", "rich", "linear-gradient(135deg, #e0f2fe, #dbeafe, #f0fdf4)", "aurora"
-    if context == "research" or any(token in text for token in ("academic", "clinical", "medical", "atlas", "research", "学术", "知识")):
-        return "fade", "minimal", "linear-gradient(135deg, #f5f7fa, #c3cfe2)", "academic-paper"
-    if any(token in text for token in ("boardroom", "consulting", "roadmap", "restrained", "正式", "克制")):
-        return "fade", "minimal", "", "corporate-clean"
     if context == "engineering" or any(token in text for token in ("engineering", "terminal", "system", "signal", "architecture", "科技", "工程")):
         return "slide", "moderate", "linear-gradient(135deg, #0f0c29, #302b63, #24243e)", "blueprint"
-    return "fade", "minimal", "", "minimal-white"
+    if context == "research" or any(token in text for token in ("academic", "clinical", "medical", "atlas", "research", "学术", "知识")):
+        return "fade", "minimal", "linear-gradient(135deg, #f5f7fa, #c3cfe2)", "academic-paper"
+    if any(token in text for token in ("editorial", "narrative", "essay")):
+        return "fade", "moderate", "", "editorial-serif"
+    if any(token in text for token in ("product", "brand", "studio-visual", "creative", "产品", "创意")):
+        return "convex", "rich", "linear-gradient(135deg, #667eea, #764ba2)", "glassmorphism"
+    if any(token in text for token in ("aurora", "science", "tech", "energy")):
+        return "zoom", "rich", "linear-gradient(135deg, #e0f2fe, #dbeafe, #f0fdf4)", "aurora"
+    return "fade", "minimal", "", "corporate-clean"
 
 
 def with_html_profile(context: str, candidate: VisualCandidate) -> VisualCandidate:
-    html_transition, html_animation, html_gradient, html_theme_key = html_profile_for_candidate(context, candidate)
+    html_transition, html_animation, html_gradient, suggested_html_theme = html_profile_for_candidate(context, candidate)
     return replace(
         candidate,
         html_transition=html_transition,
         html_animation=html_animation,
         html_gradient=html_gradient,
-        html_theme_key=html_theme_key,
+        suggested_html_theme=suggested_html_theme,
     )
 
 
@@ -2742,6 +2779,9 @@ def apply_image_style_selection(brief: JsonDict, form: dict[str, list[str]]) -> 
         html_motion_level = "subtle"
 
     html_theme_key: str = first_form_value(form, "html_theme_key", "auto").strip()
+    valid_theme_keys: set[str] = {theme_key for theme_key, _description in HTML_THEME_OPTIONS}
+    if html_theme_key not in valid_theme_keys:
+        html_theme_key = "auto"
 
     updated_brief: JsonDict = dict(brief)
     updated_brief["image_generation_mode"] = image_mode
@@ -3446,30 +3486,19 @@ def render_image_style(task_dir: Path, error_messages: list[str] | None = None) 
     html_motion_section: str = ""
     if output_format in {"html-revealjs", "both"}:
         current_theme_key: str = str(brief.get("html_theme_key", "auto"))
-        theme_choices: list[tuple[str, str]] = [
-            ("auto", t(ui_language, "html_theme_auto")),
-            ("minimal-white", "minimal-white — teaching, clean explainers"),
-            ("editorial-serif", "editorial-serif — essays, policy, narratives"),
-            ("swiss-grid", "swiss-grid — consulting, structured analysis"),
-            ("corporate-clean", "corporate-clean — executive reviews"),
-            ("academic-paper", "academic-paper — science, medical, research"),
-            ("blueprint", "blueprint — architecture, systems, engineering"),
-            ("engineering-whiteprint", "engineering-whiteprint — light engineering"),
-            ("terminal-green", "terminal-green — developer tools, DevOps"),
-            ("pitch-deck-vc", "pitch-deck-vc — investor / competition decks"),
-            ("news-broadcast", "news-broadcast — sports, live operations"),
-            ("magazine-bold", "magazine-bold — brand storytelling"),
-            ("aurora", "aurora — science / tech talks (dark)"),
-            ("glassmorphism", "glassmorphism — premium product / SaaS (dark)"),
-            ("cyberpunk-neon", "cyberpunk-neon — dramatic AI / dev demos (dark)"),
-        ]
-        theme_opts: str = "".join(
-            f'<option value="{html.escape(v)}"{" selected" if v == current_theme_key else ""}>{html.escape(label)}</option>'
-            for v, label in theme_choices
-        )
+        theme_options: list[str] = []
+        for theme_key, best_for in HTML_THEME_OPTIONS:
+            checked: str = " checked" if theme_key == current_theme_key else ""
+            label: str = t(ui_language, "html_theme_auto") if theme_key == "auto" else f"{theme_key} — {best_for}"
+            theme_options.append(
+                f"""<label class="option">
+  <input type="radio" name="html_theme_key" value="{html.escape(theme_key)}"{checked}>
+  <strong>{html.escape(label)}</strong>
+</label>"""
+            )
         html_motion_section = f"""<section class="section">
-  <h2>{html.escape(t(ui_language, "html_theme_key_label"))}</h2>
-  <select name="html_theme_key">{theme_opts}</select>
+  <h2>{html.escape(t(ui_language, "html_theme_key"))}</h2>
+  <div class="grid">{''.join(theme_options)}</div>
 </section>
 <section class="section">
   <h2>{html.escape(t(ui_language, "html_motion_profile"))}</h2>
@@ -3787,6 +3816,7 @@ def initial_prompt(task_dir: Path) -> str:
     if not brief:
         return "No confirmed brief found. Confirm intake first."
     script_path: Path = Path(__file__).resolve()
+    generate_images_path: Path = script_path.parent / "generate_images.py"
     output_format: str = output_format_from_brief(brief, "pptx")
     image_policy: str = image_policy_from_brief(brief)
     raw_image_mode: Any = brief.get("image_generation_mode")
@@ -3813,10 +3843,16 @@ def initial_prompt(task_dir: Path) -> str:
     if image_mode in PRE_V1_IMAGE_MODES:
         pre_v1_image_instruction = f"""AI image pre-v1 requirements:
 - Read {image_plan_path(task_dir)} before creating v1.
-- Generate only the pre-v1 targets listed in `targets[]`; do not invent extra generated images.
-- Use the image generation capability for those targets. Do not replace failed images with CSS gradients or decorative vector fallbacks.
-- Retry failed image generation up to 2 times. After 3 failed attempts, record `final_status: failed`, print the failure to stderr, and stop.
-{image_asset_record_command}- After recording successful image assets, run guard again before creating v1.
+- First show the prompt requests in the conversation:
+  python3 "{generate_images_path}" --task-dir "{task_dir}" show
+- Ask the user to generate or provide the requested image files. Do not invent extra generated images and do not replace missing images with CSS gradients, SVGs, or placeholders.
+- When the user provides a file path for a target, register it with:
+  python3 "{generate_images_path}" --task-dir "{task_dir}" place --source "<user-image-path>" --target-id "<target-id>"
+- If the user places files directly under assets/images, run:
+  python3 "{generate_images_path}" --task-dir "{task_dir}" place
+- Automatic backends remain available only when explicitly chosen or for testing, for example:
+  python3 "{generate_images_path}" --task-dir "{task_dir}" --api stub
+{image_asset_record_command}- After all pre-v1 images are recorded, run guard again and continue only when all active targets are success with matching prompts.
 """
     post_v1_image_instruction: str = ""
     if image_mode in POST_V1_IMAGE_MODES:
@@ -3867,6 +3903,47 @@ Rules:
     motion_level: str = str(html_config.get("motion_level", "subtle"))
     html_transition: str = str(html_config.get("transition", "fade"))
     html_gradient: str = str(html_config.get("gradient", ""))
+    layout_families: Any = html_config.get("layout_families", [])
+    layout_families_json: str = json.dumps(layout_families if isinstance(layout_families, list) else [], ensure_ascii=False)
+    html_requirements: str = f"""Reveal.js requirements:
+- Use pinned CDN links for reveal.js@5.1.0: reset.css, reveal.css, a built-in theme, reveal.js, and the Notes plugin.
+- Notes plugin: import RevealNotes from https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/notes/notes.esm.js
+  Initialize with: Reveal.initialize({{ transition: "{html_transition}", plugins: [RevealNotes] }})
+- theme_key from html_config: "{theme_key}". Implement by defining CSS custom properties in <style>:
+  :root {{
+    --deck-bg: <from theme>;
+    --deck-ink: <from theme>;
+    --deck-muted: <from theme>;
+    --deck-accent: <from theme>;
+    --deck-accent-2: <from theme>;
+    --deck-line: <from theme>;
+  }}
+  Apply these tokens to .reveal background-color, h1-h3, p, code, hr, dividers, charts, and cards.
+  Do not hard-code one-off hex values per slide; consume the tokens. Cover/section gradient hint: "{html_gradient or 'use --deck-bg solid color'}".
+- Safe-area contract: wrap all regular slide content in a .slide-safe container:
+  .slide-safe {{ position:absolute; left:54px; top:70px; width:1172px; height:590px; }}
+  .bleed {{ position:absolute; inset:0; }}
+  Full-bleed AI-generated background images use .bleed; all text, charts, tables, screenshots, and diagrams use .slide-safe.
+- motion_level from html_config: "{motion_level}". Use animation vocabulary from the animation catalog:
+  subtle -> fade-up, rise-in, stagger-list only.
+  expressive -> adds zoom-pop, counter-up, path-draw, blur-in.
+  cinematic -> adds spotlight, shimmer-sweep, kenburns for cover/section/end slides only.
+  Implement as local @keyframes; do not link external animation CSS.
+  Template for rise-in + stagger:
+    @keyframes rise-in {{from{{opacity:0;transform:translateY(18px)}}to{{opacity:1;transform:translateY(0)}}}}
+    @keyframes fade-up {{from{{opacity:0;transform:translateY(12px)}}to{{opacity:1;transform:translateY(0)}}}}
+    .rise-in {{ animation: rise-in .55s ease both; }}
+    .stagger>*{{ animation: rise-in .5s ease both; }}
+    .stagger>*:nth-child(2){{ animation-delay:.08s; }}
+    .stagger>*:nth-child(3){{ animation-delay:.16s; }}
+    .stagger>*:nth-child(4){{ animation-delay:.24s; }}
+    @media(prefers-reduced-motion:reduce){{*{{animation:none!important}}}}
+- Chart data: use Chart.js 4.x CDN (https://cdn.jsdelivr.net/npm/chart.js) and chartjs-plugin-datalabels for bar/line/pie slides. Use direct data labels instead of legends.
+- layout_families from html_config: {layout_families_json}. Do not repeat the same layout family 3 slides in a row.
+- Every slide needs one primary proof object: chart, diagram, table, quote, image, or code artifact.
+- Speaker notes: put <aside class="notes"> on every slide. Notes plugin must be loaded and the S key must open speaker notes.
+- Save the versioned output to {html_output}.
+- Include PDF export guidance: append ?print-pdf, print from Chrome/Edge, landscape, no headers/footers."""
 
     if output_format == "html-revealjs":
         return f"""Write a Reveal.js 5.1.0 HTML presentation directly. Do NOT call the Codex Presentations plugin.
@@ -3875,31 +3952,7 @@ Rules:
 
 {pre_v1_image_instruction}
 
-Reveal.js requirements:
-- CDN links (pinned): reveal.js@5.1.0 reset.css, reveal.css, black.css theme, reveal.js.
-  Also load the Notes plugin:
-  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/notes/notes.js"></script>
-  Initialize: Reveal.initialize({{ transition: "{html_transition}", plugins: [RevealNotes] }});
-- Theme key from html_config: "{theme_key}". Implement as CSS custom properties in <style>:
-  :root {{ --deck-bg: <bg>; --deck-ink: <ink>; --deck-accent: <accent>; --deck-muted: <muted>; }}
-  Use these tokens consistently; do not hard-code per-slide hex values.
-  Gradient for section/cover backgrounds: "{html_gradient or 'use --deck-bg solid color'}"
-- Safe-area: wrap all text/charts/tables in .slide-safe:
-  .slide-safe {{ position:absolute; left:54px; top:70px; width:1172px; height:590px; overflow:hidden; }}
-  .bleed {{ position:absolute; inset:0; z-index:0; }}  /* AI background images only */
-- Motion level: "{motion_level}". Add these keyframes once in <style>:
-  @keyframes rise-in {{from{{opacity:0;transform:translateY(18px)}}to{{opacity:1;transform:translateY(0)}}}}
-  @keyframes fade-up {{from{{opacity:0;transform:translateY(12px)}}to{{opacity:1;transform:translateY(0)}}}}
-  .rise-in{{animation:rise-in .55s ease both}} .stagger>*{{animation:rise-in .5s ease both}}
-  .stagger>*:nth-child(2){{animation-delay:.08s}} .stagger>*:nth-child(3){{animation-delay:.16s}}
-  @media(prefers-reduced-motion:reduce){{*{{animation:none!important}}}}
-  subtle → use only fade-up, rise-in, stagger on entry elements.
-  expressive → also add zoom-pop, counter-up on KPI numbers, path-draw on SVG diagrams.
-  cinematic → also add spotlight/kenburns on cover and section divider slides only.
-- Use Chart.js 4.x (https://cdn.jsdelivr.net/npm/chart.js) for bar/line/pie/radar data slides. Use direct data labels, no legend.
-- Speaker notes: <aside class="notes">…</aside> on every slide. Notes plugin must be loaded.
-- Do not repeat the same layout family 3 slides in a row. Every slide needs one proof object.
-- Save to {html_output}. Include PDF export tip: append ?print-pdf, print from Chrome, landscape.
+{html_requirements}
 
 {post_v1_image_instruction}
 
@@ -3932,8 +3985,7 @@ PPTX route:
 
 HTML route:
 - Write Reveal.js HTML directly; do NOT call Presentations plugin for HTML.
-- Apply same Reveal.js requirements as the html-revealjs path: Notes plugin, theme_key "{theme_key}", safe-area contract, motion keyframes (level: "{motion_level}"), Chart.js for data slides.
-- Save the HTML deck to {html_output}.
+{html_requirements}
 
 {post_v1_image_instruction}
 
@@ -4015,8 +4067,11 @@ Change only the selected visual directions:
 - image/logo treatment
 
 HTML route:
-- Keep Reveal.js 5.1.0 with pinned CDN links.
-- Keep speaker notes in `<aside class="notes">`.
+- Keep Reveal.js 5.1.0 with pinned CDN links, including the Notes plugin import:
+  https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/notes/notes.esm.js
+  Initialize with: Reveal.initialize({{ plugins: [RevealNotes] }})
+- Keep speaker notes in `<aside class="notes">` on every slide.
+- Preserve the safe-area contract: regular content stays inside `.slide-safe`; only backgrounds use `.bleed`.
 - Use CSS-only motion from `html_config` and `html_motion_profile`; do not introduce Canvas/WebGL effects.
 - Write the revised deck to {task_dir / next_version / "final.html"}.
 - Write a concise QA summary to {task_dir / next_version / "qa-summary.md"}.

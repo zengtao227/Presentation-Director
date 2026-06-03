@@ -677,7 +677,7 @@ python3 scripts/presentation_director.py serve-wait \
   --for images-style
 ```
 
-For pre-v1 modes, generate only the targets in `image-plan.json`. Record every attempt with `image-asset`; `final_status: success` is only valid when the generated file exists and is non-empty. Failed images use retry-2-then-stop and must not be replaced by CSS gradients or SVG placeholders.
+For pre-v1 modes, generate only the targets in `image-plan.json`. In interactive Codex sessions, run `skills/deck-builder/scripts/generate_images.py --task-dir "PPTX/<task-slug>" show`, display the prompts to the user, then register user-provided images with `place --source <path> --target-id <id>` or `place --sources '{...}'`. Record every attempt with `image-asset`; `final_status: success` is only valid when the registered file exists and is non-empty. Failed or missing images must not be replaced by CSS gradients or SVG placeholders. Automatic backends such as `--api stub`, `--api dall-e-3`, `--api flux`, and `--api hf` remain available only when explicitly chosen or for testing.
 
 7. Route generation by `output_format` in the confirmed brief:
    - `html-revealjs`: write Reveal.js HTML directly to `PPTX/<task-slug>/v1/final.html`; do NOT call Presentations plugin.
