@@ -1606,21 +1606,23 @@ def validate_generation_guard(task_dir: Path) -> list[str]:
     if image_policy == "none" and image_mode != "none":
         errors.append("image_policy is none, but image_generation_mode is not none.")
 
-    for message in failed_image_asset_messages(task_dir):
-        errors.append(message)
-
     if image_mode != "none" and not image_plan_path(task_dir).exists():
         errors.append(f"Missing image plan: {image_plan_path(task_dir)}")
 
+    # Collect active target IDs for the current mode so the failure check is scoped.
+    # Stale failed records from a previous mode must not block a re-configured run.
+    active_target_ids: set[str] = set()
+    plan_data: JsonDict = read_json(image_plan_path(task_dir)) if image_plan_path(task_dir).exists() else {}
+
     if image_mode in PRE_V1_IMAGE_MODES:
-        plan: JsonDict = read_json(image_plan_path(task_dir))
-        raw_targets: Any = plan.get("targets", [])
+        raw_targets: Any = plan_data.get("targets", [])
         planned_target_ids: set[str] = {
             str(item.get("id", "")).strip()
             for item in raw_targets
             if isinstance(item, dict) and str(item.get("phase", "pre-v1")) == "pre-v1"
         }
         planned_target_ids.discard("")
+        active_target_ids |= planned_target_ids
         successful_target_ids: set[str] = successful_asset_target_ids(task_dir)
         missing_successes: list[str] = sorted(planned_target_ids - successful_target_ids)
         if missing_successes:
@@ -1635,6 +1637,30 @@ def validate_generation_guard(task_dir: Path) -> list[str]:
             errors.append(f"Missing post-v1 image placement status: {status_dir(task_dir) / STATUS_FILES['images-placement']}")
         if not image_placement_path(task_dir).exists():
             errors.append(f"Missing post-v1 image placement request: {image_placement_path(task_dir)}")
+        else:
+            placement_data: JsonDict = read_json(image_placement_path(task_dir))
+            for row in placement_data.get("placements", []):
+                if isinstance(row, dict):
+                    rid: str = str(row.get("id", "")).strip()
+                    if rid:
+                        active_target_ids.add(rid)
+
+    # Only flag failures for targets that are active in the current plan.
+    # Scoping mirrors how the success check works (planned_target_ids above).
+    for record in image_asset_records(task_dir):
+        if record.get("final_status") != "failed":
+            continue
+        target_id: str = str(record.get("target_id", record.get("id", "unknown-target")))
+        if target_id not in active_target_ids:
+            continue
+        attempts: Any = record.get("attempts", [])
+        last_error: str = ""
+        if isinstance(attempts, list) and attempts:
+            last_attempt: Any = attempts[-1]
+            if isinstance(last_attempt, dict):
+                last_error = str(last_attempt.get("error", ""))
+        suffix: str = f": {last_error}" if last_error else ""
+        errors.append(f"Image asset {target_id} failed after retry policy{suffix}")
     return errors
 
 
@@ -2730,7 +2756,7 @@ def apply_image_placement_request(task_dir: Path, brief: JsonDict, form: dict[st
         "output_format": output_format,
         "preview_artifacts": [str(path) for path in preview_artifact_paths(task_dir, output_format) if path.exists()],
         "placements": rows,
-        "notes": first_form_value(form, "placement_notes", "").strip(),
+        "notes": first_form_value(form, "placement_global_notes", "").strip(),
         "created_at": datetime.now().isoformat(timespec="seconds"),
     }
 
@@ -3492,7 +3518,12 @@ def render_image_placement(task_dir: Path) -> str:
 <form method="post" action="/api/image-placement">
   <section class="section">
     <h2>{html.escape(t(ui_language, "placement_rows"))}</h2>
+    <p class="meta notice">{"This form supports up to 6 placement rows. For decks requiring more than 6 post-v1 images, run additional Image Placement Gate rounds or add them manually after generation." if ui_language == "en" else "此表单最多支持 6 条插入请求。如需超过 6 张 post-v1 图片，可在生成后再次打开门禁或手动添加。"}</p>
     {''.join(row_html)}
+  </section>
+  <section class="section">
+    <h2>{"Overall notes" if ui_language == "en" else "整体备注"}</h2>
+    <textarea name="placement_global_notes" placeholder="{"Optional: overall notes for this placement round." if ui_language == "en" else "可选：本轮图片插入的整体说明。"}"></textarea>
   </section>
   <div class="actions">
     <button type="submit">{html.escape(t(ui_language, "save_image_placement"))}</button>
