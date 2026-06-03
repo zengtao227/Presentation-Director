@@ -182,40 +182,52 @@ Use this repository's skills/pptx/SKILL.md pptxgenjs workflow to generate an edi
 Use this when the target output is an HTML presentation for online sharing — not when an editable PPTX is required.
 
 ```
-Generate a native Reveal.js 5.1.0 HTML presentation deck. Do not call external html-ppt-skill or guizang-ppt-skill as a runtime dependency; use the internalized catalogs in:
+Generate a native Reveal.js 5.1.0 HTML presentation deck.
+Internal catalogs (do NOT import as runtime dependencies):
 - skills/deck-builder/references/html-theme-catalog.md
 - skills/deck-builder/references/html-layout-catalog.md
 - skills/deck-builder/references/html-animation-catalog.md
 
 [Input Files]
 - Content source: <resolved path to deck.md>
-- Design lock: <resolved design lock path, or inline visual contract if no lock file exists>
+- Confirmed brief: PPTX/<task-slug>/brief-confirmed.json (read html_config.theme_key, html_config.motion_level)
 
 [Output Target]
-- Versioned HTML: `PPTX/<task-slug>/vN/final.html`; after final selection copy to `PPTX/<task-slug>/final/<task-slug>.html`
+- Versioned HTML: PPTX/<task-slug>/v1/final.html; after final selection copy to PPTX/<task-slug>/final/<task-slug>.html
 
 [Narrative Requirements]
-- Before writing any HTML, produce a claim spine:
-  thesis / audience / one-line arc / per-slide claim / proof object / source
-- Every slide title must be a conclusion sentence — not a topic label
-- Do not fabricate numbers, clients, logos, or missing data
-
-[Design Requirements]
-- Select a theme key, layout family, and animation profile from the internal catalogs.
-- Use `html_motion_level` and `html_motion_profile` when present; cinematic currently means CSS-only enhanced motion, not Canvas/WebGL.
-- Vary layout families — do not repeat the same layout 3 times in a row
-- Do not introduce colors not in the design lock
+- Produce a claim spine first: thesis / audience / arc / per-slide claim / proof object / source
+- Every slide title must be a conclusion sentence, not a topic label
+- Do not fabricate numbers, logos, or missing data
 
 [Build Requirements]
-- All slides must be self-contained in the output HTML file
-- Include speaker notes in the slide notes area where applicable
-- Enable Reveal.js notes/presenter support when the deck will be presented to a live audience
+- CDN (pinned): reveal.js@5.1.0 reset.css, reveal.css, black.css, reveal.js
+  Plus Notes plugin: <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/notes/notes.js"></script>
+  Init: Reveal.initialize({ transition: "<from html_config>", plugins: [RevealNotes] });
+- Theme: use html_config.theme_key from brief; implement as CSS :root token variables:
+  :root { --deck-bg: …; --deck-ink: …; --deck-accent: …; --deck-muted: …; }
+  Consume tokens everywhere; no per-slide hard-coded hex values.
+- Safe-area (required on every slide):
+  .slide-safe { position:absolute; left:54px; top:70px; width:1172px; height:590px; overflow:hidden; }
+  .bleed { position:absolute; inset:0; z-index:0; }  /* AI background images only */
+- Animation keyframes (add once in <style>):
+  @keyframes rise-in { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+  .rise-in { animation: rise-in .55s ease both; }
+  .stagger > * { animation: rise-in .5s ease both; }
+  .stagger > *:nth-child(2) { animation-delay:.08s; }
+  .stagger > *:nth-child(3) { animation-delay:.16s; }
+  @media(prefers-reduced-motion:reduce) { * { animation:none!important; } }
+  motion_level subtle → fade-up/rise-in/stagger only
+  motion_level expressive → also zoom-pop, counter-up on KPI numbers
+  motion_level cinematic → also spotlight/kenburns on cover and section slides only (no Canvas/WebGL)
+- Data slides: use Chart.js 4.x (https://cdn.jsdelivr.net/npm/chart.js), direct data labels, no legend
+- Speaker notes: <aside class="notes">…</aside> on every slide (Notes plugin must be loaded)
+- Do not repeat the same layout family 3 slides in a row
+- Every slide needs one proof object (chart, diagram, table, quote, or image)
 
 [QA Requirements]
-- Open the HTML file in a browser and verify all slides render at 16:9 aspect ratio
-- Check for text overflow and layout collisions in full-screen mode
-- Verify consistent visual rhythm across slides — no abrupt style break
-- Final reply must include: HTML absolute path, catalog keys used, any layout risks for human review
+- Open in browser: all slides at 16:9, no text overflow outside .slide-safe, Notes panel opens (press S)
+- Final reply must include: HTML path, theme_key used, motion_level, any layout risks
 ```
 
 ---
