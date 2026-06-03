@@ -316,7 +316,7 @@ ADDITIONAL_UI_COPY: dict[str, dict[str, str]] = {
         "no_sources": "未记录资料来源。可以在下面填写本地路径、网页 URL 或 Google Drive 地址。",
         "intake_topline": "Presentation Director",
         "intake_title": "生成前信息收集",
-        "intake_intro": "先确认会影响 PPTX 质量的关键信息。每题都有默认推荐，也可以选择自定义。",
+        "intake_intro": "先确认会影响演示文稿质量的关键信息。每题都有默认推荐，也可以选择自定义。",
         "source_material": "资料来源",
         "source_paths_label": "资料路径 / 网页 / Google Drive 地址",
         "source_paths_placeholder": "每行一个来源。例如：\n/Users/you/project/docs\nhttps://example.com/report\nhttps://drive.google.com/file/d/...\nhttps://docs.google.com/document/d/...",
@@ -415,7 +415,7 @@ ADDITIONAL_UI_COPY: dict[str, dict[str, str]] = {
     "en": {
         "intake_topline": "Presentation Director",
         "intake_title": "Pre-Generation Intake",
-        "intake_intro": "Confirm the key details that affect PPTX quality. Each question has a recommended default, and you can choose a custom answer.",
+        "intake_intro": "Confirm the key details that affect the quality of your presentation. Each question has a recommended default, and you can choose a custom answer.",
         "source_material": "Source Material",
         "source_paths_label": "Source paths / web pages / Google Drive links",
         "source_paths_placeholder": "One source per line. For example:\n/Users/you/project/docs\nhttps://example.com/report\nhttps://drive.google.com/file/d/...\nhttps://docs.google.com/document/d/...",
@@ -514,7 +514,7 @@ ADDITIONAL_UI_COPY: dict[str, dict[str, str]] = {
     "de": {
         "intake_topline": "Presentation Director",
         "intake_title": "Informationen vor der Generierung",
-        "intake_intro": "Bestätigen Sie zuerst die wichtigsten Angaben, die die PPTX-Qualität beeinflussen. Jede Frage hat eine empfohlene Standardeinstellung; Sie können auch eine eigene Antwort wählen.",
+        "intake_intro": "Bestätigen Sie zuerst die wichtigsten Angaben, die die Präsentationsqualität beeinflussen. Jede Frage hat eine empfohlene Standardeinstellung; Sie können auch eine eigene Antwort wählen.",
         "source_material": "Quellenmaterial",
         "source_paths_label": "Quellenpfade / Webseiten / Google-Drive-Links",
         "source_paths_placeholder": "Eine Quelle pro Zeile. Zum Beispiel:\n/Users/you/project/docs\nhttps://example.com/report\nhttps://drive.google.com/file/d/...\nhttps://docs.google.com/document/d/...",
