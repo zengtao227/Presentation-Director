@@ -3982,10 +3982,17 @@ Rules:
     html_requirements: str = ""
     if output_format in {"html-revealjs", "both"}:
         html_config: JsonDict = brief.get("html_config", {}) if isinstance(brief.get("html_config"), dict) else {}
-        theme_key: str = str(html_config.get("theme_key", "minimal-white"))
+        # html_theme_key at top level (set by Visual Inspiration) takes precedence over html_config.theme_key
+        theme_key: str = (
+            str(html_config.get("theme_key", "")).strip()
+            or str(brief.get("html_theme_key", "minimal-white")).strip()
+            or "minimal-white"
+        )
         motion_level: str = str(html_config.get("motion_level", "subtle"))
-        html_transition: str = str(html_config.get("transition", "fade"))
-        html_gradient: str = str(html_config.get("gradient", ""))
+        # visual candidate's transition/gradient take precedence when html_config is not yet written
+        visual_candidate: JsonDict = selected_visual_candidate_from_brief(brief) if not html_config.get("transition") else {}
+        html_transition: str = str(html_config.get("transition", "")) or str(visual_candidate.get("html_transition", "fade"))
+        html_gradient: str = str(html_config.get("gradient", "")) or str(visual_candidate.get("html_gradient", ""))
         layout_families: Any = html_config.get("layout_families", [])
         layout_families_json: str = json.dumps(layout_families if isinstance(layout_families, list) else [], ensure_ascii=False)
         html_requirements = f"""Reveal.js requirements:
