@@ -336,8 +336,8 @@ $HOME/.codex/plugins/cache/openai-primary-runtime/presentations/*/skills/present
 - 工作流参考：docs/pptx-master-workflow.md
 
 [目标]
-- 输出可编辑 .pptx 到 PPTX/<task-slug>/final/<deck-title>.pptx
-- 同时输出只读 HTML 分享版到 PPTX/<task-slug>/final/<deck-title>.html
+- 输出可编辑 .pptx 到 PPTX/<task-slug>/final/<task-slug>.pptx
+- 同时输出只读 HTML 分享版到 PPTX/<task-slug>/final/<task-slug>-companion.html
 - scratch / preview / layout / QA 文件放在 Presentations 技能自己的 workspace 中
 - 最终只把可交付 PPTX 放到 PPTX/<task-slug>/final/
 
@@ -417,8 +417,8 @@ skills/pptx/scripts/thumbnail.py 生成缩略图
 ```text
 使用本仓库 skills/pptx/SKILL.md 的 pptxgenjs 工作流。
 读取 deck.md 和 design-locks/<lock>.md。
-生成 PPTX/<task-slug>/final/<deck-title>.pptx。
-同时生成 PPTX/<task-slug>/final/<deck-title>.html 作为只读分享版。
+生成 PPTX/<task-slug>/final/<task-slug>.pptx。
+同时生成 PPTX/<task-slug>/final/<task-slug>-companion.html 作为只读分享版。
 生成后运行 skills/pptx/scripts/thumbnail.py 做缩略图检查。
 ```
 

@@ -100,9 +100,9 @@ Checked last, after render gate passes.
 
 | Check | Pass Condition | Failure Action |
 |-------|---------------|----------------|
-| Final PPTX at correct path | `PPTX/<task-slug>/final/<deck-title>.pptx` exists for PPTX output | Move or rename file |
-| Final HTML companion at correct path | `PPTX/<task-slug>/final/<deck-title>.html` exists for PPTX output | Generate from selected version's per-slide preview images |
-| Final HTML deck at correct path | `PPTX/<task-slug>/final/<deck-title>.html` exists for HTML-deck-only output | Move or rename file |
+| Final PPTX at correct path | `PPTX/<task-slug>/final/<task-slug>.pptx` exists for PPTX output | Move or rename file |
+| Final HTML companion at correct path | `PPTX/<task-slug>/final/<task-slug>-companion.html` exists for PPTX-only output | Generate from selected version's per-slide preview images |
+| Final HTML deck at correct path | `PPTX/<task-slug>/final/<task-slug>.html` exists for HTML deck output | Move or rename file |
 | `deck.md` saved | Source of truth file is committed or saved | Save before closing |
 | Sidecar artifacts saved | `slide-plan.md`, contact sheet, QA notes retained for traceability | Save or copy into `PPTX/<task-slug>/` |
 | Remaining risks documented | Any known open issues stated in completion report | Write risk list before handing off |

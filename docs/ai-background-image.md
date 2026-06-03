@@ -1,7 +1,22 @@
-# AI 背景图生成（可选步骤）
+# AI 图片生成门禁
 
-> 在工作流的「选定设计档案」之后、「生成 PPTX」之前，可选择性地为封面和章节分隔页生成 AI 背景图。
-> 如果现有 design-lock 的纯色/色块方案已经足够，跳过本步骤即可。
+> 旧版方案只讨论“生成封面/章节背景图”。新版 Presentation Director 将它拆成两个概念：`image_policy` 是 intake 阶段的权限边界；`image_generation_mode` 是 Image Style Gate 阶段的执行方式。
+
+---
+
+## 当前规则
+
+| 字段 | 作用 |
+|------|------|
+| `image_policy` | 用户授权边界，保留现有值：`none` / `abstract-only` / `cover-section` / `ask-before-use` / `custom` |
+| `image_generation_mode` | 执行模式：`none` / `global-background` / `cover-section-auto` / `post-v1-slot-review` / `hybrid` |
+| `image-plan.json` | Image Style Gate 写入的 pre-v1 target 和 prompt 草稿 |
+| `image-assets.json` | 每个 target 的 attempts[] 与 final_status |
+| `image-placement-request.json` | v1 preview 后由用户确认的 post-v1 插图请求 |
+
+`final_status: "success"` 只能由生图记录层在 `output_path` 存在且 `size_bytes > 0` 时写入。API 返回成功但图片文件缺失或为空，仍必须记录为失败或 retrying。
+
+失败策略是 **retry-2-then-stop**：最多 3 次尝试。三次失败后停止流程，不能静默退化成 CSS 渐变、SVG 占位或普通装饰背景。
 
 ---
 
@@ -116,25 +131,27 @@ no text, no people, clean and airy,
 ## 在工作流中的位置
 
 ```text
-[4] 设计情报
-    用 ui-ux-pro-max 查行业、风格、字体、配色
+[4] Visual Inspiration Gate
+    选择 visual candidate；HTML 输出时同时带 transition / animation / gradient 候选
         ↓
-[5] 视觉合同
-    选 design-locks/<lock>.md
+[5] Brief Confirmation Gate
+    用户点击确认
         ↓
-[5.5] 可选：生成 AI 背景图
-    ┌─ 判断：现有纯色方案是否已足够？
-    │    是 → 跳过，直接到步骤 6
-    │    否 → 执行以下步骤：
-    │         • 构造图片 Prompt（基于 design-lock 颜色 + 风格）
-    │         • 调用 DALL-E 3 / Flux API
-    │         • 下载 PNG 到 assets/cover-bg.png
-    │         • 在 Codex Prompt 中注明：
-    │           封面和章节页使用 assets/cover-bg.png 作为背景
-    │           叠加 40-60% 不透明度的遮罩（design-lock 主色）
-    └─────────────────────────────────────────
+[5.5] Image Style Gate
+    ├─ 选择 image_generation_mode
+    ├─ ask-before-use + pre-v1 模式时逐条确认 prompt 草稿
+    ├─ 写 image-plan.json
+    └─ 如需 pre-v1 图片：生成 → image-asset 记录 → guard
         ↓
-[6] Codex Presentations 生成 PPTX
+[6] 生成 v1
+    ├─ pptx → v1/final.pptx + v1/contact-sheet.png
+    ├─ html-revealjs → v1/final.html
+    └─ both → v1/final.pptx + v1/final.html
+        ↓
+[6.5] Image Placement Gate（post-v1-slot-review / hybrid）
+    基于 v1 preview artifact 确认插图位置，写 image-placement-request.json
+        ↓
+[7] 生成 v2（如有 post-v1 插图）
 ```
 
 ---
@@ -142,10 +159,10 @@ no text, no people, clean and airy,
 ## 给 Codex 的 Prompt 片段（带背景图）
 
 ```text
-背景图已生成并保存在 assets/cover-bg.png。
+背景图已生成并保存在 PPTX/<task-slug>/assets/images/<target-id>.png，并已记录到 image-assets.json。
 
 封面页和章节切换页：
-- 使用 assets/cover-bg.png 作为满铺背景图
+- 使用已确认 target 的 output_path 作为满铺背景图
 - 叠加 50% 不透明度的遮罩，颜色使用 design-lock 的主背景色
 - 文字颜色用 design-lock 的反色（浅底用深字，深底用白字）
 
@@ -160,5 +177,6 @@ no text, no people, clean and airy,
 
 1. **遮罩必须加**：背景图直接叠文字会导致对比度不足，遮罩是保障可读性的关键
 2. **尺寸要对**：PPT 幻灯片通常是 1920×1080（16:9），生成时指定分辨率
-3. **图片不放 Git**：在 `.gitignore` 中加入 `assets/`，生成的图片是临时文件，不需要版本管理
-4. **每次可以重新生成**：如果第一次的图不满意，重新调用 API 即可，费用极低
+3. **图片不放 Git**：`PPTX/` 和 `assets/` 已被忽略，生成图片不需要版本管理
+4. **每次可以重新生成**：如果第一次的图不满意，按 attempts[] 追加记录；第 1 次失败第 2 次成功时，guard 只看最终 `final_status`
+5. **不能静默降级**：失败时必须 stderr / guard message 明确说明，不能把 CSS 渐变当作“图片已生成”
