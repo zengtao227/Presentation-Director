@@ -104,14 +104,20 @@ PPTX/<task-slug>/
     visual-contract.md
   sources/
   intake.html
+  image-style.html
+  image-placement.html
   brief-confirm.html
   brief-confirmed.json
+  image-plan.json
+  image-assets.json
+  image-placement-request.json
   style-review.html
   revision-request.json
   compare.html
   final-selection.json
   v1/
     final.pptx
+    final.html              # if output_format is html-revealjs or both
     slides/
       slide-001.png
       slide-002.png
@@ -119,12 +125,14 @@ PPTX/<task-slug>/
     qa-summary.md
   v2/
     final.pptx
+    final.html
     slides/
     contact-sheet.png
     qa-summary.md
   final/
-    <deck-title>.pptx
-    <deck-title>.html
+    <task-slug>.pptx
+    <task-slug>.html        # Reveal.js deck when output_format is html-revealjs or both
+    <task-slug>-companion.html  # PPTX-only view-only companion
     final-report.md
 ```
 
@@ -164,11 +172,17 @@ output_format: "html-revealjs" | "pptx" | "both"
 
 生成层：Claude/Codex 直接写 Reveal.js HTML。不要调用 Codex Presentations plugin，不依赖 `html-ppt-skill` 或 `guizang-ppt-skill`。
 
-输出路径：`PPTX/<task-slug>/final/<deck-title>.html`
+输出路径：每个候选版本先写入 `PPTX/<task-slug>/vN/final.html`；用户最终选择后，复制到 `PPTX/<task-slug>/final/<task-slug>.html`。
 
 ### HTML Companion
 
-最终 `.pptx` 的只读分享版。它由最终版本的逐页渲染图生成，保存为 `PPTX/<task-slug>/final/<deck-title>.html`，方便浏览器打开或简单分享。它不是编辑源，也不是 HTML deck 引擎的替代品；如果 PPTX 内容被修改，应从修改后的 PPTX 或重新渲染的逐页预览图再生成一次 HTML companion。
+最终 `.pptx` 的只读分享版。它由最终版本的逐页渲染图生成，PPTX-only 输出时保存为 `PPTX/<task-slug>/final/<task-slug>-companion.html`，方便浏览器打开或简单分享。它不是编辑源，也不是 HTML deck 引擎的替代品；如果 PPTX 内容被修改，应从修改后的 PPTX 或重新渲染的逐页预览图再生成一次 HTML companion。`output_format="both"` 时，`final/<task-slug>.html` 是 Reveal.js Deck，不再单独生成 companion。
+
+### AI Image Gates
+
+`image_policy` 保持现有 intake 权限枚举：`none`、`abstract-only`、`cover-section`、`ask-before-use`、`custom`。执行层另由 Image Style Gate 写入 `image_generation_mode`：`none`、`global-background`、`cover-section-auto`、`post-v1-slot-review`、`hybrid`。
+
+新 brief 必须先经过 `serve-wait --open-page image-style --for images-style`；旧 brief 如果没有 `image_generation_mode`，`guard` 会跳过图片门禁以保持兼容。pre-v1 生图必须写 `image-plan.json` 和 `image-assets.json`，其中 `final_status: "success"` 只能在输出图片文件存在且非空后写入；失败按 retry-2-then-stop 处理，不能静默降级成 CSS 渐变或 SVG 占位。`post-v1-slot-review` 和 `hybrid` 在 v1 preview artifact 就绪后，再通过 `serve-wait --open-page image-placement --for images-placement` 写 `image-placement-request.json`，然后生成 v2。
 
 ### PPTX Editability
 
@@ -203,17 +217,22 @@ Visual Inspiration Gate（HTML 格式时展示 transition / animation / gradient
     ↓
 Brief Confirmation Gate（open page and wait for user）
     ↓
+Image Style Gate（写入 image_generation_mode / image-plan.json；必要时 pre-v1 生图）
+    ↓
 Generation — route by output_format
-    ├─ html-revealjs → Claude/Codex writes Reveal.js HTML directly
-    ├─ pptx → Codex Presentations runtime（先查 session plugin，再查 bundled runtime；缺 runtime 则停止）
-    └─ both → PPTX first via Codex Presentations runtime, then HTML（缺 runtime 则停止）
+    ├─ html-revealjs → Claude/Codex writes Reveal.js HTML directly to v1/final.html
+    ├─ pptx → Codex Presentations runtime 写 v1/final.pptx（先查 session plugin，再查 bundled runtime；缺 runtime 则停止）
+    └─ both → PPTX first via Codex Presentations runtime, then HTML to v1/final.html（缺 runtime 则停止）
+    ↓
+Post-v1 Image Placement Gate（仅 post-v1-slot-review / hybrid；写 v2）
     ↓
 Render QA
     ├─ HTML: browser screenshot + text-overflow check
     └─ PPTX: contact sheet + no-overlap check（现有流程）
     ↓
-PPTX/<task-slug>/final/<deck-title>.html   ← HTML Deck 主输出（如适用）
-PPTX/<task-slug>/final/<deck-title>.pptx   ← PPTX 主输出（如适用）
+PPTX/<task-slug>/final/<task-slug>.html          ← HTML Deck 主输出（如适用）
+PPTX/<task-slug>/final/<task-slug>.pptx          ← PPTX 主输出（如适用）
+PPTX/<task-slug>/final/<task-slug>-companion.html ← PPTX-only 只读 companion
 ```
 
 ### macOS PowerPoint 文件授权弹窗
@@ -237,7 +256,9 @@ Reveal.js 5.1.0 HTML generation spec
     ↓
 browser QA / screenshot / text-overflow check
     ↓
-PPTX/<task-slug>/final/<deck-title>.html
+PPTX/<task-slug>/vN/final.html
+    ↓
+PPTX/<task-slug>/final/<task-slug>.html
 ```
 
 ## 当前研究记录

@@ -356,7 +356,7 @@ The future user-facing workflow should be:
    content gate, design gate, render gate, output gate
 
 9. Final files are delivered
-   PPTX/<task-slug>/final/<deck-title>.pptx or PPTX/<task-slug>/final/<deck-title>.html
+   PPTX/<task-slug>/final/<task-slug>.pptx or PPTX/<task-slug>/final/<task-slug>.html
 ```
 
 Important distinction:

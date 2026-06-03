@@ -39,8 +39,46 @@ JsonDict = dict[str, Any]
 DEFAULT_PORT: int = 8765
 DEFAULT_HOST: str = "127.0.0.1"
 IMAGE_EXTENSIONS: set[str] = {".png", ".jpg", ".jpeg", ".webp"}
+IMAGE_POLICY_VALUES: set[str] = {
+    "none",
+    "abstract-only",
+    "cover-section",
+    "ask-before-use",
+    "custom",
+}
+IMAGE_GENERATION_MODES: set[str] = {
+    "none",
+    "global-background",
+    "cover-section-auto",
+    "post-v1-slot-review",
+    "hybrid",
+}
+PRE_V1_IMAGE_MODES: set[str] = {
+    "global-background",
+    "cover-section-auto",
+    "hybrid",
+}
+POST_V1_IMAGE_MODES: set[str] = {
+    "post-v1-slot-review",
+    "hybrid",
+}
+POLICY_DEFAULT_IMAGE_MODE: dict[str, str] = {
+    "none": "none",
+    "abstract-only": "global-background",
+    "cover-section": "cover-section-auto",
+    "ask-before-use": "post-v1-slot-review",
+    "custom": "post-v1-slot-review",
+}
+ASK_BEFORE_USE_PRE_V1_MODES: set[str] = {
+    "global-background",
+    "cover-section-auto",
+    "hybrid",
+}
+MAX_IMAGE_ATTEMPTS: int = 3
 STATUS_FILES: dict[str, str] = {
     "confirmed": "confirmed.ready",
+    "images-style": "images-style.ready",
+    "images-placement": "images-placement.ready",
     "revision": "revision.ready",
     "final-selection": "final-selected.ready",
 }
@@ -48,6 +86,8 @@ PAGE_PATHS: dict[str, str] = {
     "intake": "/intake",
     "visual-inspiration": "/visual-inspiration",
     "confirm": "/confirm",
+    "image-style": "/image-style",
+    "image-placement": "/image-placement",
     "style-review": "/style-review",
     "compare": "/compare",
 }
@@ -325,8 +365,49 @@ ADDITIONAL_UI_COPY: dict[str, dict[str, str]] = {
         "final_selected_message": "最终版本选择已收到。你不需要回到聊天里回复；agent 会检测 final-selected.ready 并自动做最终交付。",
         "nav_intake": "信息收集",
         "nav_visual": "视觉方向",
+        "nav_image_style": "图片风格",
+        "nav_image_placement": "图片插入",
         "nav_style": "视觉复审",
         "nav_compare": "版本比较",
+        "image_style_gate": "图片风格门禁",
+        "image_style_title": "确认 AI 生图模式",
+        "image_style_intro": "这一步只决定图片权限和第一批 prompt 草稿。真正插入到哪一页，post-v1 模式会在看到 v1 预览后再确认。",
+        "image_policy_label": "当前 image_policy",
+        "image_mode_label": "生成模式",
+        "image_mode_none": "不生成 AI 图片",
+        "image_mode_global_background": "生成一张全局抽象背景",
+        "image_mode_cover_section_auto": "生成封面 + 通用章节背景",
+        "image_mode_post_v1_slot_review": "先生成 v1，再确认图片槽位",
+        "image_mode_hybrid": "先生成基础背景，v1 后再确认补充图片",
+        "image_mode_warning": "ask-before-use 选择 pre-v1 模式时仍允许，但必须逐条确认下面的 prompt 草稿。",
+        "image_prompt_drafts": "Prompt 草稿",
+        "image_prompt_confirm": "我确认这条 prompt 可以进入 image-plan.json",
+        "image_style_notes": "图片风格补充说明",
+        "image_style_notes_placeholder": "例如：更抽象、更像医学期刊封面、不要人物、不要文字。",
+        "html_motion_profile": "HTML 动效方案",
+        "html_motion_profile_subtle": "Subtle: 稳定、轻量、CSS-only",
+        "html_motion_profile_expressive": "Expressive: 更强转场与元素入场，CSS-only",
+        "html_motion_profile_cinematic": "Cinematic: 强化 CSS 动效；Canvas/WebGL 暂不启用",
+        "save_image_style": "保存图片风格门禁",
+        "image_style_saved_title": "图片风格已保存",
+        "image_style_saved_message": "图片风格门禁已保存。agent 会检测 images-style.ready 并继续。",
+        "image_style_error_title": "图片风格门禁未通过",
+        "image_placement_gate": "图片插入门禁",
+        "image_placement_title": "确认 v1 后图片插入",
+        "image_placement_intro": "请基于 v1 预览选择哪些位置需要补充图片。PPTX 会用 targeted edit；HTML-only 会重新生成 v2/final.html。",
+        "preview_artifact": "v1 预览文件",
+        "missing_preview_artifact": "还没有找到当前输出格式需要的 v1 预览文件。请先完成 v1 生成并刷新此页。",
+        "placement_rows": "插入请求",
+        "slide_index": "页码 / HTML section",
+        "slide_role": "页面角色",
+        "placement_type": "放置方式",
+        "asset_kind": "素材类型",
+        "overlay_opacity": "叠加透明度",
+        "placement_prompt": "图片 prompt / 说明",
+        "placement_notes": "插入说明",
+        "save_image_placement": "保存图片插入门禁",
+        "image_placement_saved_title": "图片插入请求已保存",
+        "image_placement_saved_message": "图片插入请求已保存。agent 会检测 images-placement.ready 并生成 v2。",
     },
     "en": {
         "intake_topline": "Presentation Director",
@@ -380,8 +461,49 @@ ADDITIONAL_UI_COPY: dict[str, dict[str, str]] = {
         "final_selected_message": "Final version selection received. You do not need to reply in chat; the agent will detect final-selected.ready and complete the final delivery automatically.",
         "nav_intake": "Intake",
         "nav_visual": "Visual Direction",
+        "nav_image_style": "Image Style",
+        "nav_image_placement": "Image Placement",
         "nav_style": "Style Review",
         "nav_compare": "Compare",
+        "image_style_gate": "Image Style Gate",
+        "image_style_title": "Confirm AI Image Mode",
+        "image_style_intro": "This step decides image permissions and the first prompt drafts. In post-v1 modes, exact slide placement is confirmed only after the v1 preview exists.",
+        "image_policy_label": "Current image_policy",
+        "image_mode_label": "Generation mode",
+        "image_mode_none": "Do not generate AI images",
+        "image_mode_global_background": "Generate one global abstract background",
+        "image_mode_cover_section_auto": "Generate cover + reusable section background",
+        "image_mode_post_v1_slot_review": "Generate v1 first, then confirm image slots",
+        "image_mode_hybrid": "Generate base backgrounds first, then confirm extra images after v1",
+        "image_mode_warning": "With ask-before-use, pre-v1 modes are allowed but every prompt draft below must be confirmed.",
+        "image_prompt_drafts": "Prompt Drafts",
+        "image_prompt_confirm": "I approve this prompt for image-plan.json",
+        "image_style_notes": "Additional image style notes",
+        "image_style_notes_placeholder": "For example: more abstract, medical-journal cover feel, no people, no text.",
+        "html_motion_profile": "HTML motion profile",
+        "html_motion_profile_subtle": "Subtle: stable, light, CSS-only",
+        "html_motion_profile_expressive": "Expressive: stronger transitions and element entrances, CSS-only",
+        "html_motion_profile_cinematic": "Cinematic: stronger CSS motion; Canvas/WebGL is not enabled yet",
+        "save_image_style": "Save image style gate",
+        "image_style_saved_title": "Image style saved",
+        "image_style_saved_message": "Image style gate saved. The agent will detect images-style.ready and continue.",
+        "image_style_error_title": "Image style gate failed",
+        "image_placement_gate": "Image Placement Gate",
+        "image_placement_title": "Confirm Post-v1 Image Placement",
+        "image_placement_intro": "Use the v1 preview to decide where generated images should be added. PPTX uses targeted edit; HTML-only regenerates v2/final.html.",
+        "preview_artifact": "v1 preview artifact",
+        "missing_preview_artifact": "The required v1 preview artifact for this output format is missing. Generate v1 first, then refresh this page.",
+        "placement_rows": "Placement Requests",
+        "slide_index": "Slide / HTML section",
+        "slide_role": "Slide role",
+        "placement_type": "Placement type",
+        "asset_kind": "Asset kind",
+        "overlay_opacity": "Overlay opacity",
+        "placement_prompt": "Image prompt / description",
+        "placement_notes": "Placement notes",
+        "save_image_placement": "Save image placement gate",
+        "image_placement_saved_title": "Image placement saved",
+        "image_placement_saved_message": "Image placement request saved. The agent will detect images-placement.ready and generate v2.",
     },
     "de": {
         "intake_topline": "Presentation Director",
@@ -1284,34 +1406,34 @@ def generation_strategy_text(output_format: str, task_dir: Path, ui_language: st
     task_path: str = str(task_dir)
     messages: dict[str, dict[str, str]] = {
         "zh": {
-            "html-revealjs": f"将生成 Reveal.js HTML 演示文稿，保存到 {task_path}/final/<name>.html。用浏览器打开即可演示；附加 ?print-pdf 可导出 PDF。",
+            "html-revealjs": f"先生成版本化 Reveal.js HTML 到 {task_path}/v1/final.html；最终选择后复制到 {task_path}/final/<task-slug>.html。用浏览器打开即可演示；附加 ?print-pdf 可导出 PDF。",
             "pptx": f"先生成 v1 PPTX 和 contact sheet，集中保存到 {task_path}，然后打开 style-review.html 供选择是否重绘。",
-            "both": f"将分别生成 HTML（Reveal.js）和 PPTX 两个版本，均保存到 {task_path}/final/。两版视觉风格会有差异：HTML 使用渐变背景和动画，PPTX 使用纯色背景。",
+            "both": f"先生成 v1/final.pptx 与 v1/final.html；最终选择后复制到 {task_path}/final/。HTML 使用 Reveal.js 动效，PPTX 使用同调色板的纯色背景。",
         },
         "en": {
-            "html-revealjs": f"Generate a Reveal.js HTML presentation and save it to {task_path}/final/<name>.html. Open it in a browser to present; append ?print-pdf to export PDF.",
+            "html-revealjs": f"Generate versioned Reveal.js HTML at {task_path}/v1/final.html first; after final selection it is copied to {task_path}/final/<task-slug>.html. Open it in a browser to present; append ?print-pdf to export PDF.",
             "pptx": f"Generate the v1 PPTX and contact sheet first, save them under {task_path}, then open style-review.html so you can decide whether to redraw the deck.",
-            "both": f"Generate both HTML (Reveal.js) and PPTX versions under {task_path}/final/. The visual systems intentionally differ: HTML uses gradients and animation, while PPTX uses solid-color equivalents.",
+            "both": f"Generate v1/final.pptx and v1/final.html first; after final selection copy them under {task_path}/final/. HTML uses Reveal.js motion while PPTX uses solid-color equivalents.",
         },
         "de": {
-            "html-revealjs": f"Es wird eine Reveal.js-HTML-Präsentation erzeugt und unter {task_path}/final/<name>.html gespeichert. Im Browser öffnen; mit ?print-pdf als PDF exportieren.",
+            "html-revealjs": f"Zuerst wird versioniertes Reveal.js-HTML unter {task_path}/v1/final.html erzeugt; nach finaler Auswahl wird es nach {task_path}/final/<task-slug>.html kopiert.",
             "pptx": f"Zuerst werden v1-PPTX und Contact Sheet erzeugt und unter {task_path} gespeichert. Danach wird style-review.html geöffnet, damit Sie entscheiden können, ob das Deck visuell überarbeitet werden soll.",
-            "both": f"Es werden HTML (Reveal.js) und PPTX unter {task_path}/final/ erzeugt. Die visuellen Systeme unterscheiden sich bewusst: HTML nutzt Verläufe und Animationen, PPTX nutzt entsprechende Vollfarben.",
+            "both": f"Zuerst werden v1/final.pptx und v1/final.html erzeugt; nach finaler Auswahl werden sie unter {task_path}/final/ kopiert.",
         },
         "fr": {
-            "html-revealjs": f"Générer une présentation HTML Reveal.js dans {task_path}/final/<name>.html. Ouvrez-la dans un navigateur; ajoutez ?print-pdf pour exporter en PDF.",
+            "html-revealjs": f"Générer d'abord le HTML Reveal.js versionné dans {task_path}/v1/final.html; après le choix final, le copier dans {task_path}/final/<task-slug>.html.",
             "pptx": f"Générer d'abord le PPTX v1 et la planche de contact dans {task_path}, puis ouvrir style-review.html pour décider d'une éventuelle refonte visuelle.",
-            "both": f"Générer les versions HTML (Reveal.js) et PPTX dans {task_path}/final/. Les styles diffèrent volontairement: HTML utilise des dégradés et animations, PPTX utilise des aplats équivalents.",
+            "both": f"Générer d'abord v1/final.pptx et v1/final.html; après le choix final, les copier dans {task_path}/final/.",
         },
         "it": {
-            "html-revealjs": f"Genera una presentazione HTML Reveal.js in {task_path}/final/<name>.html. Aprila nel browser; aggiungi ?print-pdf per esportare in PDF.",
+            "html-revealjs": f"Genera prima l'HTML Reveal.js versionato in {task_path}/v1/final.html; dopo la scelta finale copialo in {task_path}/final/<task-slug>.html.",
             "pptx": f"Genera prima il PPTX v1 e il contact sheet in {task_path}, poi apri style-review.html per decidere se ridisegnare il deck.",
-            "both": f"Genera sia HTML (Reveal.js) sia PPTX in {task_path}/final/. Gli stili differiscono intenzionalmente: HTML usa gradienti e animazioni, PPTX usa colori pieni equivalenti.",
+            "both": f"Genera prima v1/final.pptx e v1/final.html; dopo la scelta finale copiali in {task_path}/final/.",
         },
         "es": {
-            "html-revealjs": f"Genera una presentación HTML Reveal.js en {task_path}/final/<name>.html. Ábrela en el navegador; añade ?print-pdf para exportar a PDF.",
+            "html-revealjs": f"Primero genera el HTML Reveal.js versionado en {task_path}/v1/final.html; tras la selección final cópialo a {task_path}/final/<task-slug>.html.",
             "pptx": f"Primero genera el PPTX v1 y la hoja de contacto en {task_path}, y luego abre style-review.html para decidir si redibujar el deck.",
-            "both": f"Genera versiones HTML (Reveal.js) y PPTX en {task_path}/final/. Los estilos difieren a propósito: HTML usa degradados y animación, PPTX usa colores sólidos equivalentes.",
+            "both": f"Primero genera v1/final.pptx y v1/final.html; tras la selección final cópialos en {task_path}/final/.",
         },
     }
     language_messages: dict[str, str] = messages.get(ui_language, messages["en"])
@@ -1468,6 +1590,51 @@ def validate_generation_guard(task_dir: Path) -> list[str]:
             errors.append("confirmation_gate.confirmed_by is not user-click.")
         if receipt.get("token_verified") is not True:
             errors.append("confirmation_gate.token_verified is not true.")
+
+    raw_image_mode: Any = brief.get("image_generation_mode")
+    if raw_image_mode is None:
+        return errors
+
+    image_policy: str = image_policy_from_brief(brief)
+    image_mode: str = normalize_image_generation_mode(str(raw_image_mode), image_policy)
+    if str(raw_image_mode) not in IMAGE_GENERATION_MODES:
+        errors.append(f"Invalid image_generation_mode: {raw_image_mode}")
+
+    if not status_exists(task_dir, "images-style"):
+        errors.append(f"Missing image style status: {status_dir(task_dir) / STATUS_FILES['images-style']}")
+
+    if image_policy == "none" and image_mode != "none":
+        errors.append("image_policy is none, but image_generation_mode is not none.")
+
+    for message in failed_image_asset_messages(task_dir):
+        errors.append(message)
+
+    if image_mode != "none" and not image_plan_path(task_dir).exists():
+        errors.append(f"Missing image plan: {image_plan_path(task_dir)}")
+
+    if image_mode in PRE_V1_IMAGE_MODES:
+        plan: JsonDict = read_json(image_plan_path(task_dir))
+        raw_targets: Any = plan.get("targets", [])
+        planned_target_ids: set[str] = {
+            str(item.get("id", "")).strip()
+            for item in raw_targets
+            if isinstance(item, dict) and str(item.get("phase", "pre-v1")) == "pre-v1"
+        }
+        planned_target_ids.discard("")
+        successful_target_ids: set[str] = successful_asset_target_ids(task_dir)
+        missing_successes: list[str] = sorted(planned_target_ids - successful_target_ids)
+        if missing_successes:
+            errors.append(
+                "Pre-v1 image targets are not successful in image-assets.json: "
+                + ", ".join(missing_successes)
+            )
+
+    output_format: str = output_format_from_brief(brief, "pptx")
+    if image_mode in POST_V1_IMAGE_MODES and v1_preview_exists(task_dir, output_format):
+        if not status_exists(task_dir, "images-placement"):
+            errors.append(f"Missing post-v1 image placement status: {status_dir(task_dir) / STATUS_FILES['images-placement']}")
+        if not image_placement_path(task_dir).exists():
+            errors.append(f"Missing post-v1 image placement request: {image_placement_path(task_dir)}")
     return errors
 
 
@@ -1505,6 +1672,223 @@ def output_format_from_selections(selections: JsonDict, default: str = "pptx") -
     if output_format in {"html-revealjs", "pptx", "both"}:
         return output_format
     return default
+
+
+def output_format_from_brief(brief: JsonDict, default: str = "pptx") -> str:
+    output_format: str = str(brief.get("output_format", "")).strip()
+    if output_format in {"html-revealjs", "pptx", "both"}:
+        return output_format
+    selections: JsonDict = brief.get("selections", {}) if isinstance(brief.get("selections"), dict) else {}
+    return output_format_from_selections(selections, default)
+
+
+def image_policy_from_brief(brief: JsonDict) -> str:
+    selections: JsonDict = brief.get("selections", {}) if isinstance(brief.get("selections"), dict) else {}
+    image_policy: str = selection_value(selections, "image_policy", "none")
+    if image_policy in IMAGE_POLICY_VALUES:
+        return image_policy
+    return "custom"
+
+
+def default_image_generation_mode(image_policy: str) -> str:
+    return POLICY_DEFAULT_IMAGE_MODE.get(image_policy, "post-v1-slot-review")
+
+
+def normalize_image_generation_mode(value: str, image_policy: str) -> str:
+    if value in IMAGE_GENERATION_MODES:
+        return value
+    return default_image_generation_mode(image_policy)
+
+
+def selected_visual_candidate_from_brief(brief: JsonDict) -> JsonDict:
+    visual_direction: Any = brief.get("visual_direction", {})
+    if isinstance(visual_direction, dict):
+        selected_candidate: Any = visual_direction.get("selected_candidate", {})
+        if isinstance(selected_candidate, dict):
+            return selected_candidate
+    topic: str = str(brief.get("topic", ""))
+    selections: JsonDict = brief.get("selections", {}) if isinstance(brief.get("selections"), dict) else {}
+    return visual_candidate_to_json(build_visual_candidates(topic, selections)[0])
+
+
+def html_animation_density_for_level(motion_level: str) -> str:
+    if motion_level == "cinematic":
+        return "rich"
+    if motion_level == "expressive":
+        return "moderate"
+    return "minimal"
+
+
+def html_motion_profile_from_brief(brief: JsonDict) -> str:
+    candidate: JsonDict = selected_visual_candidate_from_brief(brief)
+    key_text: str = f"{candidate.get('key', '')} {candidate.get('name', '')} {candidate.get('inspiration', '')}".lower()
+    if any(token in key_text for token in ("pitch", "investor", "launch")):
+        return "pitch"
+    if any(token in key_text for token in ("engineering", "terminal", "signal", "architecture")):
+        return "tech"
+    if any(token in key_text for token in ("medical", "academic", "atlas", "editorial", "clinical")):
+        return "editorial"
+    if any(token in key_text for token in ("product", "brand", "studio")):
+        return "product"
+    return "presenter"
+
+
+def html_config_from_brief(brief: JsonDict, motion_level: str) -> JsonDict:
+    candidate: JsonDict = selected_visual_candidate_from_brief(brief)
+    return {
+        "motion_profile": html_motion_profile_from_brief(brief),
+        "motion_level": motion_level,
+        "animation_density": html_animation_density_for_level(motion_level),
+        "transition": str(candidate.get("html_transition", "fade")),
+        "animation": str(candidate.get("html_animation", "minimal")),
+        "gradient": str(candidate.get("html_gradient", "")),
+        "effects_runtime": "css-only",
+        "canvas_fx": False,
+        "notes": "Canvas/WebGL effects are future capability; current cinematic mode uses CSS-only motion.",
+    }
+
+
+def image_plan_path(task_dir: Path) -> Path:
+    return task_dir / "image-plan.json"
+
+
+def image_assets_path(task_dir: Path) -> Path:
+    return task_dir / "image-assets.json"
+
+
+def image_placement_path(task_dir: Path) -> Path:
+    return task_dir / "image-placement-request.json"
+
+
+def image_prompt_draft(brief: JsonDict, target_id: str, slide_role: str, placement_type: str) -> str:
+    topic: str = str(brief.get("topic", "presentation"))
+    candidate: JsonDict = selected_visual_candidate_from_brief(brief)
+    palette_values: list[str] = [str(color) for color in candidate.get("palette", []) if str(color).strip()]
+    palette: str = ", ".join(palette_values[:4]) or "the confirmed visual palette"
+    visual_style: str = str(candidate.get("name", "confirmed visual direction"))
+    return (
+        f"Abstract presentation background for '{topic}', {slide_role}, {placement_type}. "
+        f"Use the {visual_style} direction and palette {palette}. "
+        "No text, no letters, no logos, no people, no faces, no fake screenshots, no real-world claims. "
+        "Leave generous negative space for slide content and keep contrast suitable for overlay text."
+    )
+
+
+def image_targets_for_mode(brief: JsonDict, image_mode: str) -> list[JsonDict]:
+    if image_mode == "none" or image_mode == "post-v1-slot-review":
+        return []
+    target_specs: list[tuple[str, str, str, str, float]] = []
+    if image_mode == "global-background":
+        target_specs.append(("global-background", "global-theme", "full-bleed-background", "abstract-texture", 0.18))
+    elif image_mode == "cover-section-auto":
+        target_specs.extend([
+            ("cover-background", "cover", "full-bleed-background", "abstract-texture", 0.28),
+            ("section-background", "section-divider", "full-bleed-background", "abstract-texture", 0.22),
+        ])
+    elif image_mode == "hybrid":
+        target_specs.append(("global-background", "global-theme", "full-bleed-background", "abstract-texture", 0.18))
+
+    targets: list[JsonDict] = []
+    for target_id, slide_role, placement_type, asset_kind, overlay_opacity in target_specs:
+        targets.append({
+            "id": target_id,
+            "phase": "pre-v1",
+            "slide_role": slide_role,
+            "placement_type": placement_type,
+            "asset_kind": asset_kind,
+            "overlay_opacity": overlay_opacity,
+            "output_path": f"assets/images/{target_id}.png",
+            "prompt_draft": image_prompt_draft(brief, target_id, slide_role, placement_type),
+            "constraints": [
+                "no text",
+                "no logos",
+                "no people",
+                "no fake screenshots",
+                "abstract texture only",
+            ],
+        })
+    return targets
+
+
+def image_mode_label_key(image_mode: str) -> str:
+    return "image_mode_" + image_mode.replace("-", "_")
+
+
+def status_exists(task_dir: Path, status_name: str) -> bool:
+    filename: str | None = STATUS_FILES.get(status_name)
+    return bool(filename and (status_dir(task_dir) / filename).exists())
+
+
+def image_assets_doc(task_dir: Path) -> JsonDict:
+    doc: JsonDict = read_json(image_assets_path(task_dir), {"version": "0.1", "assets": []})
+    if not isinstance(doc.get("assets"), list):
+        doc["assets"] = []
+    return doc
+
+
+def image_asset_records(task_dir: Path) -> list[JsonDict]:
+    doc: JsonDict = image_assets_doc(task_dir)
+    records: list[JsonDict] = []
+    for item in doc.get("assets", []):
+        if isinstance(item, dict):
+            records.append(item)
+    return records
+
+
+def successful_asset_target_ids(task_dir: Path) -> set[str]:
+    target_ids: set[str] = set()
+    for record in image_asset_records(task_dir):
+        if record.get("final_status") != "success":
+            continue
+        target_id: str = str(record.get("target_id", record.get("id", ""))).strip()
+        if target_id:
+            target_ids.add(target_id)
+    return target_ids
+
+
+def failed_image_asset_messages(task_dir: Path) -> list[str]:
+    messages: list[str] = []
+    for record in image_asset_records(task_dir):
+        if record.get("final_status") != "failed":
+            continue
+        target_id: str = str(record.get("target_id", record.get("id", "unknown-target")))
+        attempts: Any = record.get("attempts", [])
+        last_error: str = ""
+        if isinstance(attempts, list) and attempts:
+            last_attempt: Any = attempts[-1]
+            if isinstance(last_attempt, dict):
+                last_error = str(last_attempt.get("error", ""))
+        suffix: str = f": {last_error}" if last_error else ""
+        messages.append(f"Image asset {target_id} failed after retry policy{suffix}")
+    return messages
+
+
+def v1_preview_exists(task_dir: Path, output_format: str) -> bool:
+    v1_dir: Path = task_dir / "v1"
+    if output_format == "html-revealjs":
+        html_path: Path = v1_dir / "final.html"
+        return html_path.exists() and html_path.stat().st_size > 0
+    return (v1_dir / "final.pptx").exists() and (v1_dir / "contact-sheet.png").exists()
+
+
+def preview_artifact_paths(task_dir: Path, output_format: str, version_name: str = "v1") -> list[Path]:
+    version_dir: Path = task_dir / version_name
+    if output_format == "html-revealjs":
+        paths: list[Path] = [version_dir / "final.html"]
+        screenshot_dir: Path = version_dir / "screenshots"
+        if screenshot_dir.exists():
+            paths.extend(sorted(screenshot_dir.glob("*.png"), key=natural_sort_key))
+        return paths
+    return [version_dir / "final.pptx", version_dir / "contact-sheet.png"]
+
+
+def selected_version_html_path(task_dir: Path, version_name: str) -> Path:
+    return task_dir / version_name / "final.html"
+
+
+def final_html_path_for_output(task_dir: Path, output_format: str, companion: bool = False) -> Path:
+    suffix: str = "-companion" if companion else ""
+    return task_dir / "final" / f"{task_dir.name}{suffix}.html"
 
 
 def visual_candidate_to_json(candidate: VisualCandidate) -> JsonDict:
@@ -1931,8 +2315,8 @@ def html_page(title: str, body: str, ui_language: str = "zh") -> str:
       border-color: var(--accent);
       box-shadow: 0 0 0 2px rgba(39, 76, 119, .16);
     }}
-    input[type="radio"] {{ margin-right: 8px; }}
-    input[type="text"], textarea {{
+    input[type="radio"], input[type="checkbox"] {{ margin-right: 8px; }}
+    input[type="text"], input[type="number"], select, textarea {{
       width: 100%;
       margin-top: 8px;
       padding: 10px 12px;
@@ -1959,6 +2343,20 @@ def html_page(title: str, body: str, ui_language: str = "zh") -> str:
     .meta {{ color: var(--muted); font-size: 13px; }}
     .source-tag {{ display: inline-block; padding: 2px 7px; border-radius: 999px; background: #ebe3d5; font-size: 12px; color: #554; }}
     .risk {{ border-left: 4px solid var(--accent-2); padding-left: 12px; }}
+    .notice {{
+      border-left: 4px solid var(--accent);
+      background: #eef4f8;
+      padding: 12px 14px;
+      border-radius: 6px;
+      color: var(--ink);
+    }}
+    .warning-box {{
+      border-left: 4px solid var(--accent-2);
+      background: #fff6ec;
+      padding: 12px 14px;
+      border-radius: 6px;
+      color: var(--ink);
+    }}
     .candidate {{ min-height: 100%; }}
     .candidate input {{ margin-right: 8px; }}
     .swatches-preview {{ display: flex; gap: 6px; margin: 12px 0; }}
@@ -1988,6 +2386,13 @@ def html_page(title: str, body: str, ui_language: str = "zh") -> str:
       border: 1px solid var(--line);
       background: #eee;
       border-radius: 8px;
+    }}
+    .html-preview {{
+      width: 100%;
+      min-height: 520px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
     }}
     code {{ background: #eee7da; padding: 2px 5px; border-radius: 4px; }}
     table {{ width: 100%; border-collapse: collapse; background: var(--panel); }}
@@ -2215,6 +2620,194 @@ def ensure_visual_selection(selected: JsonDict) -> JsonDict:
         "selected_at": datetime.now().isoformat(timespec="seconds"),
     }
     return updated
+
+
+def apply_image_style_selection(brief: JsonDict, form: dict[str, list[str]]) -> tuple[JsonDict, JsonDict, list[str]]:
+    image_policy: str = image_policy_from_brief(brief)
+    current_mode: str = str(brief.get("image_generation_mode", ""))
+    requested_mode: str = first_form_value(
+        form,
+        "image_generation_mode",
+        current_mode or default_image_generation_mode(image_policy),
+    )
+    image_mode: str = normalize_image_generation_mode(requested_mode, image_policy)
+    errors: list[str] = []
+    if image_policy == "none" and image_mode != "none":
+        errors.append("image_policy=none requires image_generation_mode=none.")
+
+    targets: list[JsonDict] = image_targets_for_mode(brief, image_mode)
+    confirmed_targets: list[str] = []
+    for target in targets:
+        target_id: str = str(target.get("id", ""))
+        prompt_key: str = f"target_prompt__{target_id}"
+        target["prompt_draft"] = first_form_value(form, prompt_key, str(target.get("prompt_draft", ""))).strip()
+        if first_form_value(form, f"target_confirm__{target_id}", "") == "yes":
+            confirmed_targets.append(target_id)
+
+    if image_policy == "ask-before-use" and image_mode in ASK_BEFORE_USE_PRE_V1_MODES:
+        missing_confirmations: list[str] = [
+            str(target.get("id", ""))
+            for target in targets
+            if str(target.get("id", "")) not in confirmed_targets
+        ]
+        if missing_confirmations:
+            errors.append(
+                "ask-before-use pre-v1 mode requires prompt confirmation for: "
+                + ", ".join(missing_confirmations)
+            )
+
+    html_motion_level: str = first_form_value(form, "html_motion_level", "subtle")
+    if html_motion_level not in {"subtle", "expressive", "cinematic"}:
+        html_motion_level = "subtle"
+
+    updated_brief: JsonDict = dict(brief)
+    updated_brief["image_generation_mode"] = image_mode
+    updated_brief["image_style_gate"] = {
+        "method": "browser-form",
+        "confirmed_by": "user-click",
+        "image_policy": image_policy,
+        "image_generation_mode": image_mode,
+        "confirmed_target_prompts": confirmed_targets,
+        "confirmed_at": datetime.now().isoformat(timespec="seconds"),
+    }
+    updated_brief["html_motion_level"] = html_motion_level
+    updated_brief["html_motion_profile"] = html_motion_profile_from_brief(updated_brief)
+    updated_brief["html_config"] = html_config_from_brief(updated_brief, html_motion_level)
+    updated_brief["updated_at"] = datetime.now().isoformat(timespec="seconds")
+
+    plan: JsonDict = {
+        "version": "0.1",
+        "image_policy": image_policy,
+        "image_generation_mode": image_mode,
+        "output_format": output_format_from_brief(updated_brief, "pptx"),
+        "retry_strategy": "retry-2-then-stop",
+        "max_attempts": MAX_IMAGE_ATTEMPTS,
+        "status": "ready",
+        "targets": targets,
+        "notes": first_form_value(form, "image_style_notes", "").strip(),
+        "created_at": datetime.now().isoformat(timespec="seconds"),
+    }
+    return updated_brief, plan, errors
+
+
+def apply_image_placement_request(task_dir: Path, brief: JsonDict, form: dict[str, list[str]]) -> JsonDict:
+    rows: list[JsonDict] = []
+    for index in range(1, 7):
+        enabled: str = first_form_value(form, f"placement_enabled_{index}", "")
+        prompt: str = first_form_value(form, f"placement_prompt_{index}", "").strip()
+        if enabled != "yes" and not prompt:
+            continue
+        slide_index_raw: str = first_form_value(form, f"slide_index_{index}", str(index)).strip()
+        try:
+            slide_index: int = int(slide_index_raw)
+        except ValueError:
+            slide_index = index
+        overlay_opacity_raw: str = first_form_value(form, f"overlay_opacity_{index}", "0.24").strip()
+        try:
+            overlay_opacity: float = float(overlay_opacity_raw)
+        except ValueError:
+            overlay_opacity = 0.24
+        overlay_opacity = max(0.0, min(1.0, overlay_opacity))
+        rows.append({
+            "id": f"post-v1-{index}",
+            "slide_index": slide_index,
+            "slide_role": first_form_value(form, f"slide_role_{index}", "content").strip() or "content",
+            "placement_type": first_form_value(form, f"placement_type_{index}", "content-inset").strip() or "content-inset",
+            "asset_kind": first_form_value(form, f"asset_kind_{index}", "abstract-concept").strip() or "abstract-concept",
+            "overlay_opacity": overlay_opacity,
+            "prompt": prompt,
+            "notes": first_form_value(form, f"placement_notes_{index}", "").strip(),
+        })
+
+    output_format: str = output_format_from_brief(brief, "pptx")
+    return {
+        "version": "0.1",
+        "image_policy": image_policy_from_brief(brief),
+        "image_generation_mode": normalize_image_generation_mode(
+            str(brief.get("image_generation_mode", "")),
+            image_policy_from_brief(brief),
+        ),
+        "output_format": output_format,
+        "preview_artifacts": [str(path) for path in preview_artifact_paths(task_dir, output_format) if path.exists()],
+        "placements": rows,
+        "notes": first_form_value(form, "placement_notes", "").strip(),
+        "created_at": datetime.now().isoformat(timespec="seconds"),
+    }
+
+
+def record_image_asset_attempt(
+    task_dir: Path,
+    target_id: str,
+    prompt: str,
+    output_path_value: str,
+    status_value: str,
+    error_text: str = "",
+    asset_kind: str = "abstract-texture",
+    placement_type: str = "full-bleed-background",
+) -> JsonDict:
+    doc: JsonDict = image_assets_doc(task_dir)
+    assets: list[JsonDict] = [
+        item
+        for item in doc.get("assets", [])
+        if isinstance(item, dict)
+    ]
+    record: JsonDict | None = None
+    for item in assets:
+        if str(item.get("target_id", item.get("id", ""))) == target_id:
+            record = item
+            break
+    if record is None:
+        record = {
+            "id": target_id,
+            "target_id": target_id,
+            "asset_kind": asset_kind,
+            "placement_type": placement_type,
+            "attempts": [],
+            "final_status": "pending",
+        }
+        assets.append(record)
+
+    output_path: Path = Path(output_path_value).expanduser()
+    if not output_path.is_absolute():
+        output_path = task_dir / output_path
+    validated_status: str = status_value
+    size_bytes: int = 0
+    validation_error: str = error_text
+    if status_value == "success":
+        if output_path.exists() and output_path.is_file():
+            size_bytes = output_path.stat().st_size
+        if size_bytes <= 0:
+            validated_status = "failed"
+            validation_error = validation_error or "success requested, but output_path is missing or empty"
+
+    attempts_any: Any = record.get("attempts", [])
+    attempts: list[JsonDict] = [item for item in attempts_any if isinstance(item, dict)] if isinstance(attempts_any, list) else []
+    attempt_number: int = len(attempts) + 1
+    attempts.append({
+        "attempt": attempt_number,
+        "status": validated_status,
+        "output_path": str(output_path),
+        "size_bytes": size_bytes,
+        "prompt": prompt,
+        "error": validation_error,
+        "created_at": datetime.now().isoformat(timespec="seconds"),
+    })
+    record["attempts"] = attempts
+    record["updated_at"] = datetime.now().isoformat(timespec="seconds")
+    if validated_status == "success":
+        record["final_status"] = "success"
+        record["output_path"] = str(output_path)
+        record["size_bytes"] = size_bytes
+    elif attempt_number >= MAX_IMAGE_ATTEMPTS:
+        record["final_status"] = "failed"
+    else:
+        record["final_status"] = "retrying"
+
+    doc["version"] = "0.1"
+    doc["assets"] = assets
+    doc["updated_at"] = datetime.now().isoformat(timespec="seconds")
+    write_json(image_assets_path(task_dir), doc)
+    return record
 
 
 def first_form_value(form: dict[str, list[str]], key: str, default: str) -> str:
@@ -2685,26 +3278,261 @@ def render_confirm(task_dir: Path) -> str:
     return html_page(t(ui_language, "confirm_title"), body, ui_language)
 
 
+def render_image_style(task_dir: Path, error_messages: list[str] | None = None) -> str:
+    brief: JsonDict = read_json(task_dir / "brief-confirmed.json")
+    if not brief:
+        brief = read_json(task_dir / "intake-selection.json", read_json(task_dir / "brief-draft.json"))
+    ui_language: str = ui_language_from_brief(brief)
+    image_policy: str = image_policy_from_brief(brief)
+    current_mode: str = normalize_image_generation_mode(
+        str(brief.get("image_generation_mode", "")),
+        image_policy,
+    )
+    output_format: str = output_format_from_brief(brief, "pptx")
+    existing_plan: JsonDict = read_json(image_plan_path(task_dir))
+    existing_prompts: dict[str, str] = {}
+    raw_targets: Any = existing_plan.get("targets", [])
+    if isinstance(raw_targets, list):
+        for item in raw_targets:
+            if isinstance(item, dict):
+                existing_prompts[str(item.get("id", ""))] = str(item.get("prompt_draft", ""))
+
+    mode_cards: list[str] = []
+    for image_mode in ("none", "global-background", "cover-section-auto", "post-v1-slot-review", "hybrid"):
+        checked: str = " checked" if image_mode == current_mode else ""
+        disabled: str = " disabled" if image_policy == "none" and image_mode != "none" else ""
+        warning: str = ""
+        if image_policy == "ask-before-use" and image_mode in ASK_BEFORE_USE_PRE_V1_MODES:
+            warning = f"<p class='meta'>{html.escape(t(ui_language, 'image_mode_warning'))}</p>"
+        mode_cards.append(
+            f"""<label class="option">
+  <input type="radio" name="image_generation_mode" value="{html.escape(image_mode)}"{checked}{disabled}>
+  <strong>{html.escape(t(ui_language, image_mode_label_key(image_mode)))}</strong>
+  {warning}
+</label>"""
+        )
+
+    prompt_targets: list[JsonDict] = []
+    seen_target_ids: set[str] = set()
+    for image_mode in ("global-background", "cover-section-auto", "hybrid"):
+        for target in image_targets_for_mode(brief, image_mode):
+            target_id: str = str(target.get("id", ""))
+            if target_id in seen_target_ids:
+                continue
+            seen_target_ids.add(target_id)
+            if target_id in existing_prompts:
+                target["prompt_draft"] = existing_prompts[target_id]
+            prompt_targets.append(target)
+
+    prompt_cards: list[str] = []
+    style_gate: Any = brief.get("image_style_gate", {})
+    confirmed_target_prompts: set[str] = set()
+    if isinstance(style_gate, dict) and isinstance(style_gate.get("confirmed_target_prompts"), list):
+        confirmed_target_prompts = {str(item) for item in style_gate.get("confirmed_target_prompts", [])}
+    for target in prompt_targets:
+        target_id: str = str(target.get("id", ""))
+        prompt_text: str = str(target.get("prompt_draft", ""))
+        checked: str = " checked" if target_id in confirmed_target_prompts else ""
+        prompt_cards.append(
+            f"""<section class="section">
+  <h3>{html.escape(target_id)}</h3>
+  <p class="meta">{html.escape(str(target.get("slide_role", "")))} / {html.escape(str(target.get("placement_type", "")))} / {html.escape(str(target.get("asset_kind", "")))}</p>
+  <textarea name="target_prompt__{html.escape(target_id)}">{html.escape(prompt_text)}</textarea>
+  <label><input type="checkbox" name="target_confirm__{html.escape(target_id)}" value="yes"{checked}> {html.escape(t(ui_language, "image_prompt_confirm"))}</label>
+</section>"""
+        )
+
+    html_motion_level: str = str(brief.get("html_motion_level", "subtle"))
+    motion_options: list[str] = []
+    for profile in ("subtle", "expressive", "cinematic"):
+        checked: str = " checked" if profile == html_motion_level else ""
+        motion_options.append(
+            f"""<label class="option">
+  <input type="radio" name="html_motion_level" value="{html.escape(profile)}"{checked}>
+  <strong>{html.escape(t(ui_language, f"html_motion_profile_{profile}"))}</strong>
+</label>"""
+        )
+
+    errors_html: str = ""
+    if error_messages:
+        errors_html = "<section class='warning-box'><ul>" + "".join(
+            f"<li>{html.escape(message)}</li>" for message in error_messages
+        ) + "</ul></section>"
+
+    html_motion_section: str = ""
+    if output_format in {"html-revealjs", "both"}:
+        html_motion_section = f"""<section class="section">
+  <h2>{html.escape(t(ui_language, "html_motion_profile"))}</h2>
+  <div class="grid">{''.join(motion_options)}</div>
+</section>"""
+
+    body: str = f"""<div class="topline">{html.escape(t(ui_language, "image_style_gate"))}</div>
+<h1>{html.escape(t(ui_language, "image_style_title"))}</h1>
+<p>{html.escape(t(ui_language, "image_style_intro"))}</p>
+{errors_html}
+<section class="section">
+  <h2>{html.escape(t(ui_language, "image_policy_label"))}</h2>
+  <p><strong>{html.escape(image_policy)}</strong></p>
+</section>
+<form method="post" action="/api/image-style">
+  <section class="section">
+    <h2>{html.escape(t(ui_language, "image_mode_label"))}</h2>
+    <div class="grid">{''.join(mode_cards)}</div>
+  </section>
+  <section class="section">
+    <h2>{html.escape(t(ui_language, "image_prompt_drafts"))}</h2>
+    <p class="meta">{html.escape(t(ui_language, "image_mode_warning"))}</p>
+    {''.join(prompt_cards)}
+  </section>
+  {html_motion_section}
+  <section class="section">
+    <h2>{html.escape(t(ui_language, "image_style_notes"))}</h2>
+    <textarea name="image_style_notes" placeholder="{html.escape(t(ui_language, "image_style_notes_placeholder"))}">{html.escape(str(existing_plan.get("notes", "")))}</textarea>
+  </section>
+  <div class="actions">
+    <button type="submit">{html.escape(t(ui_language, "save_image_style"))}</button>
+    <a class="button secondary" href="/confirm">{html.escape(t(ui_language, "confirm_title"))}</a>
+  </div>
+</form>"""
+    return html_page(t(ui_language, "image_style_title"), body, ui_language)
+
+
+def select_options(values: tuple[str, ...], current: str) -> str:
+    options: list[str] = []
+    for value in values:
+        selected: str = " selected" if value == current else ""
+        options.append(f'<option value="{html.escape(value)}"{selected}>{html.escape(value)}</option>')
+    return "".join(options)
+
+
+def render_image_placement(task_dir: Path) -> str:
+    brief: JsonDict = read_json(task_dir / "brief-confirmed.json")
+    if not brief:
+        brief = read_json(task_dir / "intake-selection.json", read_json(task_dir / "brief-draft.json"))
+    ui_language: str = ui_language_from_brief(brief)
+    output_format: str = output_format_from_brief(brief, "pptx")
+    preview_exists: bool = v1_preview_exists(task_dir, output_format)
+    preview_html: str = ""
+    if output_format == "html-revealjs":
+        html_path: Path = task_dir / "v1" / "final.html"
+        if html_path.exists():
+            preview_html = (
+                f'<p>{html.escape(t(ui_language, "preview_artifact"))}: '
+                f'<code>{html.escape(str(html_path))}</code></p>'
+                f'<iframe class="html-preview" src="/static/v1/final.html"></iframe>'
+            )
+    else:
+        contact_sheet: Path = task_dir / "v1" / "contact-sheet.png"
+        pptx_path: Path = task_dir / "v1" / "final.pptx"
+        if contact_sheet.exists():
+            preview_html = (
+                f'<img class="contact-sheet" src="/static/v1/contact-sheet.png" alt="v1 contact sheet">'
+                f'<p>{html.escape(t(ui_language, "pptx_label"))}: <code>{html.escape(str(pptx_path))}</code></p>'
+            )
+    if not preview_html:
+        preview_html = f"<p class='risk'>{html.escape(t(ui_language, 'missing_preview_artifact'))}</p>"
+
+    row_html: list[str] = []
+    existing_request: JsonDict = read_json(image_placement_path(task_dir))
+    raw_placements: Any = existing_request.get("placements", [])
+    existing_rows: list[JsonDict] = [item for item in raw_placements if isinstance(item, dict)] if isinstance(raw_placements, list) else []
+    for index in range(1, 7):
+        row: JsonDict = existing_rows[index - 1] if index - 1 < len(existing_rows) else {}
+        checked: str = " checked" if row else ""
+        slide_index: str = str(row.get("slide_index", index))
+        slide_role: str = str(row.get("slide_role", "content"))
+        placement_type: str = str(row.get("placement_type", "content-inset"))
+        asset_kind: str = str(row.get("asset_kind", "abstract-concept"))
+        overlay_opacity: str = str(row.get("overlay_opacity", 0.24))
+        prompt: str = str(row.get("prompt", ""))
+        notes: str = str(row.get("notes", ""))
+        row_html.append(
+            f"""<section class="section">
+  <h3>{index}</h3>
+  <label><input type="checkbox" name="placement_enabled_{index}" value="yes"{checked}> {html.escape(t(ui_language, "placement_rows"))}</label>
+  <label>{html.escape(t(ui_language, "slide_index"))}
+    <input type="number" min="1" name="slide_index_{index}" value="{html.escape(slide_index)}">
+  </label>
+  <label>{html.escape(t(ui_language, "slide_role"))}
+    <select name="slide_role_{index}">
+      {select_options(("cover", "section-divider", "content", "evidence", "closing"), slide_role)}
+    </select>
+  </label>
+  <label>{html.escape(t(ui_language, "placement_type"))}
+    <select name="placement_type_{index}">
+      {select_options(("full-bleed-background", "content-inset", "side-visual", "texture-overlay"), placement_type)}
+    </select>
+  </label>
+  <label>{html.escape(t(ui_language, "asset_kind"))}
+    <select name="asset_kind_{index}">
+      {select_options(("abstract-texture", "abstract-concept", "diagram-background", "hero-background"), asset_kind)}
+    </select>
+  </label>
+  <label>{html.escape(t(ui_language, "overlay_opacity"))}
+    <input type="number" min="0" max="1" step="0.01" name="overlay_opacity_{index}" value="{html.escape(overlay_opacity)}">
+  </label>
+  <label>{html.escape(t(ui_language, "placement_prompt"))}
+    <textarea name="placement_prompt_{index}">{html.escape(prompt)}</textarea>
+  </label>
+  <label>{html.escape(t(ui_language, "placement_notes"))}
+    <textarea name="placement_notes_{index}">{html.escape(notes)}</textarea>
+  </label>
+</section>"""
+        )
+
+    disabled_note: str = "" if preview_exists else f"<section class='warning-box'>{html.escape(t(ui_language, 'missing_preview_artifact'))}</section>"
+    body: str = f"""<div class="topline">{html.escape(t(ui_language, "image_placement_gate"))}</div>
+<h1>{html.escape(t(ui_language, "image_placement_title"))}</h1>
+<p>{html.escape(t(ui_language, "image_placement_intro"))}</p>
+<section class="section">
+  <h2>{html.escape(t(ui_language, "preview_artifact"))}</h2>
+  {preview_html}
+</section>
+{disabled_note}
+<form method="post" action="/api/image-placement">
+  <section class="section">
+    <h2>{html.escape(t(ui_language, "placement_rows"))}</h2>
+    {''.join(row_html)}
+  </section>
+  <div class="actions">
+    <button type="submit">{html.escape(t(ui_language, "save_image_placement"))}</button>
+    <a class="button secondary" href="/style-review">{html.escape(t(ui_language, "style_title"))}</a>
+  </div>
+</form>"""
+    return html_page(t(ui_language, "image_placement_title"), body, ui_language)
+
+
 def render_style_review(task_dir: Path) -> str:
     ui_language: str = ui_language_for_task(task_dir)
+    brief: JsonDict = read_json(task_dir / "brief-confirmed.json")
+    output_format: str = output_format_from_brief(brief, "pptx") if brief else "pptx"
     version_name: str = latest_review_version(task_dir)
     version_dir: Path = task_dir / version_name
     contact_sheet: Path = version_dir / "contact-sheet.png"
     qa_summary: Path = version_dir / "qa-summary.md"
     pptx_path: Path = version_dir / "final.pptx"
-    image_html: str = (
-        f'<img class="contact-sheet" src="/static/{html.escape(version_name)}/contact-sheet.png" alt="{html.escape(version_name)} contact sheet">'
-        if contact_sheet.exists()
-        else f"<p class='risk'>{html.escape(t(ui_language, 'missing_contact_sheet').format(path=f'{version_name}/contact-sheet.png'))}</p>"
-    )
+    html_path: Path = version_dir / "final.html"
+    if output_format == "html-revealjs":
+        image_html: str = (
+            f'<iframe class="html-preview" src="/static/{html.escape(version_name)}/final.html"></iframe>'
+            if html_path.exists()
+            else f"<p class='risk'>{html.escape(t(ui_language, 'missing_preview_artifact'))}</p>"
+        )
+    else:
+        image_html = (
+            f'<img class="contact-sheet" src="/static/{html.escape(version_name)}/contact-sheet.png" alt="{html.escape(version_name)} contact sheet">'
+            if contact_sheet.exists()
+            else f"<p class='risk'>{html.escape(t(ui_language, 'missing_contact_sheet').format(path=f'{version_name}/contact-sheet.png'))}</p>"
+        )
     qa_text: str = qa_summary.read_text(encoding="utf-8") if qa_summary.exists() else t(ui_language, "missing_qa_summary")
+    artifact_label: str = str(html_path if output_format == "html-revealjs" else pptx_path)
     body: str = f"""<div class="topline">{html.escape(t(ui_language, "style_review"))}</div>
 <h1>{html.escape(t(ui_language, "style_title"))}</h1>
 <p>{html.escape(t(ui_language, "style_intro").format(version_name=version_name))}</p>
 <section class="section">
   <h2>{html.escape(t(ui_language, "current_version"))}</h2>
   {image_html}
-  <p>{html.escape(t(ui_language, "pptx_label"))}: <code>{html.escape(str(pptx_path))}</code></p>
+  <p>{html.escape(t(ui_language, "preview_artifact"))}: <code>{html.escape(artifact_label)}</code></p>
   <pre>{html.escape(qa_text[:2400])}</pre>
 </section>
 <form method="post" action="/api/revision">
@@ -2751,6 +3579,8 @@ def apply_revision_request(form: dict[str, list[str]]) -> JsonDict:
 
 def render_compare(task_dir: Path) -> str:
     ui_language: str = ui_language_for_task(task_dir)
+    brief: JsonDict = read_json(task_dir / "brief-confirmed.json")
+    output_format: str = output_format_from_brief(brief, "pptx") if brief else "pptx"
     version_cards: list[str] = []
     for version in ("v1", "v2", "v3"):
         version_dir: Path = task_dir / version
@@ -2759,17 +3589,27 @@ def render_compare(task_dir: Path) -> str:
         contact_sheet: Path = version_dir / "contact-sheet.png"
         qa_summary: Path = version_dir / "qa-summary.md"
         pptx_path: Path = version_dir / "final.pptx"
-        image_html: str = (
-            f'<img class="contact-sheet" src="/static/{version}/contact-sheet.png" alt="{version} contact sheet">'
-            if contact_sheet.exists()
-            else f"<p class='risk'>{html.escape(t(ui_language, 'no_contact_sheet'))}</p>"
-        )
+        html_path: Path = version_dir / "final.html"
+        if output_format == "html-revealjs":
+            image_html: str = (
+                f'<iframe class="html-preview" src="/static/{version}/final.html"></iframe>'
+                if html_path.exists()
+                else f"<p class='risk'>{html.escape(t(ui_language, 'missing_preview_artifact'))}</p>"
+            )
+            artifact_label: str = str(html_path)
+        else:
+            image_html = (
+                f'<img class="contact-sheet" src="/static/{version}/contact-sheet.png" alt="{version} contact sheet">'
+                if contact_sheet.exists()
+                else f"<p class='risk'>{html.escape(t(ui_language, 'no_contact_sheet'))}</p>"
+            )
+            artifact_label = str(pptx_path)
         qa_text: str = qa_summary.read_text(encoding="utf-8") if qa_summary.exists() else t(ui_language, "missing_qa_summary")
         version_cards.append(
             f"""<section class="section">
   <h2>{html.escape(version.upper())}</h2>
   {image_html}
-  <p>{html.escape(t(ui_language, "pptx_label"))}: <code>{html.escape(str(pptx_path))}</code></p>
+  <p>{html.escape(t(ui_language, "preview_artifact"))}: <code>{html.escape(artifact_label)}</code></p>
   <pre>{html.escape(qa_text[:1600])}</pre>
   <label class="option"><input type="radio" name="selected_version" value="{html.escape(version)}"> {html.escape(t(ui_language, "choose_version").format(version=version.upper()))}</label>
 </section>"""
@@ -2796,6 +3636,8 @@ def render_all_pages(task_dir: Path) -> None:
     write_text(task_dir / "intake.html", render_intake(task_dir))
     write_text(task_dir / "visual-inspiration.html", render_visual_inspiration(task_dir))
     write_text(task_dir / "brief-confirm.html", render_confirm(task_dir))
+    write_text(task_dir / "image-style.html", render_image_style(task_dir))
+    write_text(task_dir / "image-placement.html", render_image_placement(task_dir))
     write_text(task_dir / "style-review.html", render_style_review(task_dir))
     write_text(task_dir / "compare.html", render_compare(task_dir))
 
@@ -2808,13 +3650,17 @@ def version_number(path: Path) -> int:
 
 
 def latest_review_version(task_dir: Path) -> str:
+    brief: JsonDict = read_json(task_dir / "brief-confirmed.json")
+    output_format: str = output_format_from_brief(brief, "pptx") if brief else "pptx"
     candidates: list[Path] = [
         item
         for item in task_dir.iterdir()
         if item.is_dir()
         and version_number(item) >= 1
-        and (item / "contact-sheet.png").exists()
-        and (item / "final.pptx").exists()
+        and (
+            ((item / "final.html").exists() and output_format == "html-revealjs")
+            or ((item / "contact-sheet.png").exists() and (item / "final.pptx").exists())
+        )
     ]
     if not candidates:
         return "v1"
@@ -2826,25 +3672,68 @@ def initial_prompt(task_dir: Path) -> str:
     if not brief:
         return "No confirmed brief found. Confirm intake first."
     script_path: Path = Path(__file__).resolve()
-    output_format: str = str(brief.get("output_format", output_format_from_selections(brief.get("selections", {}), "pptx")))
+    output_format: str = output_format_from_brief(brief, "pptx")
+    image_policy: str = image_policy_from_brief(brief)
+    raw_image_mode: Any = brief.get("image_generation_mode")
+    image_mode: str = normalize_image_generation_mode(str(raw_image_mode), image_policy) if raw_image_mode is not None else "none"
+    html_v1_output: Path = task_dir / "v1" / "final.html"
+    html_v2_output: Path = task_dir / "v2" / "final.html"
+    pptx_v1_output: Path = task_dir / "v1" / "final.pptx"
+    pptx_v2_output: Path = task_dir / "v2" / "final.pptx"
+    image_style_gate_instruction: str = (
+        f"""- If `image_generation_mode` is missing from the confirmed brief, STOP before generation and open the Image Style Gate:
+  python3 "{script_path}" --base-dir "{task_dir.parent.parent}" serve-wait --task "{task_dir.name}" --open-page image-style --for images-style
+  Then reload {task_dir / "brief-confirmed.json"} and continue from the updated brief.
+"""
+        if raw_image_mode is None
+        else ""
+    )
+    image_asset_record_command: str = (
+        f"""- For every generated image attempt, record the result with:
+  python3 "{script_path}" --base-dir "{task_dir.parent.parent}" image-asset --task "{task_dir.name}" --target-id "<target-id>" --prompt "<prompt>" --output-path "<path>" --status success
+  The command only writes `final_status: success` if the output file exists and is non-empty.
+"""
+    )
+    pre_v1_image_instruction: str = ""
+    if image_mode in PRE_V1_IMAGE_MODES:
+        pre_v1_image_instruction = f"""AI image pre-v1 requirements:
+- Read {image_plan_path(task_dir)} before creating v1.
+- Generate only the pre-v1 targets listed in `targets[]`; do not invent extra generated images.
+- Use the image generation capability for those targets. Do not replace failed images with CSS gradients or decorative vector fallbacks.
+- Retry failed image generation up to 2 times. After 3 failed attempts, record `final_status: failed`, print the failure to stderr, and stop.
+{image_asset_record_command}- After recording successful image assets, run guard again before creating v1.
+"""
+    post_v1_image_instruction: str = ""
+    if image_mode in POST_V1_IMAGE_MODES:
+        post_v1_image_instruction = f"""Post-v1 image slot review:
+- After v1 exists, regenerate Director pages and open the Image Placement Gate instead of guessing image slots:
+  python3 "{script_path}" --base-dir "{task_dir.parent.parent}" serve-wait --task "{task_dir.name}" --open-page image-placement --for images-placement
+- Then read {image_placement_path(task_dir)}.
+- Generate or reuse images for the approved placements only, using the same retry-2-then-stop rule and `image-asset` recording command.
+- For PPTX output, apply the approved placements with a targeted edit and write {pptx_v2_output}; re-render to {task_dir / "v2" / "contact-sheet.png"} and {task_dir / "v2" / "qa-summary.md"}.
+- For HTML-only output, regenerate the HTML deck to {html_v2_output}; do not mutate v1/final.html in place.
+- For `both`, treat PPTX as primary for placement review, then regenerate the matching HTML deck to {html_v2_output}.
+"""
     common_rules: str = f"""Confirmed brief:
 {json.dumps(brief, ensure_ascii=False, indent=2)}
 
 Rules:
-- Before generating, run:
+- Before generating, run the required Director gates:
+{image_style_gate_instruction}- Then run:
   python3 "{script_path}" --base-dir "{task_dir.parent.parent}" guard --task "{task_dir.name}"
-  If the guard fails, open the confirmation page through serve-wait and continue only after the user's HTML click:
+  If the guard fails because the brief is not confirmed, open the confirmation page through serve-wait and continue only after the user's HTML click:
   python3 "{script_path}" --base-dir "{task_dir.parent.parent}" serve-wait --task "{task_dir.name}" --for confirmed
 - Audience, goal, output_format, research strategy, source boundary, content language, logo policy, image policy, selected visual direction, and output constraints are locked.
 - Do not fabricate metrics, logos, customer names, screenshots, or official-looking brand assets.
 - Use official or user-provided brand assets only.
-- AI images are allowed only according to the confirmed image policy.
+- AI images are allowed only according to `image_policy`, `image_generation_mode`, image-plan.json, and image-placement-request.json.
+- Do not silently degrade failed AI images into CSS gradients, generic SVGs, or decorative placeholders.
 - Composition, layout rhythm, chart treatment, typography hierarchy, and visual expression should follow the selected visual candidate.
 - Do not use a fixed design-lock unless the confirmed brief explicitly asks for it.
 """
 
-    html_output: Path = task_dir / "final" / f"{task_dir.name}.html"
-    pptx_output: Path = task_dir / "v1" / "final.pptx"
+    html_output: Path = html_v1_output
+    pptx_output: Path = pptx_v1_output
     presentations_required: str = f"""Codex PPTX hard requirement:
 - Before writing or rendering any PPTX, verify Codex Presentations / artifact-tool `presentation-jsx`. Do not treat plugin UI or tool-search absence as missing by itself.
 - Resolve Presentations in this order:
@@ -2855,6 +3744,7 @@ Rules:
   `node "$SKILL_DIR/scripts/build_artifact_deck.mjs" --workspace "$WORKSPACE" --slides-dir "$SLIDES_DIR" --out "{pptx_output}" --preview-dir "{task_dir / "v1" / "slides"}" --layout-dir "$WORKSPACE/layout" --contact-sheet "{task_dir / "v1" / "contact-sheet.png"}"`
 - If neither active plugin nor bundled runtime is available, or the runtime check fails, STOP and report that the required Codex Presentations runtime is missing. Do not create a fallback PPTX.
 - Do not use `python-pptx`, pptxgenjs, Google Slides, Keynote, Microsoft PowerPoint automation, QuickLook, Marp, or unrelated local scripts as substitutes for PPTX generation.
+- PPTX brief-field boundary: ignore HTML-only fields such as `html_config`, `html_motion_level`, `html_motion_profile`, `html_animation`, `html_transition`, and `html_gradient` when deciding PPTX mechanics. Use solid-color PPTX equivalents from the selected visual candidate instead of HTML gradients or HTML animations.
 - The only exception is an explicit user request to bypass Presentations after you report the missing runtime."""
 
     if output_format == "html-revealjs":
@@ -2862,12 +3752,21 @@ Rules:
 
 {common_rules}
 
+{pre_v1_image_instruction}
+
 Reveal.js requirements:
 - Use pinned CDN links for reveal.js@5.1.0 reset.css, reveal.css, a built-in theme, and reveal.js.
-- Use `html_transition`, `html_animation`, and `html_gradient` from the selected visual candidate.
+- Use `html_config`, `html_motion_profile`, and the selected visual candidate's `html_transition`, `html_animation`, and `html_gradient`.
+- HTML motion is CSS-only. Do not add Canvas/WebGL effects unless a future capability explicitly enables them.
 - Put speaker notes in `<aside class="notes">` on each slide.
 - Keep the file browser-runnable and save it to {html_output}.
 - Include PDF export guidance: append `?print-pdf`, print from Chrome/Edge, landscape, no headers/footers.
+
+{post_v1_image_instruction}
+
+After generation:
+- If post-v1 image placement created v2, open style review on v2; otherwise open it on v1.
+- Final selection copies the selected `vN/final.html` to {final_html_path_for_output(task_dir, "html-revealjs")}.
 
 QA:
 - Open in a browser or capture screenshots to verify slide navigation, gradients, speaker notes, and no text overflow.
@@ -2881,6 +3780,8 @@ QA:
 
 {presentations_required}
 
+{pre_v1_image_instruction}
+
 PPTX route:
 - Use the Codex Presentations skill and artifact-tool presentation JSX.
 - Use the Presentations internal scratch workspace as required by the plugin.
@@ -2893,8 +3794,15 @@ PPTX route:
 HTML route:
 - Write Reveal.js HTML directly; do NOT call Presentations plugin for HTML.
 - Use pinned reveal.js@5.1.0 CDN links.
-- Use `html_transition`, `html_animation`, and `html_gradient` from the selected visual candidate.
+- Use `html_config`, `html_motion_profile`, and the selected visual candidate's `html_transition`, `html_animation`, and `html_gradient`.
+- HTML motion is CSS-only. Do not add Canvas/WebGL effects unless a future capability explicitly enables them.
 - Save the HTML deck to {html_output}.
+
+{post_v1_image_instruction}
+
+After generation:
+- Final selection copies the selected PPTX to {task_dir / "final" / (task_dir.name + ".pptx")} and the selected Reveal.js deck to {final_html_path_for_output(task_dir, "both")}.
+- Do not generate a separate companion HTML in `both` mode.
 
 QA:
 - PPTX QA must include rendered no-overlap checks and a contact sheet.
@@ -2908,6 +3816,8 @@ QA:
 
 {presentations_required}
 
+{pre_v1_image_instruction}
+
 Output:
 - Use the Presentations internal scratch workspace as required by the plugin.
 - Copy the editable PPTX to {task_dir / "v1" / "final.pptx"}.
@@ -2918,8 +3828,11 @@ Output:
 - QA must include a rendered no-overlap check: titles, subtitles, body text, labels, footers, page numbers, and connector lines must not collide.
 - Prefer artifact-tool or headless rendering paths that do not trigger Microsoft PowerPoint file-access dialogs. If a PowerPoint-based render is unavoidable on macOS, start scripts/macos/powerpoint-grant-access-watcher.sh before rendering.
 - Long titles must be checked after rendering; if a title wraps and covers the subtitle or body area, fix and re-render before handoff.
-- After final selection, generate a view-only HTML companion at {task_dir / "final" / (task_dir.name + ".html")} from the selected version's per-slide previews.
-- Before returning control to the user after v1 generation, regenerate Director pages and start the local Director server with the style-review page open:
+
+{post_v1_image_instruction}
+
+- After final selection, generate a view-only HTML companion at {final_html_path_for_output(task_dir, "pptx", companion=True)} from the selected version's per-slide previews.
+- Before returning control to the user after the latest required version is generated, regenerate Director pages and start the local Director server with the style-review page open:
   python3 "{script_path}" --base-dir "{task_dir.parent.parent}" serve --task "{task_dir.name}" --open-page style-review
 - If waiting for a style decision, use serve-wait and continue from the revision/final-selection signal rather than asking the user to reply in chat.
 - Return PPTX path, HTML companion path, contact sheet path, QA summary, and remaining risks.
@@ -2930,8 +3843,11 @@ def revision_prompt(task_dir: Path) -> str:
     request: JsonDict = read_json(task_dir / "revision-request.json")
     if not request:
         return "No revision request found. Complete style review first."
+    brief: JsonDict = read_json(task_dir / "brief-confirmed.json")
+    output_format: str = output_format_from_brief(brief, "pptx") if brief else "pptx"
     base_version: str = str(request.get("base_version") or "v1")
     base_pptx: Path = task_dir / base_version / "final.pptx"
+    base_html: Path = task_dir / base_version / "final.html"
     existing_versions: list[int] = [
         version_number(item)
         for item in task_dir.iterdir()
@@ -2939,6 +3855,37 @@ def revision_prompt(task_dir: Path) -> str:
     ]
     next_version_number: int = (max(existing_versions) if existing_versions else 1) + 1
     next_version: str = f"v{next_version_number}"
+    if output_format == "html-revealjs":
+        return f"""Revise the existing {base_version} Reveal.js HTML deck using the selected revision request.
+
+Base version:
+{base_html}
+
+Revision request:
+{json.dumps(request, ensure_ascii=False, indent=2)}
+
+Preserve:
+- factual content
+- slide claims
+- sources and omission notes
+- official asset policy
+- imagegen policy
+
+Change only the selected visual directions:
+- palette direction
+- structure rhythm
+- visual expression
+- image/logo treatment
+
+HTML route:
+- Keep Reveal.js 5.1.0 with pinned CDN links.
+- Keep speaker notes in `<aside class="notes">`.
+- Use CSS-only motion from `html_config` and `html_motion_profile`; do not introduce Canvas/WebGL effects.
+- Write the revised deck to {task_dir / next_version / "final.html"}.
+- Write a concise QA summary to {task_dir / next_version / "qa-summary.md"}.
+- Verify browser load, navigation, presenter notes, print-PDF readiness, and no text overflow.
+- Do not mutate {base_html}; each version must remain reproducible.
+"""
     return f"""Revise the existing {base_version} PPTX using the selected revision request.
 
 Base version:
@@ -2974,10 +3921,11 @@ Render and QA:
 - copy revised PPTX under {task_dir / next_version / "final.pptx"} unless generating multiple versions
 - copy per-slide preview PNGs into the version's `slides/` folder
 - copy contact sheet and QA summary into the same version folder
+- if output_format is `both`, also revise the matching Reveal.js deck to {task_dir / next_version / "final.html"} using CSS-only HTML motion
 - explicitly check rendered slides for text overlap, especially wrapped titles covering subtitles or body text
 - fix any overlap/cropping/too-tight spacing and re-render affected slides before final selection
 - compare against {base_version}
-- regenerate the final view-only HTML companion from the selected version's per-slide previews after final selection
+- after final selection, copy selected outputs under {task_dir / "final"}; PPTX-only companion HTML uses the `-companion.html` suffix
 - document what changed and remaining risks
 """
 
@@ -2997,6 +3945,10 @@ class DirectorHandler(BaseHTTPRequestHandler):
             self.send_html(render_visual_inspiration(self.task_dir))
         elif path == "/confirm":
             self.send_html(render_confirm(self.task_dir))
+        elif path == "/image-style":
+            self.send_html(render_image_style(self.task_dir))
+        elif path == "/image-placement":
+            self.send_html(render_image_placement(self.task_dir))
         elif path == "/style-review":
             self.send_html(render_style_review(self.task_dir))
         elif path == "/compare":
@@ -3006,6 +3958,12 @@ class DirectorHandler(BaseHTTPRequestHandler):
         elif path == "/confirmed":
             ui_language: str = ui_language_for_task(self.task_dir)
             self.send_html(message_page(t(ui_language, "confirmed_title"), t(ui_language, "confirmed_message"), ui_language))
+        elif path == "/image-style-saved":
+            ui_language: str = ui_language_for_task(self.task_dir)
+            self.send_html(message_page(t(ui_language, "image_style_saved_title"), t(ui_language, "image_style_saved_message"), ui_language))
+        elif path == "/image-placement-saved":
+            ui_language: str = ui_language_for_task(self.task_dir)
+            self.send_html(message_page(t(ui_language, "image_placement_saved_title"), t(ui_language, "image_placement_saved_message"), ui_language))
         elif path == "/revision-saved":
             ui_language: str = ui_language_for_task(self.task_dir)
             self.send_html(message_page(t(ui_language, "revision_saved_title"), t(ui_language, "revision_saved_message"), ui_language))
@@ -3057,6 +4015,34 @@ class DirectorHandler(BaseHTTPRequestHandler):
             touch_status(self.task_dir, "confirmed")
             render_all_pages(self.task_dir)
             self.redirect("/confirmed")
+        elif parsed.path == "/api/image-style":
+            brief: JsonDict = read_json(self.task_dir / "brief-confirmed.json")
+            if not brief:
+                brief = read_json(self.task_dir / "intake-selection.json", read_json(self.task_dir / "brief-draft.json"))
+            updated_brief: JsonDict
+            plan: JsonDict
+            errors: list[str]
+            updated_brief, plan, errors = apply_image_style_selection(brief, form)
+            if errors:
+                self.send_html(render_image_style(self.task_dir, errors))
+                return
+            write_json(self.task_dir / "brief-confirmed.json", updated_brief)
+            write_json(image_plan_path(self.task_dir), plan)
+            touch_status(self.task_dir, "images-style")
+            render_all_pages(self.task_dir)
+            self.redirect("/image-style-saved")
+        elif parsed.path == "/api/image-placement":
+            brief = read_json(self.task_dir / "brief-confirmed.json")
+            output_format: str = output_format_from_brief(brief, "pptx")
+            if not v1_preview_exists(self.task_dir, output_format):
+                ui_language: str = ui_language_for_task(self.task_dir)
+                self.send_html(message_page(t(ui_language, "image_placement_title"), t(ui_language, "missing_preview_artifact"), ui_language))
+                return
+            request: JsonDict = apply_image_placement_request(self.task_dir, brief, form)
+            write_json(image_placement_path(self.task_dir), request)
+            touch_status(self.task_dir, "images-placement")
+            render_all_pages(self.task_dir)
+            self.redirect("/image-placement-saved")
         elif parsed.path == "/api/revision":
             request: JsonDict = apply_revision_request(form)
             write_json(self.task_dir / "revision-request.json", request)
@@ -3064,26 +4050,44 @@ class DirectorHandler(BaseHTTPRequestHandler):
             render_all_pages(self.task_dir)
             self.redirect("/revision-saved")
         elif parsed.path == "/api/final-selection":
+            brief: JsonDict = read_json(self.task_dir / "brief-confirmed.json")
+            output_format: str = output_format_from_brief(brief, "pptx") if brief else "pptx"
             selected_version: str = first_form_value(form, "selected_version", "v1")
             selected_version_dir: Path = self.task_dir / selected_version
             selected_pptx: Path = selected_version_dir / "final.pptx"
             final_dir: Path = self.task_dir / "final"
             final_pptx: Path = final_dir / f"{self.task_dir.name}.pptx"
-            if selected_pptx.exists():
+            if output_format in {"pptx", "both"} and selected_pptx.exists():
                 final_dir.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(selected_pptx, final_pptx)
             final_html: Path | None = None
             share_html_error: str = ""
-            try:
-                final_html = write_share_html(self.task_dir, selected_version_dir, self.task_dir.name)
-            except ValueError as exc:
-                share_html_error = str(exc)
+            selected_html: Path = selected_version_html_path(self.task_dir, selected_version)
+            if output_format in {"html-revealjs", "both"}:
+                if selected_html.exists():
+                    final_dir.mkdir(parents=True, exist_ok=True)
+                    final_html = final_html_path_for_output(self.task_dir, output_format)
+                    shutil.copy2(selected_html, final_html)
+                else:
+                    share_html_error = f"Missing selected HTML deck: {selected_html}"
+            elif output_format == "pptx":
+                try:
+                    final_html = write_share_html(
+                        self.task_dir,
+                        selected_version_dir,
+                        self.task_dir.name,
+                        output_path=final_html_path_for_output(self.task_dir, output_format, companion=True),
+                    )
+                except ValueError as exc:
+                    share_html_error = str(exc)
             payload: JsonDict = {
                 "version": "0.1",
                 "selected_version": selected_version,
                 "selected_pptx": str(selected_pptx),
                 "final_pptx": str(final_pptx if final_pptx.exists() else selected_pptx),
+                "selected_html": str(selected_html),
                 "final_html": str(final_html) if final_html else "",
+                "output_format": output_format,
                 "notes": first_form_value(form, "notes", "").strip(),
                 "selected_at": datetime.now().isoformat(timespec="seconds"),
             }
@@ -3122,6 +4126,10 @@ class DirectorHandler(BaseHTTPRequestHandler):
             content_type = "image/png"
         elif path.suffix.lower() == ".jpg" or path.suffix.lower() == ".jpeg":
             content_type = "image/jpeg"
+        elif path.suffix.lower() == ".webp":
+            content_type = "image/webp"
+        elif path.suffix.lower() == ".html":
+            content_type = "text/html; charset=utf-8"
         elif path.suffix.lower() == ".md":
             content_type = "text/plain; charset=utf-8"
         data: bytes = path.read_bytes()
@@ -3144,6 +4152,8 @@ def message_page(title: str, message: str, ui_language: str = "zh") -> str:
 <div class="actions">
   <a class="button" href="/intake">{html.escape(t(ui_language, "nav_intake"))}</a>
   <a class="button" href="/visual-inspiration">{html.escape(t(ui_language, "nav_visual"))}</a>
+  <a class="button" href="/image-style">{html.escape(t(ui_language, "nav_image_style"))}</a>
+  <a class="button" href="/image-placement">{html.escape(t(ui_language, "nav_image_placement"))}</a>
   <a class="button" href="/style-review">{html.escape(t(ui_language, "nav_style"))}</a>
   <a class="button" href="/compare">{html.escape(t(ui_language, "nav_compare"))}</a>
 </div>"""
@@ -3267,6 +4277,8 @@ def command_serve(args: argparse.Namespace) -> None:
     print(f"Intake:             http://{args.host}:{args.port}/intake")
     print(f"Visual inspiration: http://{args.host}:{args.port}/visual-inspiration")
     print(f"Confirm:            http://{args.host}:{args.port}/confirm")
+    print(f"Image style:        http://{args.host}:{args.port}/image-style")
+    print(f"Image placement:    http://{args.host}:{args.port}/image-placement")
     print(f"Style review:       http://{args.host}:{args.port}/style-review")
     print(f"Compare:            http://{args.host}:{args.port}/compare")
     if not args.no_open and args.open_page:
@@ -3305,6 +4317,8 @@ def command_serve_wait(args: argparse.Namespace) -> None:
     print(f"Intake:             http://{args.host}:{args.port}/intake")
     print(f"Visual inspiration: http://{args.host}:{args.port}/visual-inspiration")
     print(f"Confirm:            http://{args.host}:{args.port}/confirm")
+    print(f"Image style:        http://{args.host}:{args.port}/image-style")
+    print(f"Image placement:    http://{args.host}:{args.port}/image-placement")
     print(f"Waiting for:        {target}")
     if not args.no_open and args.open_page:
         open_director_page(args.host, args.port, args.open_page)
@@ -3362,6 +4376,25 @@ def command_guard(args: argparse.Namespace) -> None:
             print(f"- {error}", file=sys.stderr)
         raise SystemExit(2)
     print(f"Presentation Director guard passed: {task_dir}")
+
+
+def command_image_asset(args: argparse.Namespace) -> None:
+    task_dir: Path = resolve_task_dir(args)
+    record: JsonDict = record_image_asset_attempt(
+        task_dir=task_dir,
+        target_id=args.target_id,
+        prompt=args.prompt,
+        output_path_value=args.output_path,
+        status_value=args.status,
+        error_text=args.error,
+        asset_kind=args.asset_kind,
+        placement_type=args.placement_type,
+    )
+    print(
+        "Image asset recorded: "
+        f"{record.get('target_id', record.get('id', ''))} "
+        f"final_status={record.get('final_status', '')}"
+    )
 
 
 def command_open_page(args: argparse.Namespace) -> None:
@@ -3469,6 +4502,17 @@ def build_parser() -> argparse.ArgumentParser:
     guard_parser = subparsers.add_parser("guard", help="Validate that a net-new PPTX task passed the user confirmation gate.")
     guard_parser.add_argument("--task", required=True, help="Task slug or title.")
     guard_parser.set_defaults(func=command_guard)
+
+    image_asset_parser = subparsers.add_parser("image-asset", help="Record one AI image generation attempt with output-file validation.")
+    image_asset_parser.add_argument("--task", required=True, help="Task slug or title.")
+    image_asset_parser.add_argument("--target-id", required=True, help="image-plan target id.")
+    image_asset_parser.add_argument("--prompt", required=True, help="Prompt used for the attempt.")
+    image_asset_parser.add_argument("--output-path", required=True, help="Generated image path, absolute or relative to the task folder.")
+    image_asset_parser.add_argument("--status", choices=("success", "failed"), required=True, help="Attempt status before file validation.")
+    image_asset_parser.add_argument("--error", default="", help="Failure reason, if any.")
+    image_asset_parser.add_argument("--asset-kind", default="abstract-texture", help="Asset kind for the image asset record.")
+    image_asset_parser.add_argument("--placement-type", default="full-bleed-background", help="Placement type for the image asset record.")
+    image_asset_parser.set_defaults(func=command_image_asset)
 
     open_parser = subparsers.add_parser("open-page", help="Open a running Director page in the default browser.")
     open_parser.add_argument("--task", required=True, help="Task slug or title.")

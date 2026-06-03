@@ -58,8 +58,8 @@ build_artifact_deck.mjs 导出 PPTX / 预览 / contact sheet
         ↓
 修复弱页并重新验证
         ↓
-PPTX/<task-slug>/final/<deck-title>.pptx
-PPTX/<task-slug>/final/<deck-title>.html
+PPTX/<task-slug>/final/<task-slug>.pptx
+PPTX/<task-slug>/final/<task-slug>-companion.html
 ```
 
 **优点：**
@@ -201,7 +201,7 @@ Codex Prompt 明确：
         ↓
 构建、渲染、修复、再验证
         ↓
-输出 `PPTX/<task-slug>/final/<deck-title>.pptx` 和 `PPTX/<task-slug>/final/<deck-title>.html`
+输出 `PPTX/<task-slug>/final/<task-slug>.pptx` 和 `PPTX/<task-slug>/final/<task-slug>-companion.html`
 ```
 
 详见：`docs/pptx-master-workflow.md`。

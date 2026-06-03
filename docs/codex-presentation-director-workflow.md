@@ -453,8 +453,8 @@ Run final checks from `docs/quality-gates.md` and Presentations plugin's own mec
 Final output:
 
 ```text
-PPTX/<task-slug>/final/<deck-title>.pptx
-PPTX/<task-slug>/final/<deck-title>.html
+PPTX/<task-slug>/final/<task-slug>.pptx
+PPTX/<task-slug>/final/<task-slug>-companion.html
 PPTX/<task-slug>/final/final-report.md
 ```
 
@@ -882,7 +882,7 @@ Buttons:
 The selected version is copied or exported to:
 
 ```text
-PPTX/<task-slug>/final/<deck-title>.pptx
+PPTX/<task-slug>/final/<task-slug>.pptx
 ```
 
 ## No-Copy Interaction Mechanism
@@ -999,8 +999,9 @@ PPTX/<task-slug>/
     contact-sheet.png
     qa-summary.md
   final/
-    <deck-title>.pptx
-    <deck-title>.html
+    <task-slug>.pptx
+    <task-slug>.html       # Reveal.js deck for html-revealjs or both
+    <task-slug>-companion.html  # PPTX-only companion
     final-report.md
 ```
 
@@ -1134,7 +1135,7 @@ Output:
 - Copy contact sheet and concise QA summary to `PPTX/<task-slug>/v1/`.
 - Generate layout JSON in the Presentations workspace.
 - Complete at least one fix-and-rerender cycle.
-- Generate a view-only HTML companion at `PPTX/<task-slug>/final/<deck-title>.html` after final selection.
+- Generate a view-only HTML companion at `PPTX/<task-slug>/final/<task-slug>-companion.html` after final selection for PPTX-only output.
 - Return PPTX path, HTML companion path, contact sheet path, QA summary, and remaining risks.
 ```
 

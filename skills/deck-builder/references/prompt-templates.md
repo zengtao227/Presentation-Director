@@ -22,13 +22,18 @@ python3 scripts/presentation_director.py init \
   --source "<resolved source path or URL>" \
   --conversation-text "<recent user prompt or conversation excerpt>"
 
-# 2. Start click-based UI and open the intake page automatically
-python3 scripts/presentation_director.py serve --task "<short task slug>"
+# 2. Start click-based UI, open intake automatically, and wait for confirmation
+python3 scripts/presentation_director.py serve-wait \
+  --task "<short task slug>" \
+  --for confirmed
 
-# 3. Wait for user to confirm the summarized brief
-python3 scripts/presentation_director.py wait --task "<short task slug>" --for confirmed
+# 3. Complete Image Style Gate when the confirmed brief lacks image_generation_mode
+python3 scripts/presentation_director.py serve-wait \
+  --task "<short task slug>" \
+  --open-page image-style \
+  --for images-style
 
-# 4. Print the Presentations handoff prompt
+# 4. Print the generation handoff prompt
 python3 scripts/presentation_director.py prompt --task "<short task slug>" --kind initial
 ```
 
@@ -42,7 +47,18 @@ python3 scripts/presentation_director.py open-page --task "<short task slug>" --
 
 For batch or background runs, add `--no-open` and log the printed URL.
 
-After v1 is generated, use the same director workspace for visual revision:
+For `post-v1-slot-review` or `hybrid`, after v1 preview artifacts exist, use the Image Placement Gate before style review:
+
+```bash
+python3 scripts/presentation_director.py serve-wait \
+  --task "<short task slug>" \
+  --open-page image-placement \
+  --for images-placement
+```
+
+Pre-v1 and post-v1 generated images must be recorded through `image-asset`; `final_status: success` is valid only when the output file exists and is non-empty. Failed image generation uses retry-2-then-stop and must not silently become CSS gradients or SVG placeholders.
+
+After the latest required version is generated, use the same director workspace for visual revision:
 
 ```bash
 python3 scripts/presentation_director.py render --task "<short task slug>" --open-page style-review
@@ -50,10 +66,12 @@ python3 scripts/presentation_director.py wait --task "<short task slug>" --for r
 python3 scripts/presentation_director.py prompt --task "<short task slug>" --kind revision
 ```
 
-After the final version is selected, make sure a share HTML companion exists:
+After the final version is selected, use output-format-aware final paths:
 
 ```bash
-python3 scripts/presentation_director.py share-html --task "<short task slug>" --version "<selected version>"
+PPTX/<task-slug>/final/<task-slug>.pptx
+PPTX/<task-slug>/final/<task-slug>.html          # Reveal.js deck for html-revealjs or both
+PPTX/<task-slug>/final/<task-slug>-companion.html # PPTX-only view-only companion
 ```
 
 Skip Template A0 only when the user explicitly says to skip intake/director, when a valid user-confirmed `brief-confirmed.json` already exists, or when the task is a targeted edit / QA pass on an existing deck. In an interactive Codex session, do not create `brief-confirmed.json` or `confirmed.ready` on the user's behalf; open the confirmation page and wait for the user to click confirm.
@@ -78,10 +96,10 @@ Do NOT use pptxgenjs, Marp, or Google Slides as the primary generation path.
 - Workflow reference: <optional resolved docs/pptx-master-workflow.md when working inside MD2PPT>
 
 [Output Target]
-- Final PPTX: `PPTX/<task-slug>/v1/final.pptx` for first draft, then `PPTX/<task-slug>/final/<deck-title>.pptx` after final selection
+- Final PPTX: `PPTX/<task-slug>/v1/final.pptx` for first draft, then `PPTX/<task-slug>/final/<task-slug>.pptx` after final selection
 - Per-slide preview PNGs: copy to `PPTX/<task-slug>/v1/slides/` for the final share HTML companion
 - Contact sheet and concise QA summary: copy to `PPTX/<task-slug>/v1/`
-- Final share HTML companion: `PPTX/<task-slug>/final/<deck-title>.html`, generated from the selected version's per-slide previews
+- Final PPTX-only share HTML companion: `PPTX/<task-slug>/final/<task-slug>-companion.html`, generated from the selected version's per-slide previews
 - Scratch / preview / layout files required by the Presentations plugin/runtime may stay inside its internal workspace
 - User-facing deliverables and review artifacts must be collected in `PPTX/<task-slug>/`
 
@@ -130,8 +148,8 @@ Use this repository's skills/pptx/SKILL.md pptxgenjs workflow to generate an edi
 - Design lock: <resolved design lock path, or inline visual contract if no lock file exists>
 
 [Output Target]
-- Final PPTX: `PPTX/<task-slug>/final/<deck-title>.pptx`
-- Final share HTML companion: `PPTX/<task-slug>/final/<deck-title>.html`
+- Final PPTX: `PPTX/<task-slug>/final/<task-slug>.pptx`
+- Final PPTX-only share HTML companion: `PPTX/<task-slug>/final/<task-slug>-companion.html`
 
 [Narrative Requirements]
 - Before writing any pptxgenjs code, produce a claim spine:
@@ -150,8 +168,8 @@ Use this repository's skills/pptx/SKILL.md pptxgenjs workflow to generate an edi
 - Keep chart code compact; use direct data labels instead of chart legends where possible
 
 [QA Requirements]
-- After generating the PPTX, run the local thumbnail script only if it exists: `python3 skills/pptx/scripts/thumbnail.py PPTX/<task-slug>/final/<deck-title>.pptx`
-- Generate or copy per-slide rendered images, then create a view-only HTML companion at `PPTX/<task-slug>/final/<deck-title>.html`
+- After generating the PPTX, run the local thumbnail script only if it exists: `python3 skills/pptx/scripts/thumbnail.py PPTX/<task-slug>/final/<task-slug>.pptx`
+- Generate or copy per-slide rendered images, then create a view-only HTML companion at `PPTX/<task-slug>/final/<task-slug>-companion.html`
 - Review thumbnails for: text overflow, font substitution, layout collision, color violations
 - Fix at least one identified issue and regenerate before declaring done
 - Final reply must include: PPTX absolute path, HTML companion path, thumbnail path, remaining risks for human review
@@ -159,24 +177,22 @@ Use this repository's skills/pptx/SKILL.md pptxgenjs workflow to generate an edi
 
 ---
 
-## Template C — HTML Deck (available HTML skill)
+## Template C — Native Reveal.js HTML Deck
 
 Use this when the target output is an HTML presentation for online sharing — not when an editable PPTX is required.
 
-Choose the installed engine that best fits the request:
-
-- `html-ppt-skill`: use when the deck needs richer layout variety, a specific non-Swiss theme, or live presenter mode.
-- `guizang-ppt-skill`: use when the deck should follow the Swiss/Open Design layout grammar and that skill is installed.
-
 ```
-Use [installed HTML deck skill] to generate an HTML presentation deck.
+Generate a native Reveal.js 5.1.0 HTML presentation deck. Do not call external html-ppt-skill or guizang-ppt-skill as a runtime dependency; use the internalized catalogs in:
+- skills/deck-builder/references/html-theme-catalog.md
+- skills/deck-builder/references/html-layout-catalog.md
+- skills/deck-builder/references/html-animation-catalog.md
 
 [Input Files]
 - Content source: <resolved path to deck.md>
 - Design lock: <resolved design lock path, or inline visual contract if no lock file exists>
 
 [Output Target]
-- Final HTML: `PPTX/<task-slug>/final/<deck-title>.html`
+- Versioned HTML: `PPTX/<task-slug>/vN/final.html`; after final selection copy to `PPTX/<task-slug>/final/<task-slug>.html`
 
 [Narrative Requirements]
 - Before writing any HTML, produce a claim spine:
@@ -185,21 +201,21 @@ Use [installed HTML deck skill] to generate an HTML presentation deck.
 - Do not fabricate numbers, clients, logos, or missing data
 
 [Design Requirements]
-- html-ppt-skill: select from 31 named layouts; choose the closest matching theme from 36 available; apply design lock accent color
-- guizang-ppt-skill: select layouts from S01–S22 library; apply design lock colors as CSS variables; maintain Swiss grid grammar
+- Select a theme key, layout family, and animation profile from the internal catalogs.
+- Use `html_motion_level` and `html_motion_profile` when present; cinematic currently means CSS-only enhanced motion, not Canvas/WebGL.
 - Vary layout families — do not repeat the same layout 3 times in a row
 - Do not introduce colors not in the design lock
 
 [Build Requirements]
 - All slides must be self-contained in the output HTML file
 - Include speaker notes in the slide notes area where applicable
-- html-ppt-skill: enable presenter mode (BroadcastChannel) if the deck will be presented to a live audience
+- Enable Reveal.js notes/presenter support when the deck will be presented to a live audience
 
 [QA Requirements]
 - Open the HTML file in a browser and verify all slides render at 16:9 aspect ratio
 - Check for text overflow and layout collisions in full-screen mode
 - Verify consistent visual rhythm across slides — no abrupt style break
-- Final reply must include: HTML absolute path, engine used, any layout risks for human review
+- Final reply must include: HTML absolute path, catalog keys used, any layout risks for human review
 ```
 
 ---
