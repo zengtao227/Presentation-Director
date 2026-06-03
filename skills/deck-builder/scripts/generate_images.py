@@ -128,36 +128,6 @@ def target_by_id(targets: list[dict], requested_target_id: str) -> dict | None:
     return None
 
 
-def _platform_prompts(target: dict) -> dict[str, str]:
-    """Return platform-specific prompt variants for manual generation."""
-    base = _base_prompt(target)
-    constraints = (
-        "No text, no letters, no people, no faces, no logos, no watermarks. "
-        "1920×1080 landscape, presentation slide background, suitable for text overlay."
-    )
-    return {
-        # Microsoft Copilot / Bing Image Creator (best free option — DALL-E 3)
-        "copilot_bing": f"{base}. {constraints}",
-
-        # Google ImageFX, Adobe Firefly, Ideogram, Leonardo.ai
-        "generic": f"{base}. {constraints}",
-
-        # Midjourney (Discord bot)
-        "midjourney": (
-            f"{base}, presentation background, abstract texture, cinematic lighting "
-            f"--ar 16:9 --v 6.1 --style raw "
-            f"--no text, letters, people, faces, logos, watermarks"
-        ),
-
-        # Stable Diffusion (Automatic1111 / ComfyUI)
-        "sd_positive": (
-            f"{base}, high resolution, 8k, professional photography, dramatic lighting, "
-            f"16:9 aspect ratio"
-        ),
-        "sd_negative": NEGATIVE_PROMPT,
-    }
-
-
 # ---------------------------------------------------------------------------
 # Automatic backends
 # ---------------------------------------------------------------------------
@@ -190,8 +160,8 @@ def generate_hf(prompt: str, out_path: Path) -> None:
     )
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with urllib.request.urlopen(req, timeout=120) as resp:
+        ct = resp.headers.get("Content-Type", "")
         data = resp.read()
-    ct = resp.headers.get("Content-Type", "")
     if "image" not in ct:
         raise RuntimeError(f"HF did not return an image (Content-Type: {ct}). Response: {data[:200]}")
     with out_path.open("wb") as f:
@@ -263,7 +233,7 @@ def record_attempt(
     out_path: Path,
     status: str,
     error: str = "",
-) -> None:
+) -> bool:
     cmd = [
         sys.executable, str(director_script),
         "--base-dir", str(task_dir.parent.parent),
@@ -276,7 +246,12 @@ def record_attempt(
     ]
     if error:
         cmd += ["--error", error]
-    subprocess.run(cmd, check=False)
+    result = subprocess.run(cmd, check=False, capture_output=True)
+    if result.returncode != 0:
+        msg = result.stderr.decode(errors="replace").strip() or f"exit {result.returncode}"
+        print(f"  ⚠ registration failed for [{target_id}]: {msg}", file=sys.stderr)
+        return False
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -359,8 +334,10 @@ def copy_and_record_source(
         shutil.copy2(source_path, out_path)
 
     prompt: str = _base_prompt(target)
-    record_attempt(director_script, task_dir, requested_target_id, prompt, out_path, "success")
-    print(f"  ✓ [{requested_target_id}] copied and recorded: {out_path} ({out_path.stat().st_size // 1024} KB)")
+    if not record_attempt(director_script, task_dir, requested_target_id, prompt, out_path, "success"):
+        return False
+    action: str = "copied and registered" if source_path != out_path else "registered"
+    print(f"  ✓ [{requested_target_id}] {action}: {out_path} ({out_path.stat().st_size // 1024} KB)")
     return True
 
 
@@ -393,6 +370,9 @@ def place_manual(
         print("No pre-v1 targets found.")
         return
 
+    if sources_json and source:
+        raise ValueError("--sources and --source are mutually exclusive; use one or the other")
+
     if sources_json:
         source_map: dict[str, str] = parse_sources_json(sources_json)
         found: int = 0
@@ -402,14 +382,14 @@ def place_manual(
                 found += 1
             else:
                 missing += 1
-        print(f"\n{found} recorded, {missing} missing.")
+        print(f"\n{found} registered, {missing} missing.")
         return
 
     if source:
         if not target_id_value:
             raise ValueError("--target-id is required when --source is used")
         copied: bool = copy_and_record_source(task_dir, director_script, targets, target_id_value, source)
-        print("\n1 recorded, 0 missing." if copied else "\n0 recorded, 1 missing.")
+        print("\n1 registered, 0 missing." if copied else "\n0 registered, 1 missing.")
         return
 
     found: int = 0
@@ -420,9 +400,12 @@ def place_manual(
         out_path: Path = target_output_path(task_dir, target)
 
         if out_path.exists() and out_path.stat().st_size > 0:
-            record_attempt(director_script, task_dir, current_target_id, prompt, out_path, "success")
-            print(f"  ✓ [{current_target_id}] recorded ({out_path.stat().st_size // 1024} KB)")
-            found += 1
+            size_kb: int = out_path.stat().st_size // 1024
+            if record_attempt(director_script, task_dir, current_target_id, prompt, out_path, "success"):
+                print(f"  ✓ [{current_target_id}] registered ({size_kb} KB)")
+                found += 1
+            else:
+                missing += 1
         else:
             print(f"  ✗ [{current_target_id}] not found: {out_path}")
             missing += 1
@@ -459,9 +442,12 @@ def generate_targets(task_dir: Path, api: str, director_script: Path) -> None:
             try:
                 print(f"  [{current_target_id}] attempt {attempt}/{MAX_ATTEMPTS} ...", end=" ", flush=True)
                 run_backend(api, target, out_path)
-                record_attempt(director_script, task_dir, current_target_id, prompt, out_path, "success")
-                final_status = "success"
-                print("OK")
+                if record_attempt(director_script, task_dir, current_target_id, prompt, out_path, "success"):
+                    final_status = "success"
+                    print("OK")
+                else:
+                    print("OK (image on disk but registration failed — run `place` to re-register)")
+                    final_status = "success"
                 break
             except Exception as exc:
                 err = str(exc)

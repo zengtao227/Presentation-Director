@@ -1803,14 +1803,15 @@ def html_motion_profile_from_brief(brief: JsonDict) -> str:
     return "presenter"
 
 
-def html_layout_families_for_profile(profile: str) -> list[str]:
+def html_layout_families_from_brief(brief: JsonDict) -> list[str]:
+    topic: str = str(brief.get("topic", ""))
+    selections: JsonDict = brief.get("selections", {}) if isinstance(brief.get("selections"), dict) else {}
+    context: str = classify_visual_context(topic, selections)
     context_key: str = {
-        "tech": "engineering",
-        "engineering": "engineering",
-        "editorial": "research",
         "research": "research",
-        "presenter": "default",
-    }.get(profile, profile)
+        "engineering": "engineering",
+        "market": "pitch",
+    }.get(context, "default")
     return list(CONTEXT_LAYOUT_MAP.get(context_key, CONTEXT_LAYOUT_MAP["default"]))
 
 
@@ -1818,11 +1819,7 @@ def html_theme_key_from_brief(brief: JsonDict, candidate: JsonDict) -> str:
     selected_theme: str = str(brief.get("html_theme_key", "auto")).strip() or "auto"
     if selected_theme != "auto":
         return selected_theme
-    return (
-        str(candidate.get("suggested_html_theme", "")).strip()
-        or str(candidate.get("html_theme_key", "")).strip()
-        or "minimal-white"
-    )
+    return str(candidate.get("suggested_html_theme", "")).strip() or "minimal-white"
 
 
 def html_config_from_brief(brief: JsonDict, motion_level: str) -> JsonDict:
@@ -1836,7 +1833,7 @@ def html_config_from_brief(brief: JsonDict, motion_level: str) -> JsonDict:
         "transition": str(candidate.get("html_transition", "fade")),
         "animation": str(candidate.get("html_animation", "minimal")),
         "gradient": str(candidate.get("html_gradient", "")),
-        "layout_families": html_layout_families_for_profile(motion_profile),
+        "layout_families": html_layout_families_from_brief(brief),
         "effects_runtime": "css-only",
         "canvas_fx": False,
         "notes": "Canvas/WebGL effects are future capability; current cinematic mode uses CSS-only motion.",
@@ -2025,7 +2022,6 @@ def visual_candidate_to_json(candidate: VisualCandidate) -> JsonDict:
         "html_animation": candidate.html_animation,
         "html_gradient": candidate.html_gradient,
         "suggested_html_theme": candidate.suggested_html_theme,
-        "html_theme_key": candidate.suggested_html_theme,
     }
 
 
@@ -3898,14 +3894,16 @@ Rules:
 - PPTX brief-field boundary: ignore HTML-only fields such as `html_config`, `html_motion_level`, `html_motion_profile`, `html_animation`, `html_transition`, and `html_gradient` when deciding PPTX mechanics. Use solid-color PPTX equivalents from the selected visual candidate instead of HTML gradients or HTML animations.
 - The only exception is an explicit user request to bypass Presentations after you report the missing runtime."""
 
-    html_config: JsonDict = brief.get("html_config", {}) if isinstance(brief.get("html_config"), dict) else {}
-    theme_key: str = str(html_config.get("theme_key", "minimal-white"))
-    motion_level: str = str(html_config.get("motion_level", "subtle"))
-    html_transition: str = str(html_config.get("transition", "fade"))
-    html_gradient: str = str(html_config.get("gradient", ""))
-    layout_families: Any = html_config.get("layout_families", [])
-    layout_families_json: str = json.dumps(layout_families if isinstance(layout_families, list) else [], ensure_ascii=False)
-    html_requirements: str = f"""Reveal.js requirements:
+    html_requirements: str = ""
+    if output_format in {"html-revealjs", "both"}:
+        html_config: JsonDict = brief.get("html_config", {}) if isinstance(brief.get("html_config"), dict) else {}
+        theme_key: str = str(html_config.get("theme_key", "minimal-white"))
+        motion_level: str = str(html_config.get("motion_level", "subtle"))
+        html_transition: str = str(html_config.get("transition", "fade"))
+        html_gradient: str = str(html_config.get("gradient", ""))
+        layout_families: Any = html_config.get("layout_families", [])
+        layout_families_json: str = json.dumps(layout_families if isinstance(layout_families, list) else [], ensure_ascii=False)
+        html_requirements = f"""Reveal.js requirements:
 - Use pinned CDN links for reveal.js@5.1.0: reset.css, reveal.css, a built-in theme, reveal.js, and the Notes plugin.
 - Notes plugin: import RevealNotes from https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/notes/notes.esm.js
   Initialize with: Reveal.initialize({{ transition: "{html_transition}", plugins: [RevealNotes] }})
