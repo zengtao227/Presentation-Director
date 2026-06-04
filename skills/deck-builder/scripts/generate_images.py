@@ -442,12 +442,17 @@ def generate_targets(task_dir: Path, api: str, director_script: Path) -> None:
             try:
                 print(f"  [{current_target_id}] attempt {attempt}/{MAX_ATTEMPTS} ...", end=" ", flush=True)
                 run_backend(api, target, out_path)
-                if record_attempt(director_script, task_dir, current_target_id, prompt, out_path, "success"):
-                    final_status = "success"
-                    print("OK")
+                # stub backend produces solid-colour placeholders, not real AI images
+                record_status = "stub-placeholder" if api == "stub" else "success"
+                if record_attempt(director_script, task_dir, current_target_id, prompt, out_path, record_status):
+                    final_status = record_status
+                    if api == "stub":
+                        print("OK (stub placeholder — replace with a real AI image before delivery)")
+                    else:
+                        print("OK")
                 else:
                     print("OK (image on disk but registration failed — run `place` to re-register)")
-                    final_status = "success"
+                    final_status = record_status
                 break
             except Exception as exc:
                 err = str(exc)
@@ -458,11 +463,13 @@ def generate_targets(task_dir: Path, api: str, director_script: Path) -> None:
 
         if final_status == "success":
             success_count += 1
+        elif final_status == "stub-placeholder":
+            success_count += 1  # on-disk, but counted separately in summary
         else:
             fail_count += 1
             print(f"  [{current_target_id}] FAILED after {MAX_ATTEMPTS} attempts.", file=sys.stderr)
 
-    print(f"\nDone: {success_count} succeeded, {fail_count} failed.")
+    print(f"\nDone: {success_count} generated, {fail_count} failed.")
     if fail_count:
         print(
             "Tip: use --api prompt-only to get prompts for free online tools, "
