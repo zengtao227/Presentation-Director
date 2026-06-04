@@ -1679,10 +1679,17 @@ def validate_generation_guard(task_dir: Path) -> list[str]:
             errors.append("confirmation_gate.token_verified is not true.")
 
     raw_image_mode: Any = brief.get("image_generation_mode")
-    if raw_image_mode is None:
-        return errors
-
     image_policy: str = image_policy_from_brief(brief)
+
+    # When image_policy requires a decision and no mode has been set, the
+    # Image Style Gate was never completed — block generation.
+    if raw_image_mode is None:
+        if image_policy != "none":
+            errors.append(
+                "image_generation_mode is not set. "
+                "Open the Image Style Gate and save your image settings before generating."
+            )
+        return errors
     image_mode: str = normalize_image_generation_mode(str(raw_image_mode), image_policy)
     if str(raw_image_mode) not in IMAGE_GENERATION_MODES:
         errors.append(f"Invalid image_generation_mode: {raw_image_mode}")
@@ -4544,6 +4551,9 @@ def command_init(args: argparse.Namespace) -> None:
                 print(f"Extracted {len(structure)} slides from {pptx_sources[0]}")
             else:
                 print("Warning: could not extract PPTX structure (python-pptx missing or file unreadable).")
+    # Clear stale status ready files so every init starts with a clean slate.
+    for ready_file in status_dir(task_dir).glob("*.ready"):
+        ready_file.unlink(missing_ok=True)
     write_json(task_dir / "brief-draft.json", brief)
     write_json(task_dir / "brief" / "draft-brief.json", brief)
     render_all_pages(task_dir)
@@ -4603,14 +4613,13 @@ def command_serve(args: argparse.Namespace) -> None:
 
 def _needs_image_style_gate(task_dir: Path) -> bool:
     """Return True if the confirmed brief requires the Image Style Gate before generation."""
-    images_style_done: Path = status_dir(task_dir) / STATUS_FILES["images-style"]
-    if images_style_done.exists():
-        return False
     brief: JsonDict = read_json(task_dir / "brief-confirmed.json")
     if not brief:
         return False
     if image_policy_from_brief(brief) == "none":
         return False
+    # Gate is needed if image_generation_mode is not set yet in the brief,
+    # regardless of whether a stale images-style.ready exists.
     if brief.get("image_generation_mode") is not None:
         return False
     return True
