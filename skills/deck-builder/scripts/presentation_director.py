@@ -4601,6 +4601,21 @@ def command_serve(args: argparse.Namespace) -> None:
         server.server_close()
 
 
+def _needs_image_style_gate(task_dir: Path) -> bool:
+    """Return True if the confirmed brief requires the Image Style Gate before generation."""
+    images_style_done: Path = status_dir(task_dir) / STATUS_FILES["images-style"]
+    if images_style_done.exists():
+        return False
+    brief: JsonDict = read_json(task_dir / "brief-confirmed.json")
+    if not brief:
+        return False
+    if image_policy_from_brief(brief) == "none":
+        return False
+    if brief.get("image_generation_mode") is not None:
+        return False
+    return True
+
+
 def command_serve_wait(args: argparse.Namespace) -> None:
     task_dir: Path = resolve_task_dir(args)
     if not (task_dir / "brief-draft.json").exists():
@@ -4633,10 +4648,21 @@ def command_serve_wait(args: argparse.Namespace) -> None:
     if not args.no_open and args.open_page:
         open_director_page(args.host, args.port, args.open_page)
 
+    chained_to_image_gate: bool = False
     started: float = time.time()
     try:
         while True:
             if target.exists():
+                # After brief confirmation, auto-chain to image style gate if needed
+                if args.for_status == "confirmed" and not chained_to_image_gate:
+                    if _needs_image_style_gate(task_dir):
+                        image_style_target: Path = status_dir(task_dir) / STATUS_FILES["images-style"]
+                        print("Brief confirmed. Image style gate needed — opening image-style page.")
+                        target = image_style_target
+                        chained_to_image_gate = True
+                        open_director_page(args.host, args.port, "image-style")
+                        time.sleep(args.interval)
+                        continue
                 print(f"Ready: {target}")
                 return
             if args.timeout > 0 and time.time() - started > args.timeout:
