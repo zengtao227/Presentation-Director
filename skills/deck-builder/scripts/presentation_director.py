@@ -373,6 +373,9 @@ ADDITIONAL_UI_COPY: dict[str, dict[str, str]] = {
         "image_style_gate": "图片风格门禁",
         "image_style_title": "确认 AI 生图模式",
         "image_style_intro": "这一步只决定图片权限和第一批 prompt 草稿。真正插入到哪一页，post-v1 模式会在看到 v1 预览后再确认。",
+        "image_manual_workflow_title": "如果选择手动生图，后续怎么做",
+        "image_manual_workflow_body": "选择需要图片的模式并保存后，agent 会把这些 prompt 在对话中展示出来。你可以用 Copilot、Ideogram、Firefly 或其他网页工具生成图片；生成后保存到下方目标路径，或把下载文件路径告诉 Codex，Codex 会复制并注册。没有真实图片就位时流程会停下，不会偷偷用渐变或占位图替代。",
+        "image_output_path": "目标保存路径",
         "image_policy_label": "当前 image_policy",
         "image_mode_label": "生成模式",
         "image_mode_none": "不生成 AI 图片",
@@ -473,6 +476,9 @@ ADDITIONAL_UI_COPY: dict[str, dict[str, str]] = {
         "image_style_gate": "Image Style Gate",
         "image_style_title": "Confirm AI Image Mode",
         "image_style_intro": "This step decides image permissions and the first prompt drafts. In post-v1 modes, exact slide placement is confirmed only after the v1 preview exists.",
+        "image_manual_workflow_title": "How manual image generation works",
+        "image_manual_workflow_body": "After you choose an image mode and save this page, the agent will show these prompts in the conversation. You can generate the images in Copilot, Ideogram, Firefly, or any other web tool; then save each image to the target path below, or tell Codex the downloaded file path so it can copy and register it. If real image files are not in place, the workflow stops instead of silently using gradients or placeholders.",
+        "image_output_path": "Target save path",
         "image_policy_label": "Current image_policy",
         "image_mode_label": "Generation mode",
         "image_mode_none": "Do not generate AI images",
@@ -3507,11 +3513,19 @@ def render_image_style(task_dir: Path, error_messages: list[str] | None = None) 
     for target in prompt_targets:
         target_id: str = str(target.get("id", ""))
         prompt_text: str = str(target.get("prompt_draft", ""))
+        output_path_value: str = str(target.get("output_path", "")).strip()
+        target_output_path: str = str(task_dir / output_path_value) if output_path_value else ""
+        output_path_html: str = (
+            f"""<p class="meta">{html.escape(t(ui_language, "image_output_path"))}: <code>{html.escape(target_output_path)}</code></p>"""
+            if target_output_path
+            else ""
+        )
         checked: str = " checked" if target_id in confirmed_target_prompts else ""
         prompt_cards.append(
             f"""<section class="section">
   <h3>{html.escape(target_id)}</h3>
   <p class="meta">{html.escape(str(target.get("slide_role", "")))} / {html.escape(str(target.get("placement_type", "")))} / {html.escape(str(target.get("asset_kind", "")))}</p>
+  {output_path_html}
   <textarea name="target_prompt__{html.escape(target_id)}">{html.escape(prompt_text)}</textarea>
   <label><input type="checkbox" name="target_confirm__{html.escape(target_id)}" value="yes"{checked}> {html.escape(t(ui_language, "image_prompt_confirm"))}</label>
 </section>"""
@@ -3567,6 +3581,10 @@ def render_image_style(task_dir: Path, error_messages: list[str] | None = None) 
     body: str = f"""<div class="topline">{html.escape(t(ui_language, "image_style_gate"))}</div>
 <h1>{html.escape(t(ui_language, "image_style_title"))}</h1>
 <p>{html.escape(t(ui_language, "image_style_intro"))}</p>
+<section class="section">
+  <h2>{html.escape(t(ui_language, "image_manual_workflow_title"))}</h2>
+  <p>{html.escape(t(ui_language, "image_manual_workflow_body"))}</p>
+</section>
 {errors_html}
 <section class="section">
   <h2>{html.escape(t(ui_language, "image_policy_label"))}</h2>
