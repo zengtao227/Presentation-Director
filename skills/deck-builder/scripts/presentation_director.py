@@ -4523,7 +4523,8 @@ def command_init(args: argparse.Namespace) -> None:
     script_rel: str = "skills/deck-builder/scripts/presentation_director.py"
     task_slug: str = slugify(args.task)
     print(f"Presentation Director task created{mode_label}: {task_dir}")
-    print(f"Open intake page: {task_dir / 'intake.html'}")
+    print(f"Rendered local review pages under: {task_dir}")
+    print("Do not open intake.html separately; serve-wait opens the interactive browser page once.")
     print("Run intake → confirmation → guard pipeline (use run_in_background=True in Bash tool):")
     print(f"  python3 {script_rel} --base-dir . serve-wait --task {task_slug} --for confirmed --then-guard")
     print("The command exits with GUARD_PASSED + generation prompt on success, GUARD_FAILED on failure.")
