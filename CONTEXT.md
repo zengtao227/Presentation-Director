@@ -93,12 +93,12 @@ Codex 交互式全新 PPTX 请求必须打开确认页并自动等待用户在 H
 - 已经存在用户确认过的 `brief-confirmed.json`
 - 任务是现有 PPTX 的小改、QA 或 targeted edit
 
-### PPTX Workspace
+### Deck Workspace
 
-在任何项目中生成 PPT 时，用户可见的所有相关文件都应集中放到项目内 `PPTX/<task-slug>/`，不要散落在根目录、`assets/` 或多个临时目录里。推荐结构：
+在任何项目中生成演示文稿时，用户可见的所有相关文件都应集中放到项目内 `Decks/<task-slug>/`，不要散落在根目录、`assets/` 或多个临时目录里。旧版 `PPTX/<task-slug>/` 目录仍作为 legacy task workspace 被工具读取，但新任务默认使用 `Decks/`。推荐结构：
 
 ```text
-PPTX/<task-slug>/
+Decks/<task-slug>/
   brief/
     draft-brief.json
     visual-contract.md
@@ -111,6 +111,7 @@ PPTX/<task-slug>/
   image-plan.json
   image-assets.json
   image-placement-request.json
+  preview-review.html
   style-review.html
   revision-request.json
   compare.html
@@ -136,7 +137,7 @@ PPTX/<task-slug>/
     final-report.md
 ```
 
-Codex Presentations 插件内部可能仍按插件规则使用 `outputs/<thread-id>/presentations/...` 作为 scratch workspace；但交给用户看的 brief、版本、逐页预览图、contact sheet、QA 摘要、最终 PPTX 和最终 HTML 分享版必须复制或保存到 `PPTX/<task-slug>/`。
+Codex Presentations 插件内部可能仍按插件规则使用 `outputs/<thread-id>/presentations/...` 作为 scratch workspace；但交给用户看的 brief、版本、逐页预览图、contact sheet、QA 摘要、最终 PPTX 和最终 HTML 分享版必须复制或保存到 `Decks/<task-slug>/`。
 
 `brief-confirmed.json` 必须包含：
 
@@ -172,11 +173,11 @@ output_format: "html-revealjs" | "pptx" | "both"
 
 生成层：Claude/Codex 直接写 Reveal.js HTML。不要调用 Codex Presentations plugin，不依赖 `html-ppt-skill` 或 `guizang-ppt-skill`。
 
-输出路径：每个候选版本先写入 `PPTX/<task-slug>/vN/final.html`；用户最终选择后，复制到 `PPTX/<task-slug>/final/<task-slug>.html`。
+输出路径：每个候选版本先写入 `Decks/<task-slug>/vN/final.html`；用户最终选择后，复制到 `Decks/<task-slug>/final/<task-slug>.html`。
 
 ### HTML Companion
 
-最终 `.pptx` 的只读分享版。它由最终版本的逐页渲染图生成，PPTX-only 输出时保存为 `PPTX/<task-slug>/final/<task-slug>-companion.html`，方便浏览器打开或简单分享。它不是编辑源，也不是 HTML deck 引擎的替代品；如果 PPTX 内容被修改，应从修改后的 PPTX 或重新渲染的逐页预览图再生成一次 HTML companion。`output_format="both"` 时，`final/<task-slug>.html` 是 Reveal.js Deck，不再单独生成 companion。
+最终 `.pptx` 的只读分享版。它由最终版本的逐页渲染图生成，PPTX-only 输出时保存为 `Decks/<task-slug>/final/<task-slug>-companion.html`，方便浏览器打开或简单分享。它不是编辑源，也不是 HTML deck 引擎的替代品；如果 PPTX 内容被修改，应从修改后的 PPTX 或重新渲染的逐页预览图再生成一次 HTML companion。`output_format="both"` 时，`final/<task-slug>.html` 是 Reveal.js Deck，不再单独生成 companion。
 
 ### AI Image Gates
 
@@ -208,7 +209,7 @@ pre-v1 图片默认使用 `skills/deck-builder/scripts/generate_images.py show` 
 
 ### PPTX Editability
 
-最终 `.pptx` 是主要可编辑交付物。小改不需要重新生成整套 deck：文字替换、元素左右移动、颜色微调、替换图片、添加少量图片或图表，都应优先作为 PowerPoint 手工编辑或 Codex `Presentations` targeted-edit 处理。为了保留可回退历史，agent 修改现有 PPTX 时应复制成新版本，例如 `PPTX/<task-slug>/v2/final.pptx`，再重新生成 HTML companion。
+最终 `.pptx` 是主要可编辑交付物。小改不需要重新生成整套 deck：文字替换、元素左右移动、颜色微调、替换图片、添加少量图片或图表，都应优先作为 PowerPoint 手工编辑或 Codex `Presentations` targeted-edit 处理。为了保留可回退历史，agent 修改现有 PPTX 时应复制成新版本，例如 `Decks/<task-slug>/v2/final.pptx`，再重新生成 HTML companion。
 
 如果某个元素被做成了截图或整页图片，它只能整体移动/裁剪，不能编辑内部文字、连接线或数据。需要可细编辑时，应要求 agent 把该页重建为原生文本框、形状、连接器、表格或图表。
 
@@ -252,9 +253,9 @@ Render QA
     ├─ HTML: browser screenshot + text-overflow check
     └─ PPTX: contact sheet + no-overlap check（现有流程）
     ↓
-PPTX/<task-slug>/final/<task-slug>.html          ← HTML Deck 主输出（如适用）
-PPTX/<task-slug>/final/<task-slug>.pptx          ← PPTX 主输出（如适用）
-PPTX/<task-slug>/final/<task-slug>-companion.html ← PPTX-only 只读 companion
+Decks/<task-slug>/final/<task-slug>.html          ← HTML Deck 主输出（如适用）
+Decks/<task-slug>/final/<task-slug>.pptx          ← PPTX 主输出（如适用）
+Decks/<task-slug>/final/<task-slug>-companion.html ← PPTX-only 只读 companion
 ```
 
 ### macOS PowerPoint 文件授权弹窗
@@ -278,9 +279,9 @@ Reveal.js 5.1.0 HTML generation spec
     ↓
 browser QA / screenshot / text-overflow check
     ↓
-PPTX/<task-slug>/vN/final.html
+Decks/<task-slug>/vN/final.html
     ↓
-PPTX/<task-slug>/final/<task-slug>.html
+Decks/<task-slug>/final/<task-slug>.html
 ```
 
 ## 当前研究记录

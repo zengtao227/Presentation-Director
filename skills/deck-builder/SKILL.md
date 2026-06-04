@@ -93,12 +93,12 @@ Never include file paths in a generation prompt unless those files actually exis
 
 ---
 
-## PPTX Workspace Rule
+## Deck Workspace Rule
 
-For any project, keep all user-facing PPT artifacts in one project-local folder:
+For any project, keep all user-facing deck artifacts in one project-local folder. New tasks use `Decks/<task-slug>/`; existing legacy `PPTX/<task-slug>/` folders remain readable for compatibility:
 
 ```text
-PPTX/<task-slug>/
+Decks/<task-slug>/
 ```
 
 Do not scatter generated brief files, intake pages, contact sheets, QA summaries, revision requests, comparison files, or final PPTX/HTML outputs across the project root, `assets/`, or unrelated folders.
@@ -106,7 +106,7 @@ Do not scatter generated brief files, intake pages, contact sheets, QA summaries
 Recommended structure:
 
 ```text
-PPTX/<task-slug>/
+Decks/<task-slug>/
   sources/                # optional copied user assets
   brief/                  # optional notes and source summaries
     visual-contract.md    # task-level visual contract after direction confirmation
@@ -118,6 +118,7 @@ PPTX/<task-slug>/
   image-plan.json
   image-assets.json
   image-placement-request.json
+  preview-review.html
   style-review.html
   revision-request.json
   compare.html
@@ -143,9 +144,9 @@ PPTX/<task-slug>/
     final-report.md
 ```
 
-Codex Presentations may still use its required internal scratch workspace under `outputs/<thread-id>/presentations/...`. That scratch space is not the user-facing project folder. Copy final deliverables, per-slide preview images, and key review artifacts back into `PPTX/<task-slug>/`.
+Codex Presentations may still use its required internal scratch workspace under `outputs/<thread-id>/presentations/...`. That scratch space is not the user-facing project folder. Copy final deliverables, per-slide preview images, and key review artifacts back into `Decks/<task-slug>/`.
 
-Every final PPTX-only deliverable must also have a view-only HTML companion at `PPTX/<task-slug>/final/<task-slug>-companion.html`, generated from rendered slide previews. This companion is for simple sharing only; edit the PPTX and regenerate the companion after changes. In `both` mode, `final/<task-slug>.html` is the Reveal.js deck and no separate companion is generated.
+Every final PPTX-only deliverable must also have a view-only HTML companion at `Decks/<task-slug>/final/<task-slug>-companion.html`, generated from rendered slide previews. This companion is for simple sharing only; edit the PPTX and regenerate the companion after changes. In `both` mode, `final/<task-slug>.html` is the Reveal.js deck and no separate companion is generated.
 
 Final PPTX files are the editable source of record. For small changes, use manual PowerPoint editing or Codex Presentations targeted-edit instead of regenerating the full deck. Save targeted edits as a new version folder and regenerate the HTML companion from the updated render previews.
 
@@ -174,7 +175,7 @@ PPTX QA must run both the generator's layout checker and a safe-area check when 
 
 ```bash
 python3 <deck-builder-skill-dir>/scripts/check_presentation_safe_area.py \
-  --layout "PPTX/<task-slug>/v1/layout-or-presentations-layout-dir"
+  --layout "Decks/<task-slug>/v1/layout-or-presentations-layout-dir"
 ```
 
 Inside the Presentation Director repo, `scripts/check_presentation_safe_area.py` is the same checker. If an engine cannot emit layout JSON, the agent must verify safe-area compliance from full-size rendered previews and record that manual check in `qa-summary.md`.
@@ -279,18 +280,18 @@ Use this path when the user asks for a new presentation in Codex. `output_format
 [6] Generation — route by output_format in brief-confirmed.json
     ├─ output_format = "html-revealjs"
     │    → Claude/Codex writes Reveal.js HTML directly (NOT via Presentations plugin)
-    │    → Save version to PPTX/<task-slug>/v1/final.html
+    │    → Save version to Decks/<task-slug>/v1/final.html
     │
     ├─ output_format = "pptx"
     │    → Codex Presentations capability (active plugin or bundled runtime scripts)
     │    → Runtime check before PPTX work; build_artifact_deck.mjs for net-new PPTX export
     │    → If no runtime is available, STOP instead of using fallback tooling
-    │    → Save version to PPTX/<task-slug>/v1/final.pptx
+    │    → Save version to Decks/<task-slug>/v1/final.pptx
     │
     └─ output_format = "both"
          → First: Codex Presentations capability → PPTX
          → Then: Claude/Codex writes Reveal.js HTML directly → HTML
-         → Save versions to PPTX/<task-slug>/v1/
+         → Save versions to Decks/<task-slug>/v1/
          → Note: HTML uses gradients/animation; PPTX uses solid-color equivalent
         ↓
 [6.5] Image Placement Gate (post-v1-slot-review / hybrid only)
@@ -305,9 +306,9 @@ Use this path when the user asks for a new presentation in Codex. `output_format
         ↓
 [9] Optional Revised Versions + Compare
         ↓
-PPTX/<task-slug>/final/<task-slug>.pptx
-PPTX/<task-slug>/final/<task-slug>.html
-PPTX/<task-slug>/final/<task-slug>-companion.html  # PPTX-only
+Decks/<task-slug>/final/<task-slug>.pptx
+Decks/<task-slug>/final/<task-slug>.html
+Decks/<task-slug>/final/<task-slug>-companion.html  # PPTX-only
 ```
 
 For this Codex path, do not pre-lock `design-locks/`, palette, or per-slide layout before v1 unless the user explicitly asks. The visual inspiration gate should select a direction, not a rigid template. The goal is to lock intent, source boundaries, research strategy, and visual target, then give Presentations room to produce a stronger first draft.
@@ -341,7 +342,7 @@ In interactive Codex sessions, the confirmation gate is a real user-action gate:
     ├─ output_format = "html-revealjs"
     │    → Claude writes Reveal.js 5.1.0 HTML directly (see HTML Spec in this skill)
     │    → Single .html file, CDN-loaded
-    │    → Save versions to PPTX/<task-slug>/vN/final.html, then copy the selected version to final/<task-slug>.html
+    │    → Save versions to Decks/<task-slug>/vN/final.html, then copy the selected version to final/<task-slug>.html
     │
     ├─ output_format = "pptx"
     │    → skills/pptx + pptxgenjs (existing path, no change)
@@ -354,11 +355,11 @@ In interactive Codex sessions, the confirmation gate is a real user-action gate:
     Contact sheet + layout JSON + at least one fix-and-reverify cycle
         ↓
 PPTX route:
-  PPTX/<task-slug>/final/<task-slug>.pptx   ← editable primary output
-  PPTX/<task-slug>/final/<task-slug>-companion.html   ← view-only share companion
+  Decks/<task-slug>/final/<task-slug>.pptx   ← editable primary output
+  Decks/<task-slug>/final/<task-slug>-companion.html   ← view-only share companion
 
 HTML-deck-only route:
-  PPTX/<task-slug>/final/<task-slug>.html   ← full HTML deck output
+  Decks/<task-slug>/final/<task-slug>.html   ← full HTML deck output
 ```
 
 Skipping Step 2 produces information dumps, not presentations.
@@ -389,7 +390,7 @@ Claude Code and offline agents follow the same confirmation principle as Codex. 
 **Claude Design / designer-skills boundary:**
 - If Claude Code has `designer-skills` installed, treat those skills as optional design support, not as the PPT workflow owner.
 - Do not let `design-flow`, `frontend-design`, or `design-tokens` replace Presentation Director intake, slide planning, `deck.md`, brief confirmation, visual contract selection, generation routing, or render QA.
-- Use `design-brief`, `design-tokens`, or `design-review` only to refine Director HTML gates, HTML companions, or the task-level `PPTX/<task-slug>/brief/visual-contract.md`.
+- Use `design-brief`, `design-tokens`, or `design-review` only to refine Director HTML gates, HTML companions, or the task-level `Decks/<task-slug>/brief/visual-contract.md`.
 - When a task-level `visual-contract.md` exists, it overrides the global `design-locks/` choice for that deck.
 
 ---
@@ -400,7 +401,7 @@ Claude Code and offline agents follow the same confirmation principle as Codex. 
 
 When `output_format` is `"html-revealjs"` or `"both"`, generate a self-contained Reveal.js 5.1.0 HTML file.
 
-This applies to both Codex and Claude Code. In Codex, write the HTML as a file artifact or local file; do NOT call Presentations plugin for HTML. Write candidate versions to `PPTX/<task-slug>/vN/final.html`; after final selection copy the chosen version to `PPTX/<task-slug>/final/<task-slug>.html`.
+This applies to both Codex and Claude Code. In Codex, write the HTML as a file artifact or local file; do NOT call Presentations plugin for HTML. Write candidate versions to `Decks/<task-slug>/vN/final.html`; after final selection copy the chosen version to `Decks/<task-slug>/final/<task-slug>.html`.
 
 ### CDN Links (pin to 5.1.0)
 
@@ -712,11 +713,11 @@ python3 scripts/presentation_director.py serve-wait \
   --for images-style
 ```
 
-For pre-v1 modes, generate only the targets in `image-plan.json`. In interactive Codex sessions, run `skills/deck-builder/scripts/generate_images.py --task-dir "PPTX/<task-slug>" show`, display the prompts to the user, then register user-provided images with `place --source <path> --target-id <id>` or `place --sources '{...}'`. Record every attempt with `image-asset`; `final_status: success` is only valid when the registered file exists and is non-empty. Failed or missing images must not be replaced by CSS gradients or SVG placeholders. Automatic backends such as `--api stub`, `--api dall-e-3`, `--api flux`, and `--api hf` remain available only when explicitly chosen or for testing.
+For pre-v1 modes, generate only the targets in `image-plan.json`. In interactive Codex sessions, run `skills/deck-builder/scripts/generate_images.py --task-dir "Decks/<task-slug>" show`, display the prompts to the user, then register user-provided images with `place --source <path> --target-id <id>` or `place --sources '{...}'`. Record every attempt with `image-asset`; `final_status: success` is only valid when the registered file exists and is non-empty. Failed or missing images must not be replaced by CSS gradients or SVG placeholders. Automatic backends such as `--api stub`, `--api dall-e-3`, `--api flux`, and `--api hf` remain available only when explicitly chosen or for testing.
 
 7. Route generation by `output_format` in the confirmed brief:
-   - `html-revealjs`: write Reveal.js HTML directly to `PPTX/<task-slug>/v1/final.html`; do NOT call Presentations plugin.
-   - `pptx`: verify Codex Presentations / `artifact-tool presentation-jsx` through active plugin or bundled runtime, run the runtime check, then export the net-new PPTX with `build_artifact_deck.mjs` to `PPTX/<task-slug>/v1/final.pptx`. If unavailable, stop and report the missing runtime.
+   - `html-revealjs`: write Reveal.js HTML directly to `Decks/<task-slug>/v1/final.html`; do NOT call Presentations plugin.
+   - `pptx`: verify Codex Presentations / `artifact-tool presentation-jsx` through active plugin or bundled runtime, run the runtime check, then export the net-new PPTX with `build_artifact_deck.mjs` to `Decks/<task-slug>/v1/final.pptx`. If unavailable, stop and report the missing runtime.
    - `both`: verify Codex Presentations / `artifact-tool presentation-jsx` through active plugin or bundled runtime, export PPTX with `build_artifact_deck.mjs`, then write Reveal.js HTML directly to `v1/final.html`. If Presentations runtime is unavailable, stop before generating either output unless the user explicitly changes output format.
 
 If `image_generation_mode` is `post-v1-slot-review` or `hybrid`, after v1 exists run:
@@ -730,11 +731,11 @@ python3 scripts/presentation_director.py serve-wait \
 
 Then generate v2 from `image-placement-request.json`: PPTX uses targeted edit and re-rendered `v2/contact-sheet.png`; HTML-only regenerates `v2/final.html`; `both` uses PPTX as the primary placement review and regenerates matching HTML.
 
-After the latest required version is generated, render Director pages and open the style review page. Use the local Director server for click-to-submit behavior; opening `style-review.html` directly is only a static preview. Wait for `revision.ready` if the user chooses a revision, then use:
+After the latest required version is generated, render Director pages and open the preview review page. Use the local Director server for click-to-submit behavior; opening `preview-review.html` directly is only a static preview. If the user keeps the current version, final selection is written by the preview gate. If the user chooses style changes, wait for `revision.ready` from the style review gate, then use:
 
 ```bash
 python3 scripts/presentation_director.py render --task "<short task slug>"
-python3 scripts/presentation_director.py serve --task "<short task slug>" --open-page style-review
+python3 scripts/presentation_director.py serve --task "<short task slug>" --open-page preview-review
 python3 scripts/presentation_director.py wait --task "<short task slug>" --for revision
 python3 scripts/presentation_director.py prompt --task "<short task slug>" --kind revision
 ```
@@ -989,8 +990,8 @@ Full gate definitions inside Presentation Director: `docs/quality-gates.md`. If 
 - [ ] No text overlaps after rendering: title/subtitle/body/footer/page number/labels/connectors are visually separated
 - [ ] Long titles are safe after wrapping: wrapped titles do not cover subtitles, captions, or the body area
 - [ ] At least one "find issue → fix → re-render" cycle completed
-- [ ] Final output confirmed at `PPTX/<task-slug>/final/<task-slug>.pptx` or `PPTX/<task-slug>/final/<task-slug>.html`
-- [ ] For PPTX-only output, view-only HTML companion exists at `PPTX/<task-slug>/final/<task-slug>-companion.html`
+- [ ] Final output confirmed at `Decks/<task-slug>/final/<task-slug>.pptx` or `Decks/<task-slug>/final/<task-slug>.html`
+- [ ] For PPTX-only output, view-only HTML companion exists at `Decks/<task-slug>/final/<task-slug>-companion.html`
 - [ ] Completion report includes: output path, render evidence, remaining risks
 
 ---

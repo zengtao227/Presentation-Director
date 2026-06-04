@@ -38,6 +38,8 @@ JsonDict = dict[str, Any]
 
 DEFAULT_PORT: int = 8765
 DEFAULT_HOST: str = "127.0.0.1"
+DECK_WORKSPACE_DIR: str = "Decks"
+LEGACY_DECK_WORKSPACE_DIR: str = "PPTX"
 IMAGE_EXTENSIONS: set[str] = {".png", ".jpg", ".jpeg", ".webp"}
 IMAGE_POLICY_VALUES: set[str] = {
     "none",
@@ -79,6 +81,7 @@ STATUS_FILES: dict[str, str] = {
     "confirmed": "confirmed.ready",
     "images-style": "images-style.ready",
     "images-placement": "images-placement.ready",
+    "preview-review": "preview-reviewed.ready",
     "revision": "revision.ready",
     "final-selection": "final-selected.ready",
 }
@@ -88,6 +91,7 @@ PAGE_PATHS: dict[str, str] = {
     "confirm": "/confirm",
     "image-style": "/image-style",
     "image-placement": "/image-placement",
+    "preview-review": "/preview-review",
     "style-review": "/style-review",
     "compare": "/compare",
 }
@@ -100,6 +104,15 @@ HTML_LANG: dict[str, str] = {
     "it": "it",
     "es": "es",
 }
+LANGUAGE_LABELS: dict[str, str] = {
+    "zh": "中文",
+    "en": "English",
+    "de": "Deutsch",
+    "fr": "Français",
+    "it": "Italiano",
+    "es": "Español",
+}
+LANGUAGE_SWITCH_LANGUAGES: tuple[str, ...] = ("zh", "en", "de")
 UI_COPY: dict[str, dict[str, str]] = {
     "zh": {
         "brief_gate": "Brief Confirmation Gate",
@@ -123,7 +136,7 @@ UI_COPY: dict[str, dict[str, str]] = {
         "risk": "风险",
         "pre_generation_risks": "生成前风险",
         "generation_strategy": "生成策略",
-        "generation_strategy_text": "先生成 v1 PPTX 和 contact sheet，并集中保存到 {task_dir}，然后打开 style-review.html 供选择是否重绘。",
+        "generation_strategy_text": "先生成 v1 并集中保存到 {task_dir}，然后打开 preview-review.html 供完整浏览；需要修改时再进入 style-review.html。",
         "back_visual": "返回修改视觉方向",
         "confirm_button": "确认并开始生成",
         "no_risks": "未发现明显风险。",
@@ -157,7 +170,7 @@ UI_COPY: dict[str, dict[str, str]] = {
         "risk": "Risk",
         "pre_generation_risks": "Pre-Generation Risks",
         "generation_strategy": "Generation Strategy",
-        "generation_strategy_text": "Generate the v1 PPTX and contact sheet first, save them under {task_dir}, then open style-review.html so you can decide whether to redraw the deck.",
+        "generation_strategy_text": "Generate v1 first, save it under {task_dir}, then open preview-review.html for browsing; enter style-review.html only if changes are needed.",
         "back_visual": "Back to visual direction",
         "confirm_button": "Confirm and start generation",
         "no_risks": "No obvious risks detected.",
@@ -191,7 +204,7 @@ UI_COPY: dict[str, dict[str, str]] = {
         "risk": "Risiko",
         "pre_generation_risks": "Risiken vor der Generierung",
         "generation_strategy": "Generierungsstrategie",
-        "generation_strategy_text": "Zuerst werden v1-PPTX und Contact Sheet erzeugt und unter {task_dir} gespeichert. Danach wird style-review.html geöffnet, damit Sie entscheiden können, ob das Deck visuell überarbeitet werden soll.",
+        "generation_strategy_text": "Zuerst wird v1 unter {task_dir} gespeichert. Danach wird preview-review.html zur vollständigen Ansicht geöffnet; style-review.html folgt nur bei Änderungsbedarf.",
         "back_visual": "Zur visuellen Richtung zurück",
         "confirm_button": "Bestätigen und Generierung starten",
         "no_risks": "Keine offensichtlichen Risiken erkannt.",
@@ -225,7 +238,7 @@ UI_COPY: dict[str, dict[str, str]] = {
         "risk": "Risque",
         "pre_generation_risks": "Risques avant génération",
         "generation_strategy": "Stratégie de génération",
-        "generation_strategy_text": "Générer d'abord le PPTX v1 et la planche de contact, les enregistrer dans {task_dir}, puis ouvrir style-review.html pour décider d'une éventuelle refonte visuelle.",
+        "generation_strategy_text": "Générer d'abord v1 dans {task_dir}, puis ouvrir preview-review.html pour la parcourir; style-review.html n'est utilisé que si des changements sont nécessaires.",
         "back_visual": "Retour à la direction visuelle",
         "confirm_button": "Confirmer et lancer la génération",
         "no_risks": "Aucun risque évident détecté.",
@@ -259,7 +272,7 @@ UI_COPY: dict[str, dict[str, str]] = {
         "risk": "Rischio",
         "pre_generation_risks": "Rischi prima della generazione",
         "generation_strategy": "Strategia di generazione",
-        "generation_strategy_text": "Genera prima il PPTX v1 e il contact sheet, salvali in {task_dir}, poi apri style-review.html per decidere se ridisegnare il deck.",
+        "generation_strategy_text": "Genera prima v1 in {task_dir}, poi apri preview-review.html per rivederla; usa style-review.html solo se servono modifiche.",
         "back_visual": "Torna alla direzione visiva",
         "confirm_button": "Conferma e avvia la generazione",
         "no_risks": "Nessun rischio evidente rilevato.",
@@ -293,7 +306,7 @@ UI_COPY: dict[str, dict[str, str]] = {
         "risk": "Riesgo",
         "pre_generation_risks": "Riesgos antes de generar",
         "generation_strategy": "Estrategia de generación",
-        "generation_strategy_text": "Primero genera el PPTX v1 y la hoja de contacto, guárdalos en {task_dir}, y luego abre style-review.html para decidir si redibujar el deck.",
+        "generation_strategy_text": "Primero genera v1 en {task_dir}, luego abre preview-review.html para revisarlo; usa style-review.html solo si hacen falta cambios.",
         "back_visual": "Volver a dirección visual",
         "confirm_button": "Confirmar e iniciar generación",
         "no_risks": "No se detectaron riesgos evidentes.",
@@ -583,6 +596,201 @@ ADDITIONAL_UI_COPY: dict[str, dict[str, str]] = {
 
 for language, copy_items in ADDITIONAL_UI_COPY.items():
     UI_COPY.setdefault(language, {}).update(copy_items)
+
+WORKFLOW_UI_COPY: dict[str, dict[str, str]] = {
+    "zh": {
+        "language_switch_label": "页面语言",
+        "nav_preview": "v1 预览",
+        "preview_review": "v1 预览门禁",
+        "preview_review_title": "浏览 v1 后再决定下一步",
+        "preview_review_intro": "先完整浏览当前版本，再决定直接交付、快速微调，还是生成对比版本。",
+        "open_full_preview": "全屏打开 v1",
+        "preview_action_title": "看完 v1 后怎么做?",
+        "preview_action_keep": "满意，直接使用 v1",
+        "preview_action_keep_desc": "不再生成新版本，直接把 v1 选为最终交付。",
+        "preview_action_style": "需要调整，进入复审选项",
+        "preview_action_style_desc": "先看清楚每种修改会花多少成本，再决定是否生成 v2。",
+        "preview_notes_placeholder": "例如：第 4 页太挤，或者整体已经可以交付。",
+        "save_preview_review": "确认 v1 预览选择",
+        "preview_review_saved_title": "v1 预览选择已保存",
+        "preview_review_saved_message": "v1 预览选择已收到。agent 会按你的选择继续。",
+        "style_intro": "你已经看过 {version_name}。这里不再用抽象风格词，而是按修改成本选择下一步。",
+        "style_action_title": "选择修改成本",
+        "style_action_keep": "保留当前版本",
+        "style_action_keep_desc": "不生成新文件，直接进入最终交付。",
+        "style_action_quick": "快速微调",
+        "style_action_quick_desc": "只调 CSS、间距、字号、对比度或动效强度，不重写内容。",
+        "style_action_targeted": "定点修改",
+        "style_action_targeted_desc": "只改你指定的页面或问题，保留整体风格和结构。",
+        "style_action_comparison": "生成对比版本",
+        "style_action_comparison_desc": "生成 v2，对视觉表达做较大调整，但保留事实、结构和资料边界。",
+        "style_action_switch": "切换视觉方向",
+        "style_action_switch_desc": "回到视觉方向页重新选择。这是大改，成本最高。",
+        "style_cost_zero": "成本：无",
+        "style_cost_low": "成本：低",
+        "style_cost_medium": "成本：中",
+        "style_cost_high": "成本：高",
+        "style_cost_highest": "成本：最高",
+        "style_examples": "示例",
+        "style_will_change": "会改变",
+        "style_will_not_change": "不会改变",
+        "style_tuning_title": "快速微调范围",
+        "style_tune_spacing": "间距和页面密度",
+        "style_tune_type": "字号和可读性",
+        "style_tune_contrast": "对比度和强调色",
+        "style_tune_motion": "HTML 动效强度",
+        "targeted_slides_label": "定点修改页码或位置",
+        "targeted_slides_placeholder": "例如：第 5 页、第 8 页图表、结束页。",
+        "comparison_count_title": "对比版本数量（仅用于生成对比版本）",
+        "style_notes_placeholder": "请写清楚你看到的问题。不要只写“更高级”，最好写“第几页哪里不好”。",
+        "image_placement_limit_notice": "此表单每轮最多支持 6 条插入请求。每次提交会覆盖上一轮请求；请等 agent 将本轮处理成新版本后，再重新打开门禁添加更多。",
+        "placement_global_notes_title": "整体备注",
+        "placement_global_notes_placeholder": "可选：本轮图片插入的整体说明。",
+    },
+    "en": {
+        "language_switch_label": "Page language",
+        "nav_preview": "v1 Preview",
+        "preview_review": "v1 Preview Gate",
+        "preview_review_title": "Review v1 before choosing the next step",
+        "preview_review_intro": "Browse the current version first, then decide whether to deliver it, tune it, or generate a comparison version.",
+        "open_full_preview": "Open v1 full screen",
+        "preview_action_title": "What should happen after reviewing v1?",
+        "preview_action_keep": "Use v1 as final",
+        "preview_action_keep_desc": "Do not generate another version; select v1 as the final delivery.",
+        "preview_action_style": "Adjust it, show review options",
+        "preview_action_style_desc": "Compare the cost of each change type before deciding whether to generate v2.",
+        "preview_notes_placeholder": "For example: slide 4 is crowded, or the deck is ready to deliver.",
+        "save_preview_review": "Confirm v1 preview choice",
+        "preview_review_saved_title": "v1 preview choice saved",
+        "preview_review_saved_message": "Your v1 preview choice was saved. The agent will continue from that decision.",
+        "style_intro": "You have already reviewed {version_name}. This page chooses by change cost, not vague style labels.",
+        "style_action_title": "Choose the change cost",
+        "style_action_keep": "Keep current version",
+        "style_action_keep_desc": "Generate nothing else and move to final delivery.",
+        "style_action_quick": "Quick tune",
+        "style_action_quick_desc": "Only adjust CSS, spacing, type size, contrast, or motion strength. Do not rewrite content.",
+        "style_action_targeted": "Targeted fix",
+        "style_action_targeted_desc": "Fix only the slides or issues you name while preserving the overall style and structure.",
+        "style_action_comparison": "Generate comparison version",
+        "style_action_comparison_desc": "Generate v2 with stronger visual changes while preserving facts, structure, and source boundaries.",
+        "style_action_switch": "Switch visual direction",
+        "style_action_switch_desc": "Return to Visual Direction and choose again. This is a major change and costs the most.",
+        "style_cost_zero": "Cost: none",
+        "style_cost_low": "Cost: low",
+        "style_cost_medium": "Cost: medium",
+        "style_cost_high": "Cost: high",
+        "style_cost_highest": "Cost: highest",
+        "style_examples": "Examples",
+        "style_will_change": "Changes",
+        "style_will_not_change": "Does not change",
+        "style_tuning_title": "Quick tune scope",
+        "style_tune_spacing": "Spacing and density",
+        "style_tune_type": "Type size and readability",
+        "style_tune_contrast": "Contrast and accent color",
+        "style_tune_motion": "HTML motion strength",
+        "targeted_slides_label": "Target slides or locations",
+        "targeted_slides_placeholder": "For example: slide 5, the chart on slide 8, or the closing slide.",
+        "comparison_count_title": "Comparison version count (only for comparison generation)",
+        "style_notes_placeholder": "Describe the visible issue. Prefer 'slide 5 is crowded' over vague requests like 'make it premium'.",
+        "image_placement_limit_notice": "This form supports up to 6 placement rows per round. Each submission replaces the previous placement request; wait for the agent to create the new version before reopening the gate for more.",
+        "placement_global_notes_title": "Overall notes",
+        "placement_global_notes_placeholder": "Optional: overall notes for this placement round.",
+    },
+    "de": {
+        "language_switch_label": "Seitensprache",
+        "nav_preview": "v1-Vorschau",
+        "preview_review": "v1-Vorschau-Gate",
+        "preview_review_title": "v1 ansehen, dann den nächsten Schritt wählen",
+        "preview_review_intro": "Sehen Sie zuerst die aktuelle Version an und entscheiden Sie dann, ob sie final ist, feinjustiert oder als Vergleichsversion neu erzeugt wird.",
+        "open_full_preview": "v1 im Vollbild öffnen",
+        "preview_action_title": "Was soll nach der v1-Vorschau passieren?",
+        "preview_action_keep": "v1 als final verwenden",
+        "preview_action_keep_desc": "Keine neue Version erzeugen; v1 wird als finale Lieferung gewählt.",
+        "preview_action_style": "Anpassen, Review-Optionen anzeigen",
+        "preview_action_style_desc": "Erst die Kosten jeder Änderungsart ansehen, dann entscheiden, ob v2 erzeugt wird.",
+        "preview_notes_placeholder": "Zum Beispiel: Folie 4 ist zu dicht, oder das Deck ist bereit.",
+        "save_preview_review": "v1-Vorschauauswahl bestätigen",
+        "preview_review_saved_title": "v1-Vorschauauswahl gespeichert",
+        "preview_review_saved_message": "Die v1-Auswahl wurde gespeichert. Der Agent fährt damit fort.",
+        "style_intro": "Sie haben {version_name} bereits angesehen. Diese Seite wählt nach Änderungskosten, nicht nach vagen Stilbegriffen.",
+        "style_action_title": "Änderungskosten wählen",
+        "style_action_keep": "Aktuelle Version behalten",
+        "style_action_keep_desc": "Nichts Neues erzeugen und zur finalen Lieferung gehen.",
+        "style_action_quick": "Schnelle Feinjustierung",
+        "style_action_quick_desc": "Nur CSS, Abstände, Schriftgröße, Kontrast oder Animation anpassen. Keine Inhalte neu schreiben.",
+        "style_action_targeted": "Gezielte Korrektur",
+        "style_action_targeted_desc": "Nur genannte Folien oder Probleme korrigieren; Gesamtstil und Struktur bleiben erhalten.",
+        "style_action_comparison": "Vergleichsversion erzeugen",
+        "style_action_comparison_desc": "v2 mit stärkerer visueller Änderung erzeugen; Fakten, Struktur und Quellenregeln bleiben erhalten.",
+        "style_action_switch": "Visuelle Richtung wechseln",
+        "style_action_switch_desc": "Zur Seite Visuelle Richtung zurückgehen und neu wählen. Das ist eine große Änderung.",
+        "style_cost_zero": "Kosten: keine",
+        "style_cost_low": "Kosten: niedrig",
+        "style_cost_medium": "Kosten: mittel",
+        "style_cost_high": "Kosten: hoch",
+        "style_cost_highest": "Kosten: sehr hoch",
+        "style_examples": "Beispiele",
+        "style_will_change": "Ändert",
+        "style_will_not_change": "Ändert nicht",
+        "style_tuning_title": "Umfang der Feinjustierung",
+        "style_tune_spacing": "Abstände und Dichte",
+        "style_tune_type": "Schriftgröße und Lesbarkeit",
+        "style_tune_contrast": "Kontrast und Akzentfarbe",
+        "style_tune_motion": "HTML-Animationsstärke",
+        "targeted_slides_label": "Zielfolien oder Positionen",
+        "targeted_slides_placeholder": "Zum Beispiel: Folie 5, Diagramm auf Folie 8 oder Schlussfolie.",
+        "comparison_count_title": "Anzahl Vergleichsversionen (nur für Vergleichserzeugung)",
+        "style_notes_placeholder": "Beschreiben Sie das sichtbare Problem. Besser 'Folie 5 ist zu dicht' als 'edler machen'.",
+        "nav_image_style": "Bildstil",
+        "nav_image_placement": "Bildplatzierung",
+        "image_style_gate": "Bildstil-Gate",
+        "image_style_intro": "Dieser Schritt legt Bildrechte und erste Prompt-Entwürfe fest. Bei post-v1-Modi wird die genaue Platzierung erst nach der v1-Vorschau bestätigt.",
+        "image_manual_workflow_title": "So funktioniert manuelle Bilderzeugung",
+        "image_manual_workflow_body": "Nach Auswahl und Speicherung eines Bildmodus zeigt der Agent die Prompts im Gespräch. Sie können die Bilder mit Copilot, Ideogram, Firefly oder einem anderen Webtool erzeugen und dann am Zielpfad speichern oder Codex den Downloadpfad nennen.",
+        "image_output_path": "Ziel-Speicherpfad",
+        "image_policy_label": "Aktuelle image_policy",
+        "image_mode_label": "Erzeugungsmodus",
+        "image_mode_none": "Keine KI-Bilder erzeugen",
+        "image_mode_global_background": "Ein globales abstraktes Hintergrundbild erzeugen",
+        "image_mode_cover_section_auto": "Titelbild und wiederverwendbaren Abschnittshintergrund erzeugen",
+        "image_mode_post_v1_slot_review": "Zuerst v1 erzeugen, danach Bildplätze bestätigen",
+        "image_mode_hybrid": "Basis-Hintergründe zuerst, zusätzliche Bilder nach v1 bestätigen",
+        "image_mode_warning": "Bei ask-before-use sind pre-v1-Modi erlaubt, aber jeder Prompt-Entwurf unten muss bestätigt werden.",
+        "image_prompt_drafts": "Prompt-Entwürfe",
+        "image_prompt_confirm": "Ich bestätige diesen Prompt für image-plan.json",
+        "image_style_notes": "Zusätzliche Bildstil-Hinweise",
+        "image_style_notes_placeholder": "Zum Beispiel: abstrakter, keine Personen, kein Text.",
+        "html_theme_key": "HTML-Thema",
+        "html_motion_profile": "HTML-Animationsprofil",
+        "html_motion_profile_subtle": "Subtle: stabil, leicht, CSS-only",
+        "html_motion_profile_expressive": "Expressive: stärkere Übergänge und Elementanimationen, CSS-only",
+        "html_motion_profile_cinematic": "Cinematic: stärkere CSS-Animation; Canvas/WebGL ist nicht aktiviert",
+        "image_placement_gate": "Bildplatzierungs-Gate",
+        "image_placement_title": "Bildplatzierung nach v1 bestätigen",
+        "image_placement_intro": "Wählen Sie anhand der v1-Vorschau, wo zusätzliche Bilder eingefügt werden sollen. PPTX nutzt gezielte Bearbeitung; HTML-only erzeugt v2/final.html neu.",
+        "preview_artifact": "v1-Vorschauartefakt",
+        "placement_rows": "Platzierungsanfragen",
+        "slide_index": "Folie / HTML-Abschnitt",
+        "slide_role": "Folienrolle",
+        "placement_type": "Platzierungsart",
+        "asset_kind": "Asset-Art",
+        "overlay_opacity": "Overlay-Deckkraft",
+        "placement_prompt": "Bildprompt / Beschreibung",
+        "placement_notes": "Platzierungshinweise",
+        "save_image_placement": "Bildplatzierung speichern",
+        "image_placement_saved_title": "Bildplatzierung gespeichert",
+        "image_placement_saved_message": "Die Bildplatzierung wurde gespeichert. Der Agent erkennt images-placement.ready und erzeugt v2.",
+        "image_placement_limit_notice": "Dieses Formular unterstützt pro Runde bis zu 6 Platzierungen. Jede Einsendung ersetzt die vorherige Anfrage; warten Sie auf die neue Version, bevor Sie weitere hinzufügen.",
+        "placement_global_notes_title": "Gesamtnotizen",
+        "placement_global_notes_placeholder": "Optional: Gesamthinweise für diese Platzierungsrunde.",
+    },
+}
+
+for language in ("fr", "it", "es"):
+    WORKFLOW_UI_COPY[language] = WORKFLOW_UI_COPY["en"].copy()
+
+for language, copy_items in WORKFLOW_UI_COPY.items():
+    UI_COPY.setdefault(language, {}).update(copy_items)
 QUESTION_TITLE_L10N: dict[str, dict[str, str]] = {
     "en": {
         "deck_type": "PPT Type",
@@ -837,23 +1045,6 @@ CHOICE_LABEL_L10N: dict[str, dict[str, dict[str, str]]] = {
         },
     },
 }
-ADDITIONAL_QUESTION_TITLE_L10N: dict[str, dict[str, str]] = {
-    "en": {
-        "palette_direction": "Palette Direction",
-        "structure_direction": "Structure Rhythm",
-        "visual_expression": "Visual Expression",
-        "image_strategy": "Image Strategy",
-        "logo_strategy": "Logo / Brand Presence",
-    },
-    "de": {
-        "palette_direction": "Farbpalette",
-        "structure_direction": "Strukturrhythmus",
-        "visual_expression": "Visueller Ausdruck",
-        "image_strategy": "Bildstrategie",
-        "logo_strategy": "Logo / Markenpräsenz",
-    },
-}
-
 QUESTION_PROMPT_L10N: dict[str, dict[str, str]] = {
     "en": {
         "deck_type": "What kind of PPT are you creating?",
@@ -868,11 +1059,6 @@ QUESTION_PROMPT_L10N: dict[str, dict[str, str]] = {
         "image_policy": "Should AI-generated images be allowed?",
         "visual_freedom": "How should the first-draft visual direction be handled?",
         "reference_deck": "Do you have a reference deck or style sample?",
-        "palette_direction": "Should the palette direction change?",
-        "structure_direction": "Should the structure rhythm change?",
-        "visual_expression": "Should the visual expression change?",
-        "image_strategy": "How should images and visual assets be adjusted?",
-        "logo_strategy": "How should logos and brand presence be adjusted?",
     },
     "de": {
         "deck_type": "Welche Art von PPT soll erstellt werden?",
@@ -887,101 +1073,10 @@ QUESTION_PROMPT_L10N: dict[str, dict[str, str]] = {
         "image_policy": "Sollen KI-generierte Bilder erlaubt sein?",
         "visual_freedom": "Wie soll die visuelle Richtung des ersten Entwurfs behandelt werden?",
         "reference_deck": "Gibt es ein Referenzdeck oder Stilbeispiele?",
-        "palette_direction": "Soll sich die Farbpalette ändern?",
-        "structure_direction": "Soll sich der Strukturrhythmus ändern?",
-        "visual_expression": "Soll sich der visuelle Ausdruck ändern?",
-        "image_strategy": "Wie sollen Bilder und visuelle Materialien angepasst werden?",
-        "logo_strategy": "Wie sollen Logos und Markenpräsenz angepasst werden?",
     },
 }
 
 ADDITIONAL_CHOICE_LABEL_L10N: dict[str, dict[str, dict[str, str]]] = {
-    "en": {
-        "palette_direction": {
-            "keep": "Keep current",
-            "warm-editorial": "Warm paper-like / editorial",
-            "engineering-blue-gray": "Engineering blue-gray / technical",
-            "high-contrast-pitch": "High-contrast / pitch style",
-            "brand-boost": "Strengthen brand colors",
-            "custom": "Custom",
-        },
-        "structure_direction": {
-            "keep": "Keep current",
-            "stronger-story": "Stronger story rhythm",
-            "more-analytical": "More analytical",
-            "more-architecture": "More architecture / system diagrams",
-            "more-product-demo": "More product-launch / demo feel",
-            "denser-internal": "Denser internal review style",
-            "custom": "Custom",
-        },
-        "visual_expression": {
-            "keep": "Keep current",
-            "more-premium": "More premium / more designed",
-            "more-restrained": "More restrained / less decorative",
-            "less-cards": "Fewer cards, more open composition",
-            "stronger-evidence": "Stronger evidence-led storytelling",
-            "custom": "Custom",
-        },
-        "image_strategy": {
-            "keep": "Keep current",
-            "fewer-decorative": "Use fewer decorative images",
-            "more-ai-concept": "Add AI concept imagery",
-            "official-only": "Use only real screenshots / official assets",
-            "stronger-cover-section": "Strengthen cover or section visuals",
-            "custom": "Custom",
-        },
-        "logo_strategy": {
-            "keep": "Keep current",
-            "cover-final-only": "Keep logos only on cover and final slides",
-            "footer-brand": "Strengthen footer branding",
-            "partner-logo-page": "Add partner / school / company logo page",
-            "remove-all": "Remove all logos",
-            "custom": "Custom",
-        },
-    },
-    "de": {
-        "palette_direction": {
-            "keep": "Aktuell beibehalten",
-            "warm-editorial": "Warmer Papierlook / Editorial",
-            "engineering-blue-gray": "Engineering-Blaugrau / technisch",
-            "high-contrast-pitch": "Hoher Kontrast / Pitch-Stil",
-            "brand-boost": "Markenfarben stärken",
-            "custom": "Benutzerdefiniert",
-        },
-        "structure_direction": {
-            "keep": "Aktuell beibehalten",
-            "stronger-story": "Stärkerer Story-Rhythmus",
-            "more-analytical": "Analytischer",
-            "more-architecture": "Mehr Architektur- / Systemdiagramme",
-            "more-product-demo": "Mehr Produktlaunch- / Demo-Gefühl",
-            "denser-internal": "Dichterer Stil für interne Reviews",
-            "custom": "Benutzerdefiniert",
-        },
-        "visual_expression": {
-            "keep": "Aktuell beibehalten",
-            "more-premium": "Hochwertiger / stärker gestaltet",
-            "more-restrained": "Zurückhaltender / weniger dekorativ",
-            "less-cards": "Weniger Karten, offenere Komposition",
-            "stronger-evidence": "Stärker evidenzgeführtes Storytelling",
-            "custom": "Benutzerdefiniert",
-        },
-        "image_strategy": {
-            "keep": "Aktuell beibehalten",
-            "fewer-decorative": "Weniger dekorative Bilder verwenden",
-            "more-ai-concept": "KI-Konzeptbilder ergänzen",
-            "official-only": "Nur echte Screenshots / offizielle Materialien verwenden",
-            "stronger-cover-section": "Titel- oder Kapitelvisuals stärken",
-            "custom": "Benutzerdefiniert",
-        },
-        "logo_strategy": {
-            "keep": "Aktuell beibehalten",
-            "cover-final-only": "Logos nur auf Titel- und Schlussfolie behalten",
-            "footer-brand": "Footer-Branding stärken",
-            "partner-logo-page": "Partner- / Schul- / Unternehmenslogo-Seite hinzufügen",
-            "remove-all": "Alle Logos entfernen",
-            "custom": "Benutzerdefiniert",
-        },
-    },
     "fr": {
         "output_format": {
             "html-revealjs": "HTML (Reveal.js)",
@@ -1004,9 +1099,6 @@ ADDITIONAL_CHOICE_LABEL_L10N: dict[str, dict[str, dict[str, str]]] = {
         },
     },
 }
-
-for language, title_items in ADDITIONAL_QUESTION_TITLE_L10N.items():
-    QUESTION_TITLE_L10N.setdefault(language, {}).update(title_items)
 
 for language, label_groups in ADDITIONAL_CHOICE_LABEL_L10N.items():
     CHOICE_LABEL_L10N.setdefault(language, {}).update(label_groups)
@@ -1341,81 +1433,6 @@ INTAKE_QUESTIONS: tuple[Question, ...] = (
     ),
 )
 
-REVISION_GROUPS: tuple[Question, ...] = (
-    Question(
-        key="palette_direction",
-        title="配色方向",
-        prompt="是否要改变配色方向?",
-        default="keep",
-        choices=(
-            Choice("keep", "保持当前", "不改 v1 配色。"),
-            Choice("warm-editorial", "暖色纸感 / 编辑风", "更像高质量长文和研究报告。"),
-            Choice("engineering-blue-gray", "工程蓝灰 / 技术风", "更冷静、系统、技术。"),
-            Choice("high-contrast-pitch", "高对比 / 路演风", "更强冲击力。"),
-            Choice("brand-boost", "强化品牌色", "更明显使用品牌色。"),
-            Choice("custom", "自定义", "我有自己的配色方向。"),
-        ),
-    ),
-    Question(
-        key="structure_direction",
-        title="结构节奏",
-        prompt="是否要改变结构节奏?",
-        default="keep",
-        choices=(
-            Choice("keep", "保持当前", "不改整体节奏。"),
-            Choice("stronger-story", "更强故事节奏", "章节推进更明显。"),
-            Choice("more-analytical", "更数据分析", "更多 evidence-led 页面。"),
-            Choice("more-architecture", "更架构 / 系统图", "强化系统图和流程图。"),
-            Choice("more-product-demo", "更产品发布 / demo 感", "更像产品展示。"),
-            Choice("denser-internal", "更高密度内部汇报", "更适合内部评审。"),
-            Choice("custom", "自定义", "我有自己的结构方向。"),
-        ),
-    ),
-    Question(
-        key="visual_expression",
-        title="视觉表现力",
-        prompt="是否要改变视觉表现力?",
-        default="keep",
-        choices=(
-            Choice("keep", "保持当前", "不改表现力。"),
-            Choice("more-premium", "更高级 / 更有设计感", "提高整体 polished 感。"),
-            Choice("more-restrained", "更克制 / 更少装饰", "减少视觉噪音。"),
-            Choice("less-cards", "更少卡片，更开放构图", "避免 generic SaaS card grid。"),
-            Choice("stronger-evidence", "更强图表和 evidence-led storytelling", "让证据更直接证明标题。"),
-            Choice("custom", "自定义", "我有自己的表现力要求。"),
-        ),
-    ),
-    Question(
-        key="image_strategy",
-        title="图片策略",
-        prompt="图片和视觉素材怎么调整?",
-        default="keep",
-        choices=(
-            Choice("keep", "保持当前", "不改图片策略。"),
-            Choice("fewer-decorative", "减少装饰图", "更依赖图表和文字。"),
-            Choice("more-ai-concept", "增加 AI 概念图", "只用于已授权场景。"),
-            Choice("official-only", "只用真实截图 / 官方素材", "避免 AI 和不明来源素材。"),
-            Choice("stronger-cover-section", "增强封面或章节视觉", "提升第一印象。"),
-            Choice("custom", "自定义", "我有自己的图片策略。"),
-        ),
-    ),
-    Question(
-        key="logo_strategy",
-        title="Logo / 品牌露出",
-        prompt="Logo 和品牌露出怎么调整?",
-        default="keep",
-        choices=(
-            Choice("keep", "保持当前", "不改品牌露出。"),
-            Choice("cover-final-only", "只保留封面和结束页", "降低干扰。"),
-            Choice("footer-brand", "增强页脚品牌感", "每页轻品牌提示。"),
-            Choice("partner-logo-page", "增加合作方 / 学校 / 企业 logo 页", "适合展示生态或背书。"),
-            Choice("remove-all", "移除所有 logo", "避免品牌资产风险。"),
-            Choice("custom", "自定义", "我有自己的品牌策略。"),
-        ),
-    ),
-)
-
-
 def slugify(value: str) -> str:
     cleaned: str = re.sub(r"[^a-zA-Z0-9_-]+", "-", value.strip().lower()).strip("-")
     if cleaned:
@@ -1428,9 +1445,25 @@ def now_id() -> str:
 
 
 def workspace_root(base_dir: Path, thread_id: str, task_slug: str) -> Path:
-    # `thread_id` is kept for command compatibility. User-facing PPT assets
-    # should live together under one project-local folder.
-    return base_dir / "PPTX" / task_slug
+    # `thread_id` is kept for command compatibility. New user-facing deck
+    # assets live under Decks/; legacy PPTX/ task folders remain readable.
+    return base_dir / DECK_WORKSPACE_DIR / task_slug
+
+
+def legacy_workspace_root(base_dir: Path, task_slug: str) -> Path:
+    return base_dir / LEGACY_DECK_WORKSPACE_DIR / task_slug
+
+
+def resolve_workspace_root(base_dir: Path, task_slug: str, command: str = "") -> Path:
+    deck_dir: Path = base_dir / DECK_WORKSPACE_DIR / task_slug
+    legacy_dir: Path = legacy_workspace_root(base_dir, task_slug)
+    if command == "init":
+        return legacy_dir if legacy_dir.exists() and not deck_dir.exists() else deck_dir
+    if deck_dir.exists():
+        return deck_dir
+    if legacy_dir.exists():
+        return legacy_dir
+    return deck_dir
 
 
 def status_dir(task_dir: Path) -> Path:
@@ -1516,38 +1549,83 @@ def t(ui_language: str, key: str) -> str:
     return UI_COPY["zh"].get(key, key)
 
 
+def content_language_question() -> Question:
+    return next(question for question in INTAKE_QUESTIONS if question.key == "content_language")
+
+
+def sync_default_content_language(brief: JsonDict, ui_language: str) -> None:
+    if ui_language not in SUPPORTED_UI_LANGUAGES:
+        return
+    selections: Any = brief.get("selections")
+    if not isinstance(selections, dict):
+        return
+    raw_content: Any = selections.get("content_language")
+    if not isinstance(raw_content, dict):
+        return
+    source: str = str(raw_content.get("source", ""))
+    if source not in {"", "default", "auto-detected"}:
+        return
+    question: Question = content_language_question()
+    fallback_label: str = selected_choice(question, ui_language).label
+    raw_content["value"] = ui_language
+    raw_content["label"] = localized_choice_label_value(question, ui_language, fallback_label, ui_language)
+    raw_content["source"] = "default"
+
+
+def update_task_ui_language(task_dir: Path, ui_language: str) -> None:
+    if ui_language not in SUPPORTED_UI_LANGUAGES:
+        return
+    for filename in ("brief-draft.json", "intake-selection.json", "brief-confirmed.json"):
+        path: Path = task_dir / filename
+        data: JsonDict = read_json(path)
+        if not data:
+            continue
+        data["ui_language"] = ui_language
+        data["ui_language_source"] = "user-selected"
+        if filename != "brief-confirmed.json":
+            sync_default_content_language(data, ui_language)
+        write_json(path, data)
+    draft_brief: Path = task_dir / "brief" / "draft-brief.json"
+    data = read_json(draft_brief)
+    if data:
+        data["ui_language"] = ui_language
+        data["ui_language_source"] = "user-selected"
+        sync_default_content_language(data, ui_language)
+        write_json(draft_brief, data)
+
+
 def generation_strategy_text(output_format: str, task_dir: Path, ui_language: str) -> str:
     task_path: str = str(task_dir)
     messages: dict[str, dict[str, str]] = {
         "zh": {
-            "html-revealjs": f"先生成版本化 Reveal.js HTML 到 {task_path}/v1/final.html；最终选择后复制到 {task_path}/final/<task-slug>.html。用浏览器打开即可演示；附加 ?print-pdf 可导出 PDF。",
-            "pptx": f"先生成 v1 PPTX 和 contact sheet，集中保存到 {task_path}，然后打开 style-review.html 供选择是否重绘。",
-            "both": f"先生成 v1/final.pptx 与 v1/final.html；最终选择后复制到 {task_path}/final/。HTML 使用 Reveal.js 动效，PPTX 使用同调色板的纯色背景。",
+            "html-revealjs": f"先生成版本化 Reveal.js HTML 到 {task_path}/v1/final.html；然后打开 preview-review.html 供完整浏览，最终选择后复制到 {task_path}/final/<task-slug>.html。",
+            "pptx": f"先生成 v1 PPTX 和 contact sheet，集中保存到 {task_path}，然后打开 preview-review.html；需要修改时再进入 style-review.html。",
+            "both": f"先生成 v1/final.pptx 与 v1/final.html，然后打开 preview-review.html；最终选择后复制到 {task_path}/final/。",
         },
         "en": {
-            "html-revealjs": f"Generate versioned Reveal.js HTML at {task_path}/v1/final.html first; after final selection it is copied to {task_path}/final/<task-slug>.html. Open it in a browser to present; append ?print-pdf to export PDF.",
-            "pptx": f"Generate the v1 PPTX and contact sheet first, save them under {task_path}, then open style-review.html so you can decide whether to redraw the deck.",
-            "both": f"Generate v1/final.pptx and v1/final.html first; after final selection copy them under {task_path}/final/. HTML uses Reveal.js motion while PPTX uses solid-color equivalents.",
+            "html-revealjs": f"Generate versioned Reveal.js HTML at {task_path}/v1/final.html first; then open preview-review.html for browsing. After final selection it is copied to {task_path}/final/<task-slug>.html.",
+            "pptx": f"Generate the v1 PPTX and contact sheet first, save them under {task_path}, then open preview-review.html; enter style-review.html only if changes are needed.",
+            "both": f"Generate v1/final.pptx and v1/final.html first, then open preview-review.html. After final selection copy them under {task_path}/final/.",
         },
         "de": {
-            "html-revealjs": f"Zuerst wird versioniertes Reveal.js-HTML unter {task_path}/v1/final.html erzeugt; nach finaler Auswahl wird es nach {task_path}/final/<task-slug>.html kopiert.",
-            "pptx": f"Zuerst werden v1-PPTX und Contact Sheet erzeugt und unter {task_path} gespeichert. Danach wird style-review.html geöffnet, damit Sie entscheiden können, ob das Deck visuell überarbeitet werden soll.",
-            "both": f"Zuerst werden v1/final.pptx und v1/final.html erzeugt; nach finaler Auswahl werden sie unter {task_path}/final/ kopiert.",
+            "html-revealjs": f"Zuerst wird Reveal.js-HTML unter {task_path}/v1/final.html erzeugt; danach wird preview-review.html geöffnet. Nach finaler Auswahl wird es nach {task_path}/final/<task-slug>.html kopiert.",
+            "pptx": f"Zuerst werden v1-PPTX und Contact Sheet unter {task_path} gespeichert, danach wird preview-review.html geöffnet; style-review.html nur bei Änderungsbedarf.",
+            "both": f"Zuerst werden v1/final.pptx und v1/final.html erzeugt, danach wird preview-review.html geöffnet. Nach finaler Auswahl werden sie unter {task_path}/final/ kopiert.",
         },
         "fr": {
-            "html-revealjs": f"Générer d'abord le HTML Reveal.js versionné dans {task_path}/v1/final.html; après le choix final, le copier dans {task_path}/final/<task-slug>.html.",
-            "pptx": f"Générer d'abord le PPTX v1 et la planche de contact dans {task_path}, puis ouvrir style-review.html pour décider d'une éventuelle refonte visuelle.",
-            "both": f"Générer d'abord v1/final.pptx et v1/final.html; après le choix final, les copier dans {task_path}/final/.",
+            "html-revealjs": f"Générer d'abord le HTML Reveal.js versionné dans {task_path}/v1/final.html, puis ouvrir preview-review.html; après le choix final, le copier dans {task_path}/final/<task-slug>.html.",
+            "pptx": f"Générer d'abord le PPTX v1 et la planche de contact dans {task_path}, puis ouvrir preview-review.html; style-review.html seulement si des changements sont nécessaires.",
+            "both": f"Générer d'abord v1/final.pptx et v1/final.html, puis ouvrir preview-review.html; après le choix final, les copier dans {task_path}/final/.",
         },
         "it": {
-            "html-revealjs": f"Genera prima l'HTML Reveal.js versionato in {task_path}/v1/final.html; dopo la scelta finale copialo in {task_path}/final/<task-slug>.html.",
-            "pptx": f"Genera prima il PPTX v1 e il contact sheet in {task_path}, poi apri style-review.html per decidere se ridisegnare il deck.",
-            "both": f"Genera prima v1/final.pptx e v1/final.html; dopo la scelta finale copiali in {task_path}/final/.",
+            "html-revealjs": f"Genera prima l'HTML Reveal.js versionato in {task_path}/v1/final.html, poi apri preview-review.html; dopo la scelta finale copialo in {task_path}/final/<task-slug>.html.",
+            "pptx": f"Genera prima il PPTX v1 e il contact sheet in {task_path}, poi apri preview-review.html; style-review.html solo se servono modifiche.",
+            "both": f"Genera prima v1/final.pptx e v1/final.html, poi apri preview-review.html; dopo la scelta finale copiali in {task_path}/final/.",
         },
         "es": {
-            "html-revealjs": f"Primero genera el HTML Reveal.js versionado en {task_path}/v1/final.html; tras la selección final cópialo a {task_path}/final/<task-slug>.html.",
-            "pptx": f"Primero genera el PPTX v1 y la hoja de contacto en {task_path}, y luego abre style-review.html para decidir si redibujar el deck.",
-            "both": f"Primero genera v1/final.pptx y v1/final.html; tras la selección final cópialos en {task_path}/final/.",
+            "html-revealjs": f"Primero genera el HTML Reveal.js versionado en {task_path}/v1/final.html, luego abre preview-review.html; tras la selección final cópialo a {task_path}/final/<task-slug>.html.",
+            "pptx": f"Primero genera el PPTX v1 y la hoja de contacto en {task_path}, luego abre preview-review.html; style-review.html solo si hacen falta cambios.",
+            "both": f"Primero genera v1/final.pptx y v1/final.html, luego abre preview-review.html; tras la selección final cópialos en {task_path}/final/.",
         },
     }
     language_messages: dict[str, str] = messages.get(ui_language, messages["en"])
@@ -2422,8 +2500,25 @@ def build_visual_candidates(topic: str, selections: JsonDict) -> tuple[VisualCan
 
 
 
+def language_switch_html(ui_language: str) -> str:
+    links: list[str] = []
+    for language in LANGUAGE_SWITCH_LANGUAGES:
+        label: str = LANGUAGE_LABELS[language]
+        active_class: str = " active" if language == ui_language else ""
+        links.append(
+            f'<a class="language-link{active_class}" data-language="{html.escape(language)}" '
+            f'href="/set-language?ui_language={html.escape(language)}">{html.escape(label)}</a>'
+        )
+    return (
+        f'<nav class="language-switch" aria-label="{html.escape(t(ui_language, "language_switch_label"))}">'
+        f'<span>{html.escape(t(ui_language, "language_switch_label"))}</span>'
+        f'{"".join(links)}</nav>'
+    )
+
+
 def html_page(title: str, body: str, ui_language: str = "zh") -> str:
     html_language: str = HTML_LANG.get(ui_language, HTML_LANG["zh"])
+    language_switch: str = language_switch_html(ui_language)
     return f"""<!doctype html>
 <html lang="{html.escape(html_language)}">
 <head>
@@ -2449,6 +2544,35 @@ def html_page(title: str, body: str, ui_language: str = "zh") -> str:
       line-height: 1.5;
     }}
     main {{ max-width: 1120px; margin: 0 auto; padding: 40px 24px 72px; }}
+    .language-switch {{
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 18px;
+      color: var(--muted);
+      font-size: 13px;
+    }}
+    .language-switch span {{ margin-right: 2px; font-weight: 700; }}
+    .language-link {{
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      padding: 4px 9px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      color: var(--ink);
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 700;
+    }}
+    .language-link.active {{
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }}
     h1 {{ font-size: 32px; margin: 0 0 8px; letter-spacing: 0; }}
     h2 {{ font-size: 22px; margin: 28px 0 12px; }}
     h3 {{ font-size: 17px; margin: 0 0 8px; }}
@@ -2575,8 +2699,15 @@ def html_page(title: str, body: str, ui_language: str = "zh") -> str:
 </head>
 <body>
 <main>
+{language_switch}
 {body}
 </main>
+<script>
+  for (const link of document.querySelectorAll('.language-link')) {{
+    const next = window.location.pathname + window.location.search;
+    link.href = `/set-language?ui_language=${{encodeURIComponent(link.dataset.language)}}&next=${{encodeURIComponent(next)}}`;
+  }}
+</script>
 </body>
 </html>
 """
@@ -3154,6 +3285,64 @@ def write_share_html(
     return target
 
 
+def finalize_selected_version(task_dir: Path, selected_version: str, notes: str = "") -> JsonDict:
+    brief: JsonDict = read_json(task_dir / "brief-confirmed.json")
+    output_format: str = output_format_from_brief(brief, "pptx") if brief else "pptx"
+    selected_version_dir: Path = task_dir / selected_version
+    selected_pptx: Path = selected_version_dir / "final.pptx"
+    final_dir: Path = task_dir / "final"
+    final_pptx: Path = final_dir / f"{task_dir.name}.pptx"
+    if output_format in {"pptx", "both"} and selected_pptx.exists():
+        final_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(selected_pptx, final_pptx)
+    final_html: Path | None = None
+    share_html_error: str = ""
+    selected_html: Path = selected_version_html_path(task_dir, selected_version)
+    selected_pptx_value: str = ""
+    final_pptx_value: str = ""
+    selected_html_value: str = ""
+    final_html_value: str = ""
+    if output_format in {"html-revealjs", "both"}:
+        if selected_html.exists():
+            final_dir.mkdir(parents=True, exist_ok=True)
+            final_html = final_html_path_for_output(task_dir, output_format)
+            shutil.copy2(selected_html, final_html)
+            selected_html_value = str(selected_html)
+            final_html_value = str(final_html)
+        else:
+            share_html_error = f"Missing selected HTML deck: {selected_html}"
+    elif output_format == "pptx":
+        try:
+            final_html = write_share_html(
+                task_dir,
+                selected_version_dir,
+                task_dir.name,
+                output_path=final_html_path_for_output(task_dir, output_format, companion=True),
+            )
+            final_html_value = str(final_html)
+        except ValueError as exc:
+            share_html_error = str(exc)
+    if output_format in {"pptx", "both"} and selected_pptx.exists():
+        selected_pptx_value = str(selected_pptx)
+        final_pptx_value = str(final_pptx if final_pptx.exists() else selected_pptx)
+    payload: JsonDict = {
+        "version": "0.1",
+        "selected_version": selected_version,
+        "selected_pptx": selected_pptx_value,
+        "final_pptx": final_pptx_value,
+        "selected_html": selected_html_value,
+        "final_html": final_html_value,
+        "output_format": output_format,
+        "notes": notes.strip(),
+        "selected_at": datetime.now().isoformat(timespec="seconds"),
+    }
+    if share_html_error:
+        payload["share_html_error"] = share_html_error
+    write_json(task_dir / "final-selection.json", payload)
+    touch_status(task_dir, "final-selection")
+    return payload
+
+
 def _render_pptx_structure_panel(structure: list[JsonDict], ui_language: str) -> str:
     if not structure:
         return ""
@@ -3707,12 +3896,12 @@ def render_image_placement(task_dir: Path) -> str:
 <form method="post" action="/api/image-placement">
   <section class="section">
     <h2>{html.escape(t(ui_language, "placement_rows"))}</h2>
-    <p class="meta notice">{"This form supports up to 6 placement rows per round. Each submission replaces the previous placement request — the agent must process these into a new version before you re-open the gate for additional placements." if ui_language == "en" else "此表单每轮最多支持 6 条插入请求。每次提交会覆盖上一轮请求；请等 agent 将本轮处理成新版本后，再重新打开门禁添加更多。"}</p>
+    <p class="meta notice">{html.escape(t(ui_language, "image_placement_limit_notice"))}</p>
     {''.join(row_html)}
   </section>
   <section class="section">
-    <h2>{"Overall notes" if ui_language == "en" else "整体备注"}</h2>
-    <textarea name="placement_global_notes" placeholder="{"Optional: overall notes for this placement round." if ui_language == "en" else "可选：本轮图片插入的整体说明。"}">{html.escape(str(existing_request.get("notes", "")))}</textarea>
+    <h2>{html.escape(t(ui_language, "placement_global_notes_title"))}</h2>
+    <textarea name="placement_global_notes" placeholder="{html.escape(t(ui_language, "placement_global_notes_placeholder"))}">{html.escape(str(existing_request.get("notes", "")))}</textarea>
   </section>
   <div class="actions">
     <button type="submit">{html.escape(t(ui_language, "save_image_placement"))}</button>
@@ -3722,48 +3911,202 @@ def render_image_placement(task_dir: Path) -> str:
     return html_page(t(ui_language, "image_placement_title"), body, ui_language)
 
 
+def render_version_preview(task_dir: Path, version_name: str, output_format: str, ui_language: str) -> tuple[str, Path]:
+    version_dir: Path = task_dir / version_name
+    html_path: Path = version_dir / "final.html"
+    pptx_path: Path = version_dir / "final.pptx"
+    contact_sheet: Path = version_dir / "contact-sheet.png"
+    if output_format == "html-revealjs":
+        if html_path.exists():
+            return (
+                f'<p><a class="button" target="_blank" rel="noopener" href="/static/{html.escape(version_name)}/final.html">{html.escape(t(ui_language, "open_full_preview"))}</a></p>'
+                f'<iframe class="html-preview" src="/static/{html.escape(version_name)}/final.html"></iframe>',
+                html_path,
+            )
+        return f"<p class='risk'>{html.escape(t(ui_language, 'missing_preview_artifact'))}</p>", html_path
+    if contact_sheet.exists():
+        return (
+            f'<img class="contact-sheet" src="/static/{html.escape(version_name)}/contact-sheet.png" alt="{html.escape(version_name)} contact sheet">'
+            f'<p>{html.escape(t(ui_language, "pptx_label"))}: <code>{html.escape(str(pptx_path))}</code></p>',
+            pptx_path,
+        )
+    return f"<p class='risk'>{html.escape(t(ui_language, 'missing_contact_sheet').format(path=f'{version_name}/contact-sheet.png'))}</p>", pptx_path
+
+
+def render_preview_review(task_dir: Path) -> str:
+    ui_language: str = ui_language_for_task(task_dir)
+    brief: JsonDict = read_json(task_dir / "brief-confirmed.json")
+    output_format: str = output_format_from_brief(brief, "pptx") if brief else "pptx"
+    version_name: str = latest_review_version(task_dir)
+    preview_html, artifact_path = render_version_preview(task_dir, version_name, output_format, ui_language)
+    qa_summary: Path = task_dir / version_name / "qa-summary.md"
+    qa_text: str = qa_summary.read_text(encoding="utf-8") if qa_summary.exists() else t(ui_language, "missing_qa_summary")
+    body: str = f"""<div class="topline">{html.escape(t(ui_language, "preview_review"))}</div>
+<h1>{html.escape(t(ui_language, "preview_review_title"))}</h1>
+<p>{html.escape(t(ui_language, "preview_review_intro"))}</p>
+<section class="section">
+  <h2>{html.escape(t(ui_language, "current_version"))}: {html.escape(version_name.upper())}</h2>
+  {preview_html}
+  <p>{html.escape(t(ui_language, "preview_artifact"))}: <code>{html.escape(str(artifact_path))}</code></p>
+  <pre>{html.escape(qa_text[:1800])}</pre>
+</section>
+<form method="post" action="/api/preview-review">
+  <input type="hidden" name="base_version" value="{html.escape(version_name)}">
+  <section class="section">
+    <h2>{html.escape(t(ui_language, "preview_action_title"))}</h2>
+    <div class="grid">
+      <label class="option">
+        <input type="radio" name="preview_action" value="keep-final" checked>
+        <strong>{html.escape(t(ui_language, "preview_action_keep"))}</strong>
+        <p>{html.escape(t(ui_language, "preview_action_keep_desc"))}</p>
+      </label>
+      <label class="option">
+        <input type="radio" name="preview_action" value="style-review">
+        <strong>{html.escape(t(ui_language, "preview_action_style"))}</strong>
+        <p>{html.escape(t(ui_language, "preview_action_style_desc"))}</p>
+      </label>
+    </div>
+    <textarea name="notes" placeholder="{html.escape(t(ui_language, "preview_notes_placeholder"))}"></textarea>
+  </section>
+  <div class="actions">
+    <button type="submit">{html.escape(t(ui_language, "save_preview_review"))}</button>
+  </div>
+</form>"""
+    return html_page(t(ui_language, "preview_review_title"), body, ui_language)
+
+
+def apply_preview_review(task_dir: Path, form: dict[str, list[str]]) -> JsonDict:
+    base_version: str = first_form_value(form, "base_version", "v1").strip() or "v1"
+    preview_action: str = first_form_value(form, "preview_action", "keep-final").strip() or "keep-final"
+    notes: str = first_form_value(form, "notes", "").strip()
+    request: JsonDict = {
+        "version": "0.1",
+        "base_version": base_version,
+        "preview_action": preview_action,
+        "notes": notes,
+        "created_at": datetime.now().isoformat(timespec="seconds"),
+    }
+    write_json(task_dir / "preview-review.json", request)
+    touch_status(task_dir, "preview-review")
+    if preview_action == "keep-final":
+        finalize_selected_version(task_dir, base_version, notes)
+    return request
+
+
+STYLE_ACTION_DETAILS: dict[str, dict[str, dict[str, str]]] = {
+    "keep-current": {
+        "examples": {
+            "zh": "已经满意；只需要最终文件。",
+            "en": "The deck is ready; only final delivery is needed.",
+            "de": "Das Deck ist bereit; nur die finale Lieferung fehlt.",
+        },
+        "changes": {"zh": "复制当前版本到 final/", "en": "Copies current version to final/", "de": "Kopiert die aktuelle Version nach final/"},
+        "no_changes": {"zh": "不改内容、不改视觉、不生成 v2", "en": "No content, visual, or v2 generation changes", "de": "Keine Inhalts-, Design- oder v2-Erzeugung"},
+    },
+    "quick-tune": {
+        "examples": {
+            "zh": "字号略大一点；页面别太挤；动效更轻。",
+            "en": "Make type slightly larger; reduce crowding; lighten motion.",
+            "de": "Schrift etwas größer; weniger Dichte; Animation leichter.",
+        },
+        "changes": {"zh": "CSS、间距、字号、对比度、动效", "en": "CSS, spacing, type size, contrast, motion", "de": "CSS, Abstände, Schriftgröße, Kontrast, Animation"},
+        "no_changes": {"zh": "不重写内容，不切换主题，不重排整套叙事", "en": "No content rewrite, theme switch, or full narrative restructure", "de": "Kein Umschreiben, kein Themenwechsel, keine komplette Strukturänderung"},
+    },
+    "targeted-fix": {
+        "examples": {
+            "zh": "第 5 页图太小；第 8 页表格挤；结束页行动项不清楚。",
+            "en": "Slide 5 visual is too small; slide 8 table is crowded; closing CTA is unclear.",
+            "de": "Folie 5 ist zu klein; Tabelle auf Folie 8 ist dicht; Schlussfolie ist unklar.",
+        },
+        "changes": {"zh": "指定页面或指定问题", "en": "Named slides or named issues", "de": "Genannte Folien oder Probleme"},
+        "no_changes": {"zh": "不重做无关页面，不覆盖已选视觉方向", "en": "Does not rebuild unrelated slides or override the chosen direction", "de": "Keine Änderung ungenannter Folien, keine Überschreibung der visuellen Richtung"},
+    },
+    "generate-comparison": {
+        "examples": {
+            "zh": "想看一个更开放构图的 v2；想减少卡片感但保留内容。",
+            "en": "Try a more open-layout v2; reduce card-heavy design while preserving content.",
+            "de": "Eine offenere v2 testen; weniger Kartenoptik bei gleichem Inhalt.",
+        },
+        "changes": {"zh": "整体视觉表达、布局节奏、页面构图", "en": "Overall visual expression, layout rhythm, composition", "de": "Visueller Gesamtausdruck, Layout-Rhythmus, Komposition"},
+        "no_changes": {"zh": "不编造事实，不换资料边界，不自动换成未选主题", "en": "No fabricated facts, no source-boundary change, no unapproved theme switch", "de": "Keine erfundenen Fakten, keine Änderung der Quellenregeln, kein ungefragter Themenwechsel"},
+    },
+    "switch-direction": {
+        "examples": {
+            "zh": "当前浅色产品风不合适，想回到视觉方向页重新选。",
+            "en": "The current visual direction is wrong; go back and choose another one.",
+            "de": "Die aktuelle visuelle Richtung passt nicht; zurück und neu wählen.",
+        },
+        "changes": {"zh": "回到 Visual Inspiration 重新选择", "en": "Returns to Visual Direction for a new choice", "de": "Zurück zur visuellen Richtung für eine neue Auswahl"},
+        "no_changes": {"zh": "不会在本页直接生成新版本", "en": "Does not generate a new version from this page", "de": "Erzeugt auf dieser Seite keine neue Version"},
+    },
+}
+
+
+def style_detail(action: str, field: str, ui_language: str) -> str:
+    values: dict[str, str] = STYLE_ACTION_DETAILS.get(action, {}).get(field, {})
+    return values.get(ui_language, values.get("en", ""))
+
+
+def render_style_action_card(action: str, title_key: str, desc_key: str, cost_key: str, checked: bool, ui_language: str) -> str:
+    checked_attr: str = " checked" if checked else ""
+    return f"""<label class="option cost-card">
+  <input type="radio" name="revision_action" value="{html.escape(action)}"{checked_attr}>
+  <strong>{html.escape(t(ui_language, title_key))}</strong>
+  <span class="source-tag">{html.escape(t(ui_language, cost_key))}</span>
+  <p>{html.escape(t(ui_language, desc_key))}</p>
+  <p class="meta"><strong>{html.escape(t(ui_language, "style_examples"))}:</strong> {html.escape(style_detail(action, "examples", ui_language))}</p>
+  <p class="meta"><strong>{html.escape(t(ui_language, "style_will_change"))}:</strong> {html.escape(style_detail(action, "changes", ui_language))}</p>
+  <p class="meta"><strong>{html.escape(t(ui_language, "style_will_not_change"))}:</strong> {html.escape(style_detail(action, "no_changes", ui_language))}</p>
+</label>"""
+
+
 def render_style_review(task_dir: Path) -> str:
     ui_language: str = ui_language_for_task(task_dir)
     brief: JsonDict = read_json(task_dir / "brief-confirmed.json")
     output_format: str = output_format_from_brief(brief, "pptx") if brief else "pptx"
     version_name: str = latest_review_version(task_dir)
     version_dir: Path = task_dir / version_name
-    contact_sheet: Path = version_dir / "contact-sheet.png"
     qa_summary: Path = version_dir / "qa-summary.md"
-    pptx_path: Path = version_dir / "final.pptx"
-    html_path: Path = version_dir / "final.html"
-    if output_format == "html-revealjs":
-        image_html: str = (
-            f'<iframe class="html-preview" src="/static/{html.escape(version_name)}/final.html"></iframe>'
-            if html_path.exists()
-            else f"<p class='risk'>{html.escape(t(ui_language, 'missing_preview_artifact'))}</p>"
-        )
-    else:
-        image_html = (
-            f'<img class="contact-sheet" src="/static/{html.escape(version_name)}/contact-sheet.png" alt="{html.escape(version_name)} contact sheet">'
-            if contact_sheet.exists()
-            else f"<p class='risk'>{html.escape(t(ui_language, 'missing_contact_sheet').format(path=f'{version_name}/contact-sheet.png'))}</p>"
-        )
+    image_html, artifact_path = render_version_preview(task_dir, version_name, output_format, ui_language)
     qa_text: str = qa_summary.read_text(encoding="utf-8") if qa_summary.exists() else t(ui_language, "missing_qa_summary")
-    artifact_label: str = str(html_path if output_format == "html-revealjs" else pptx_path)
+    action_cards: list[str] = [
+        render_style_action_card("keep-current", "style_action_keep", "style_action_keep_desc", "style_cost_zero", True, ui_language),
+        render_style_action_card("quick-tune", "style_action_quick", "style_action_quick_desc", "style_cost_low", False, ui_language),
+        render_style_action_card("targeted-fix", "style_action_targeted", "style_action_targeted_desc", "style_cost_medium", False, ui_language),
+        render_style_action_card("generate-comparison", "style_action_comparison", "style_action_comparison_desc", "style_cost_high", False, ui_language),
+        render_style_action_card("switch-direction", "style_action_switch", "style_action_switch_desc", "style_cost_highest", False, ui_language),
+    ]
     body: str = f"""<div class="topline">{html.escape(t(ui_language, "style_review"))}</div>
 <h1>{html.escape(t(ui_language, "style_title"))}</h1>
 <p>{html.escape(t(ui_language, "style_intro").format(version_name=version_name))}</p>
 <section class="section">
   <h2>{html.escape(t(ui_language, "current_version"))}</h2>
   {image_html}
-  <p>{html.escape(t(ui_language, "preview_artifact"))}: <code>{html.escape(artifact_label)}</code></p>
+  <p>{html.escape(t(ui_language, "preview_artifact"))}: <code>{html.escape(str(artifact_path))}</code></p>
   <pre>{html.escape(qa_text[:2400])}</pre>
 </section>
 <form method="post" action="/api/revision">
   <input type="hidden" name="base_version" value="{html.escape(version_name)}">
-  {''.join(question_section(group, ui_language=ui_language) for group in REVISION_GROUPS)}
   <section class="section">
-    <h2>{html.escape(t(ui_language, "revision_count_title"))}</h2>
-    <label class="option"><input type="radio" name="revision_count" value="0"> {html.escape(t(ui_language, "keep_current_version"))}</label>
-    <label class="option"><input type="radio" name="revision_count" value="1" checked> {html.escape(t(ui_language, "one_revision"))}</label>
-    <label class="option"><input type="radio" name="revision_count" value="2"> {html.escape(t(ui_language, "two_revisions"))}</label>
-    <textarea name="notes" placeholder="{html.escape(t(ui_language, "revision_notes_placeholder"))}"></textarea>
+    <h2>{html.escape(t(ui_language, "style_action_title"))}</h2>
+    <div class="grid">{''.join(action_cards)}</div>
+  </section>
+  <section class="section">
+    <h2>{html.escape(t(ui_language, "style_tuning_title"))}</h2>
+    <label><input type="checkbox" name="quick_tune" value="spacing"> {html.escape(t(ui_language, "style_tune_spacing"))}</label>
+    <label><input type="checkbox" name="quick_tune" value="type"> {html.escape(t(ui_language, "style_tune_type"))}</label>
+    <label><input type="checkbox" name="quick_tune" value="contrast"> {html.escape(t(ui_language, "style_tune_contrast"))}</label>
+    <label><input type="checkbox" name="quick_tune" value="motion"> {html.escape(t(ui_language, "style_tune_motion"))}</label>
+  </section>
+  <section class="section">
+    <h2>{html.escape(t(ui_language, "targeted_slides_label"))}</h2>
+    <input type="text" name="targeted_slides" placeholder="{html.escape(t(ui_language, "targeted_slides_placeholder"))}">
+  </section>
+  <section class="section">
+    <h2>{html.escape(t(ui_language, "comparison_count_title"))}</h2>
+    <label class="option"><input type="radio" name="comparison_count" value="1" checked> {html.escape(t(ui_language, "one_revision"))}</label>
+    <label class="option"><input type="radio" name="comparison_count" value="2"> {html.escape(t(ui_language, "two_revisions"))}</label>
+    <textarea name="notes" placeholder="{html.escape(t(ui_language, "style_notes_placeholder"))}"></textarea>
   </section>
   <div class="actions">
     <button type="submit">{html.escape(t(ui_language, "confirm_visual_choice"))}</button>
@@ -3774,10 +4117,27 @@ def render_style_review(task_dir: Path) -> str:
 
 def apply_revision_request(form: dict[str, list[str]]) -> JsonDict:
     base_version: str = first_form_value(form, "base_version", "v1").strip() or "v1"
+    revision_action: str = first_form_value(form, "revision_action", "keep-current").strip() or "keep-current"
+    comparison_count_raw: str = first_form_value(form, "comparison_count", "1").strip() or "1"
+    try:
+        comparison_count: int = int(comparison_count_raw)
+    except ValueError:
+        comparison_count = 1
+    comparison_count = 2 if comparison_count >= 2 else 1
+    revision_count: int = {
+        "keep-current": 0,
+        "quick-tune": 1,
+        "targeted-fix": 1,
+        "generate-comparison": comparison_count,
+        "switch-direction": 0,
+    }.get(revision_action, 0)
     request: JsonDict = {
         "version": "0.1",
         "base_version": base_version,
-        "revision_count": int(first_form_value(form, "revision_count", "1")),
+        "revision_action": revision_action,
+        "revision_count": revision_count,
+        "quick_tune": form.get("quick_tune", []),
+        "targeted_slides": first_form_value(form, "targeted_slides", "").strip(),
         "created_at": datetime.now().isoformat(timespec="seconds"),
         "preserve": [
             "factual content",
@@ -3785,14 +4145,9 @@ def apply_revision_request(form: dict[str, list[str]]) -> JsonDict:
             "source attribution",
             "official asset policy",
             "imagegen policy",
+            "confirmed visual direction unless revision_action is switch-direction",
         ],
     }
-    for group in REVISION_GROUPS:
-        value: str = first_form_value(form, group.key, group.default)
-        choice: Choice = selected_choice(group, value)
-        custom: str = first_form_value(form, f"{group.key}__custom", "").strip()
-        request[group.key] = custom if value == "custom" and custom else value
-        request[f"{group.key}_label"] = custom if value == "custom" and custom else choice.label
     request["notes"] = first_form_value(form, "notes", "").strip()
     return request
 
@@ -3858,6 +4213,7 @@ def render_all_pages(task_dir: Path) -> None:
     write_text(task_dir / "brief-confirm.html", render_confirm(task_dir))
     write_text(task_dir / "image-style.html", render_image_style(task_dir))
     write_text(task_dir / "image-placement.html", render_image_placement(task_dir))
+    write_text(task_dir / "preview-review.html", render_preview_review(task_dir))
     write_text(task_dir / "style-review.html", render_style_review(task_dir))
     write_text(task_dir / "compare.html", render_compare(task_dir))
 
@@ -3940,6 +4296,17 @@ def initial_prompt(task_dir: Path) -> str:
 - For PPTX output, apply the approved placements with a targeted edit and write {pptx_v2_output}; re-render to {task_dir / "v2" / "contact-sheet.png"} and {task_dir / "v2" / "qa-summary.md"}.
 - For HTML-only output, regenerate the HTML deck to {html_v2_output}; do not mutate v1/final.html in place.
 - For `both`, treat PPTX as primary for placement review, then regenerate the matching HTML deck to {html_v2_output}.
+"""
+    preview_review_instruction: str = f"""After generation:
+- Regenerate Director pages so the review page can see the new artifacts:
+  python3 "{script_path}" --base-dir "{task_dir.parent.parent}" render --task "{task_dir.name}"
+- Open the v1 Preview Gate before any style review. Do not jump directly to Style Review:
+  python3 "{script_path}" --base-dir "{task_dir.parent.parent}" serve-wait --task "{task_dir.name}" --open-page preview-review --for preview-review
+- Read {task_dir / "preview-review.json"}.
+  - If `preview_action` is `keep-final`, final-selection.json has already been written and the selected version is copied to final/.
+  - If `preview_action` is `style-review`, open Style Review and wait for the revision request:
+    python3 "{script_path}" --base-dir "{task_dir.parent.parent}" serve-wait --task "{task_dir.name}" --open-page style-review --for revision
+    Then read revision-request.json. Generate a new version only when `revision_count` is greater than 0.
 """
     common_rules: str = f"""Confirmed brief:
 {json.dumps(brief, ensure_ascii=False, indent=2)}
@@ -4061,8 +4428,7 @@ Rules:
 
 {post_v1_image_instruction}
 
-After generation:
-- If post-v1 image placement created v2, open style review on v2; otherwise open it on v1.
+{preview_review_instruction}
 - Final selection copies the selected `vN/final.html` to {final_html_path_for_output(task_dir, "html-revealjs")}.
 
 QA:
@@ -4094,7 +4460,7 @@ HTML route:
 
 {post_v1_image_instruction}
 
-After generation:
+{preview_review_instruction}
 - Final selection copies the selected PPTX to {task_dir / "final" / (task_dir.name + ".pptx")} and the selected Reveal.js deck to {final_html_path_for_output(task_dir, "both")}.
 - Do not generate a separate companion HTML in `both` mode.
 
@@ -4125,10 +4491,8 @@ Output:
 
 {post_v1_image_instruction}
 
+{preview_review_instruction}
 - After final selection, generate a view-only HTML companion at {final_html_path_for_output(task_dir, "pptx", companion=True)} from the selected version's per-slide previews.
-- After generating v1, open the style-review page and wait for the user's selection using serve-wait with run_in_background=True — do NOT ask the user to reply in chat:
-  python3 "{script_path}" --base-dir "{task_dir.parent.parent}" serve-wait --task "{task_dir.name}" --open-page style-review --for final-selection
-  The command exits automatically when the user clicks a selection; read final-selection.json and continue.
 - Return PPTX path, HTML companion path, contact sheet path, QA summary, and remaining risks.
 """
 
@@ -4140,6 +4504,12 @@ def revision_prompt(task_dir: Path) -> str:
     brief: JsonDict = read_json(task_dir / "brief-confirmed.json")
     output_format: str = output_format_from_brief(brief, "pptx") if brief else "pptx"
     base_version: str = str(request.get("base_version") or "v1")
+    revision_action: str = str(request.get("revision_action", "keep-current"))
+    revision_count: int = int(request.get("revision_count", 0) or 0)
+    if revision_action == "switch-direction":
+        return "The user chose to switch visual direction. Reopen Visual Inspiration, confirm the updated brief, then regenerate from the new confirmed direction."
+    if revision_count <= 0:
+        return "No generated revision requested. The current version should be kept or finalized."
     base_pptx: Path = task_dir / base_version / "final.pptx"
     base_html: Path = task_dir / base_version / "final.html"
     existing_versions: list[int] = [
@@ -4148,7 +4518,16 @@ def revision_prompt(task_dir: Path) -> str:
         if item.is_dir() and version_number(item) >= 1
     ]
     next_version_number: int = (max(existing_versions) if existing_versions else 1) + 1
-    next_version: str = f"v{next_version_number}"
+    target_versions: list[str] = [f"v{next_version_number + offset}" for offset in range(revision_count)]
+    target_version_text: str = ", ".join(target_versions)
+    html_version_outputs: str = "\n".join(
+        f"  - {version}: {task_dir / version / 'final.html'} and {task_dir / version / 'qa-summary.md'}"
+        for version in target_versions
+    )
+    pptx_version_outputs: str = "\n".join(
+        f"  - {version}: {task_dir / version / 'final.pptx'}, contact-sheet.png, slides/, and qa-summary.md"
+        for version in target_versions
+    )
     if output_format == "html-revealjs":
         return f"""Revise the existing {base_version} Reveal.js HTML deck using the selected revision request.
 
@@ -4164,12 +4543,13 @@ Preserve:
 - sources and omission notes
 - official asset policy
 - imagegen policy
+- confirmed visual direction unless the request explicitly says switch-direction
 
-Change only the selected visual directions:
-- palette direction
-- structure rhythm
-- visual expression
-- image/logo treatment
+Revision action:
+- {revision_action}
+- quick-tune means CSS/spacing/type/contrast/motion only; do not rewrite content.
+- targeted-fix means change only the named slides or issues.
+- generate-comparison means create a comparison version while preserving facts and structure.
 
 HTML route:
 - Keep Reveal.js 5.1.0 with pinned CDN links, including the Notes plugin import:
@@ -4178,8 +4558,9 @@ HTML route:
 - Keep speaker notes in `<aside class="notes">` on every slide.
 - Preserve the safe-area contract: regular content stays inside `.slide-safe`; only backgrounds use `.bleed`.
 - Use CSS-only motion from `html_config` and `html_motion_profile`; do not introduce Canvas/WebGL effects.
-- Write the revised deck to {task_dir / next_version / "final.html"}.
-- Write a concise QA summary to {task_dir / next_version / "qa-summary.md"}.
+- Generate {revision_count} revised version(s): {target_version_text}.
+- Write outputs:
+{html_version_outputs}
 - Verify browser load, navigation, presenter notes, print-PDF readiness, and no text overflow.
 - Do not mutate {base_html}; each version must remain reproducible.
 """
@@ -4197,12 +4578,13 @@ Preserve:
 - sources and omission notes
 - official asset policy
 - imagegen policy
+- confirmed visual direction unless the request explicitly says switch-direction
 
-Change only the selected visual directions:
-- palette direction
-- structure rhythm
-- visual expression
-- image/logo treatment
+Revision action:
+- {revision_action}
+- quick-tune means spacing/type/contrast/motion adjustments only; do not rebuild slide content.
+- targeted-fix means change only the named slides or issues.
+- generate-comparison means create a comparison version while preserving facts and structure.
 
 Codex PPTX hard requirement:
 - Before writing or rendering any PPTX, verify Codex Presentations / artifact-tool `presentation-jsx`. Do not treat plugin UI or tool-search absence as missing by itself.
@@ -4215,10 +4597,13 @@ Codex PPTX hard requirement:
 
 Render and QA:
 - use the Presentations internal scratch workspace as required by the plugin
-- copy revised PPTX under {task_dir / next_version / "final.pptx"} unless generating multiple versions
+- Generate {revision_count} revised version(s): {target_version_text}.
+- Write outputs:
+{pptx_version_outputs}
 - copy per-slide preview PNGs into the version's `slides/` folder
 - copy contact sheet and QA summary into the same version folder
-- if output_format is `both`, also revise the matching Reveal.js deck to {task_dir / next_version / "final.html"} using CSS-only HTML motion
+- if output_format is `both`, also revise matching Reveal.js decks using CSS-only HTML motion:
+{html_version_outputs}
 - explicitly check rendered slides for text overlap, especially wrapped titles covering subtitles or body text
 - fix any overlap/cropping/too-tight spacing and re-render affected slides before final selection
 - compare against {base_version}
@@ -4236,7 +4621,17 @@ class DirectorHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
         path: str = parsed.path
-        if path in ("/", "/intake"):
+        if path == "/set-language":
+            query: dict[str, list[str]] = parse_qs(parsed.query, keep_blank_values=True)
+            requested_language: str = str(query.get("ui_language", [""])[0])
+            next_path: str = str(query.get("next", ["/intake"])[0]) or "/intake"
+            if requested_language in SUPPORTED_UI_LANGUAGES:
+                update_task_ui_language(self.task_dir, requested_language)
+                render_all_pages(self.task_dir)
+            if not next_path.startswith("/") or next_path.startswith("//"):
+                next_path = "/intake"
+            self.redirect(next_path)
+        elif path in ("/", "/intake"):
             self.send_html(render_intake(self.task_dir))
         elif path == "/visual-inspiration":
             self.send_html(render_visual_inspiration(self.task_dir))
@@ -4246,6 +4641,8 @@ class DirectorHandler(BaseHTTPRequestHandler):
             self.send_html(render_image_style(self.task_dir))
         elif path == "/image-placement":
             self.send_html(render_image_placement(self.task_dir))
+        elif path == "/preview-review":
+            self.send_html(render_preview_review(self.task_dir))
         elif path == "/style-review":
             self.send_html(render_style_review(self.task_dir))
         elif path == "/compare":
@@ -4261,6 +4658,9 @@ class DirectorHandler(BaseHTTPRequestHandler):
         elif path == "/image-placement-saved":
             ui_language: str = ui_language_for_task(self.task_dir)
             self.send_html(message_page(t(ui_language, "image_placement_saved_title"), t(ui_language, "image_placement_saved_message"), ui_language))
+        elif path == "/preview-review-saved":
+            ui_language: str = ui_language_for_task(self.task_dir)
+            self.send_html(message_page(t(ui_language, "preview_review_saved_title"), t(ui_language, "preview_review_saved_message"), ui_language))
         elif path == "/revision-saved":
             ui_language: str = ui_language_for_task(self.task_dir)
             self.send_html(message_page(t(ui_language, "revision_saved_title"), t(ui_language, "revision_saved_message"), ui_language))
@@ -4340,58 +4740,29 @@ class DirectorHandler(BaseHTTPRequestHandler):
             touch_status(self.task_dir, "images-placement")
             render_all_pages(self.task_dir)
             self.redirect("/image-placement-saved")
+        elif parsed.path == "/api/preview-review":
+            request = apply_preview_review(self.task_dir, form)
+            render_all_pages(self.task_dir)
+            if str(request.get("preview_action", "")) == "style-review":
+                self.redirect("/style-review")
+            else:
+                self.redirect("/final-selected")
         elif parsed.path == "/api/revision":
             request: JsonDict = apply_revision_request(form)
             write_json(self.task_dir / "revision-request.json", request)
             touch_status(self.task_dir, "revision")
             render_all_pages(self.task_dir)
-            self.redirect("/revision-saved")
+            revision_action: str = str(request.get("revision_action", ""))
+            if revision_action == "keep-current":
+                finalize_selected_version(self.task_dir, str(request.get("base_version", "v1")), str(request.get("notes", "")))
+                self.redirect("/final-selected")
+            elif revision_action == "switch-direction":
+                self.redirect("/visual-inspiration")
+            else:
+                self.redirect("/revision-saved")
         elif parsed.path == "/api/final-selection":
-            brief: JsonDict = read_json(self.task_dir / "brief-confirmed.json")
-            output_format: str = output_format_from_brief(brief, "pptx") if brief else "pptx"
             selected_version: str = first_form_value(form, "selected_version", "v1")
-            selected_version_dir: Path = self.task_dir / selected_version
-            selected_pptx: Path = selected_version_dir / "final.pptx"
-            final_dir: Path = self.task_dir / "final"
-            final_pptx: Path = final_dir / f"{self.task_dir.name}.pptx"
-            if output_format in {"pptx", "both"} and selected_pptx.exists():
-                final_dir.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(selected_pptx, final_pptx)
-            final_html: Path | None = None
-            share_html_error: str = ""
-            selected_html: Path = selected_version_html_path(self.task_dir, selected_version)
-            if output_format in {"html-revealjs", "both"}:
-                if selected_html.exists():
-                    final_dir.mkdir(parents=True, exist_ok=True)
-                    final_html = final_html_path_for_output(self.task_dir, output_format)
-                    shutil.copy2(selected_html, final_html)
-                else:
-                    share_html_error = f"Missing selected HTML deck: {selected_html}"
-            elif output_format == "pptx":
-                try:
-                    final_html = write_share_html(
-                        self.task_dir,
-                        selected_version_dir,
-                        self.task_dir.name,
-                        output_path=final_html_path_for_output(self.task_dir, output_format, companion=True),
-                    )
-                except ValueError as exc:
-                    share_html_error = str(exc)
-            payload: JsonDict = {
-                "version": "0.1",
-                "selected_version": selected_version,
-                "selected_pptx": str(selected_pptx),
-                "final_pptx": str(final_pptx if final_pptx.exists() else selected_pptx),
-                "selected_html": str(selected_html),
-                "final_html": str(final_html) if final_html else "",
-                "output_format": output_format,
-                "notes": first_form_value(form, "notes", "").strip(),
-                "selected_at": datetime.now().isoformat(timespec="seconds"),
-            }
-            if share_html_error:
-                payload["share_html_error"] = share_html_error
-            write_json(self.task_dir / "final-selection.json", payload)
-            touch_status(self.task_dir, "final-selection")
+            finalize_selected_version(self.task_dir, selected_version, first_form_value(form, "notes", ""))
             self.redirect("/final-selected")
         else:
             self.send_error(HTTPStatus.NOT_FOUND)
@@ -4451,6 +4822,7 @@ def message_page(title: str, message: str, ui_language: str = "zh") -> str:
   <a class="button" href="/visual-inspiration">{html.escape(t(ui_language, "nav_visual"))}</a>
   <a class="button" href="/image-style">{html.escape(t(ui_language, "nav_image_style"))}</a>
   <a class="button" href="/image-placement">{html.escape(t(ui_language, "nav_image_placement"))}</a>
+  <a class="button" href="/preview-review">{html.escape(t(ui_language, "nav_preview"))}</a>
   <a class="button" href="/style-review">{html.escape(t(ui_language, "nav_style"))}</a>
   <a class="button" href="/compare">{html.escape(t(ui_language, "nav_compare"))}</a>
 </div>"""
@@ -4507,7 +4879,8 @@ def resolve_task_dir(args: argparse.Namespace) -> Path:
     base_dir: Path = Path(args.base_dir).expanduser().resolve()
     thread_id: str = args.thread_id or os.environ.get("CODEX_THREAD_ID") or now_id()
     task_slug: str = slugify(args.task)
-    return workspace_root(base_dir, thread_id, task_slug)
+    resolved: Path = resolve_workspace_root(base_dir, task_slug, str(getattr(args, "command", "")))
+    return resolved if resolved else workspace_root(base_dir, thread_id, task_slug)
 
 
 def command_init(args: argparse.Namespace) -> None:
@@ -4583,6 +4956,7 @@ def command_serve(args: argparse.Namespace) -> None:
     print(f"Confirm:            http://{args.host}:{args.port}/confirm")
     print(f"Image style:        http://{args.host}:{args.port}/image-style")
     print(f"Image placement:    http://{args.host}:{args.port}/image-placement")
+    print(f"v1 preview:         http://{args.host}:{args.port}/preview-review")
     print(f"Style review:       http://{args.host}:{args.port}/style-review")
     print(f"Compare:            http://{args.host}:{args.port}/compare")
     if not args.no_open and args.open_page:
@@ -4637,6 +5011,7 @@ def command_serve_wait(args: argparse.Namespace) -> None:
     print(f"Confirm:            http://{args.host}:{args.port}/confirm")
     print(f"Image style:        http://{args.host}:{args.port}/image-style")
     print(f"Image placement:    http://{args.host}:{args.port}/image-placement")
+    print(f"v1 preview:         http://{args.host}:{args.port}/preview-review")
     print(f"Waiting for:        {target}")
     if not args.no_open and args.open_page:
         open_director_page(args.host, args.port, args.open_page)
@@ -4777,7 +5152,7 @@ def build_parser() -> argparse.ArgumentParser:
         description="Presentation Director helper for Codex + Presentations workflows."
     )
     parser.add_argument("--base-dir", default=".", help="Repository/workspace root. Default: current directory.")
-    parser.add_argument("--thread-id", default=None, help="Deprecated compatibility option; user-facing files now live in PPTX/<task-slug>/.")
+    parser.add_argument("--thread-id", default=None, help="Deprecated compatibility option; user-facing files now live in Decks/<task-slug>/; legacy PPTX/<task-slug>/ is still readable.")
 
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -4894,10 +5269,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     share_parser = subparsers.add_parser("share-html", help="Build a view-only final HTML companion from per-slide preview images.")
     share_parser.add_argument("--task", required=True, help="Task slug or title.")
-    share_parser.add_argument("--version", default="v1", help="Version folder under PPTX/<task-slug>/. Default: v1.")
+    share_parser.add_argument("--version", default="v1", help="Version folder under Decks/<task-slug>/. Default: v1.")
     share_parser.add_argument("--slides-dir", help="Optional explicit directory containing per-slide PNG/JPG/WebP previews.")
     share_parser.add_argument("--title", default="", help="Optional HTML title and output filename slug.")
-    share_parser.add_argument("--output", help="Optional output HTML path. Default: PPTX/<task-slug>/final/<title>.html.")
+    share_parser.add_argument("--output", help="Optional output HTML path. Default: Decks/<task-slug>/final/<title>.html.")
     share_parser.set_defaults(func=command_share_html)
 
     return parser
