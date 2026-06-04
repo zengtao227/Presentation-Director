@@ -210,6 +210,41 @@ HTML decks must implement the same contract in CSS:
 
 All regular slide content goes inside `.slide-safe`; only backgrounds and explicitly intentional bleed elements may sit outside it.
 
+**Required structure for every slide — NO EXCEPTIONS including cover and section-divider slides:**
+
+```html
+<section>
+  <div class="bleed ..."><!-- background gradient / image ONLY --></div>
+  <div class="slide-safe">
+    <!-- ALL content: title, body, columns, charts, code, images -->
+  </div>
+</section>
+```
+
+Inside `.slide-safe` use normal flow or flex/grid layout. Do NOT use `position:absolute` on content elements inside `.slide-safe` unless stacking layers within those 1172×590 bounds.
+
+**Forbidden patterns — these silently push content outside the visible area:**
+
+| Pattern | Why it breaks |
+|---------|---------------|
+| `position:absolute` on direct children of `<section>` (other than `.bleed` / `.slide-safe`) | Bypasses safe-area coordinates entirely |
+| `top:50%; transform:translateY(-50%)` on elements outside `.slide-safe` | Centres against the 720px section, not the 590px safe zone |
+| `display:flex` or `display:grid` on the `<section>` element to position content | Replaces the absolute-position model; content escapes the safe zone |
+| Arbitrary `left` / `top` / `right` / `bottom` on section children that bypass `.slide-safe` | Same as first row |
+| Treating the cover slide as exempt ("it's decorative") | The cover is **not** exempt; title, subtitle, kicker, and badge all go inside `.slide-safe` |
+
+For a two-column cover layout, put both columns inside `.slide-safe` and use `display:flex; flex-direction:row` there:</p>
+
+```html
+<section>
+  <div class="bleed" style="background: linear-gradient(...)"></div>
+  <div class="slide-safe" style="display:flex; align-items:center; gap:32px;">
+    <div style="flex:1.6"><!-- left: title, kicker, subtitle --></div>
+    <div style="flex:1"><!-- right: badge / stats --></div>
+  </div>
+</section>
+```
+
 ---
 
 ## Pipeline Overview

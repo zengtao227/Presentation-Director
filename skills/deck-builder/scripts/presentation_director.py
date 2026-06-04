@@ -4022,10 +4022,26 @@ Rules:
   }}
   Apply these tokens to .reveal background-color, h1-h3, p, code, hr, dividers, charts, and cards.
   Do not hard-code one-off hex values per slide; consume the tokens. Cover/section gradient hint: "{html_gradient or 'use --deck-bg solid color'}".
-- Safe-area contract: wrap all regular slide content in a .slide-safe container:
-  .slide-safe {{ position:absolute; left:54px; top:70px; width:1172px; height:590px; }}
+- Safe-area contract — NO EXCEPTIONS, including cover and section-divider slides:
+  .slide-safe {{ position:absolute; left:54px; top:70px; width:1172px; height:590px; overflow:hidden; }}
   .bleed {{ position:absolute; inset:0; }}
-  Full-bleed AI-generated background images use .bleed; all text, charts, tables, screenshots, and diagrams use .slide-safe.
+  REQUIRED structure for every slide type (cover, section, content, end):
+    <section>
+      <div class="bleed ..."><!-- background gradient / image ONLY --></div>
+      <div class="slide-safe">
+        <!-- ALL content: title, body, columns, charts, code, images -->
+      </div>
+    </section>
+  Inside .slide-safe use normal flow or flex/grid layout. Do NOT use position:absolute on
+  content elements inside .slide-safe unless stacking layers within those 1172×590 bounds.
+  FORBIDDEN patterns — these silently push content outside the visible area:
+    ✗ position:absolute on direct children of <section> (other than .bleed and .slide-safe)
+    ✗ top:50%; transform:translateY(-50%) on any element outside .slide-safe
+    ✗ display:flex or display:grid on the <section> element itself to position content
+    ✗ left/top/right/bottom values on section children that bypass .slide-safe coordinates
+    ✗ treating the cover slide as exempt ("it's decorative, safe-area doesn't apply")
+  The cover slide is NOT exempt. Put the title, subtitle, kicker, and badge content inside
+  .slide-safe, then use flexbox row/column inside it for the two-column cover layout.
 - motion_level from html_config: "{motion_level}". Use animation vocabulary from the animation catalog:
   subtle -> fade-up, rise-in, stagger-list only.
   expressive -> adds zoom-pop, counter-up, path-draw, blur-in.
