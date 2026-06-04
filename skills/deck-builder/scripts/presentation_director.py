@@ -1919,6 +1919,21 @@ def image_prompt_draft(brief: JsonDict, target_id: str, slide_role: str, placeme
     palette_values: list[str] = [str(color) for color in candidate.get("palette", []) if str(color).strip()]
     palette: str = ", ".join(palette_values[:4]) or "the confirmed visual palette"
     visual_style: str = str(candidate.get("name", "confirmed visual direction"))
+    lang: str = ui_language_from_brief(brief)
+    if lang == "zh":
+        return (
+            f"演示文稿抽象背景图，主题「{topic}」，用途：{slide_role}，放置方式：{placement_type}。"
+            f"使用「{visual_style}」视觉方向和调色板 {palette}。"
+            "禁止出现：文字、字母、logo、人物、面孔、虚假截图、任何现实品牌或产品声索。"
+            "为幻灯片文字内容留出充足负空间，保持足够的对比度以便文字叠加。"
+        )
+    if lang == "de":
+        return (
+            f"Abstrakter Präsentationshintergrund zum Thema '{topic}', Verwendung: {slide_role}, Platzierung: {placement_type}. "
+            f"Visuelle Richtung '{visual_style}', Palette {palette}. "
+            "Kein Text, keine Buchstaben, keine Logos, keine Personen, keine Gesichter, keine gefälschten Screenshots. "
+            "Ausreichend Negativraum für Folieninhalt, Kontrast für Textüberlagerung sicherstellen."
+        )
     return (
         f"Abstract presentation background for '{topic}', {slide_role}, {placement_type}. "
         f"Use the {visual_style} direction and palette {palette}. "
@@ -3630,7 +3645,6 @@ def render_image_style(task_dir: Path, error_messages: list[str] | None = None) 
   </section>
   <div class="actions">
     <button type="submit">{html.escape(t(ui_language, "save_image_style"))}</button>
-    <a class="button secondary" href="/confirm">{html.escape(t(ui_language, "confirm_title"))}</a>
   </div>
 </form>"""
     return html_page(t(ui_language, "image_style_title"), body, ui_language)
