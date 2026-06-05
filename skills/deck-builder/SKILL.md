@@ -192,12 +192,14 @@ HTML decks must implement the same contract in CSS:
 
 ```css
 .reveal .slides section {
-  /* ONLY overflow:hidden. DO NOT set position/width/height.
-     Reveal.js sets position:absolute on sections — that makes each section a
-     containing block. .bleed and .slide-safe rely on this. Adding
-     position:relative here overrides Reveal.js and causes the staircase bug
-     (all slides stack in document flow). Adding only padding instead of
-     .slide-safe removes the hard height boundary, allowing content overflow. */
+  /* width + height required so section is a real 1280×720 box.
+     overflow:hidden clips any true overflow.
+     DO NOT set position — Reveal.js controls position:absolute on sections.
+     Adding position:relative causes the staircase bug (all slides stack in flow).
+     Omitting height causes section to collapse to 0px → .bleed/.slide-safe
+     clipped to nothing → blank page. Both bugs confirmed by live testing. */
+  width: 1280px;
+  height: 720px;
   overflow: hidden;
 }
 .slide-safe {
