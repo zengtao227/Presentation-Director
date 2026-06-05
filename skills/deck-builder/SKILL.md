@@ -223,18 +223,132 @@ HTML decks must implement the same contract in CSS:
 }
 ```
 
-**Why `.slide-safe` and NOT `padding` on section:**  
-`padding` on section has no height limit — content taller than the slide simply overflows. `.slide-safe` with `height:590px; overflow:hidden` is the only reliable way to enforce the safe-area boundary.
+## HTML Deck CSS & Layout Rules (live-tested, confirmed)
 
-**Content density rule — never pack more than fits in 590px:**  
-Reveal.js base font size is ~40–42px; em units scale from this. If a slide has more than 3–4 list items, 5+ steps, or a table with 7+ rows, the content will overflow and be clipped. Rules:
-- Max 4 steps per slide — split into two slides if you need 5+
+> **Core principle:** Generate with px and hard layout rules to minimize risk; verify with browser-measured scrollHeight after render; auto-scale is only a safety net for small errors (≤14%); severe overflow must trigger a redesign, not more shrinking.
+
+### Rule 1 — Font units: px for decorative elements, em/rem only for body text
+
+```css
+/* ❌ WRONG — 1.3em × 42px base = 54px; three stacked cards = instant overflow */
+font-size: 1.3em;
+
+/* ❌ STILL WRONG — 0.9em is still theme-dependent (0.9 × 42 = 38px but another
+   theme may use a different base) */
+font-size: 0.9em;
+
+/* ✅ CORRECT — always predictable */
+font-size: 28px;
+line-height: 1;
+```
+
+**Decorative elements** (emoji, icons, FontAwesome, decorative numbers): always `px`, never `em`.  
+Recommended sizes: `20px`–`34px` for icons, `16px`–`22px` for body copy.  
+`line-height` may use unitless values (e.g. `1.15`, `1.25`, `1.35`).
+
+### Rule 2 — No stagger animation on vertical stacks
+
+`stagger` applies staggered `translateY(18px)` delays. During animation, items render at different Y positions — vertical lists appear diagonal/staircase to viewers.
+
+```html
+<!-- ❌ WRONG — steps, timelines, flow cards -->
+<div class="steps stagger">
+
+<!-- ✅ CORRECT — single container animation; stagger only on horizontal card grids -->
+<div class="steps fade-up">
+```
+
+`stagger` is allowed only on horizontal grids (e.g. `g3`, `g2`) where items animate side-by-side.
+
+### Rule 3 — Height budget (pre-flight estimate only, not final arbiter)
+
+Available content height = 590px − slide-h (~75px) = **~515px**.
+
+| Element | Estimated height |
+|---------|-----------------|
+| List item (`.il li`) | 28px |
+| Step row (`.step`) | 60px |
+| Small card (single-line body) | 55px |
+| Large card (3–4 line body) | 90px |
+| Icon/emoji at 28px | 28px + padding |
+
+Budget rules:
+- Max 4 steps per slide (split if 5+)
 - Max 5 bullet points per list
-- Max 6 table rows (use a summary card for the rest)
-- When in doubt, split the slide rather than shrinking fonts below legibility
+- Max 6 table rows
+- **This 515px estimate is a pre-flight check, not the final verdict. Browser scrollHeight is the final arbiter.**
 
-**Why the earlier `.slide-safe` test produced a blank page:**  
-That attempt also set `position:relative; width:1280px; height:720px` on sections, which overrode Reveal.js's `position:absolute` on slides. With `overflow:hidden` only on section, Reveal.js retains control and `.slide-safe` works correctly.
+### Rule 4 — Two-column balance: right column must stretch
+
+When a right column has fewer items than the left, items stack at the top — visually unbalanced.
+
+```html
+<!-- ✅ Right column stretches full height and distributes content -->
+<div class="tcr" style="display:flex;flex-direction:column;justify-content:space-between;">
+  <div class="card">...top content...</div>
+  <div class="card">...bottom content pinned to bottom...</div>
+</div>
+
+<!-- ✅ Alternative: push last element to bottom -->
+<div class="tcr" style="display:flex;flex-direction:column;">
+  <div class="card">...top...</div>
+  <div class="card" style="margin-top:auto;">...bottom...</div>
+</div>
+```
+
+### Rule 5 — slide-safe must be flex when using margin-top:auto
+
+`margin-top:auto` only works inside a flex container. If distributing content vertically inside `.slide-safe`, set it explicitly:
+
+```html
+<div class="slide-safe" style="display:flex;flex-direction:column;">
+```
+
+### Rule 6 — Browser overflow QA (required in every generated HTML deck)
+
+Static estimates are not enough — font loading, line wrapping, and language-specific lengths can all push actual `scrollHeight` past 590px. Every generated HTML deck **must** include this QA script:
+
+```html
+<script>
+// Overflow QA — runs after Reveal.js is ready and fonts are loaded.
+// Auto-scales slides that overflow by ≤14% (scale ≥ 0.86).
+// Marks slides that overflow by >14% as QA_FAIL (red outline).
+document.fonts.ready.then(() => {
+  Reveal.on('ready', () => {
+    const SAFE_H = 590, MIN_SCALE = 0.86;
+    document.querySelectorAll('.slide-safe').forEach((safe, idx) => {
+      const prev = safe.style.overflow;
+      safe.style.overflow = 'visible';
+      const sh = safe.scrollHeight;
+      safe.style.overflow = prev || 'hidden';
+      if (sh <= SAFE_H) return;
+      const scale = SAFE_H / sh;
+      if (scale < MIN_SCALE) {
+        console.error(`[QA_FAIL] Slide ${idx+1}: scrollHeight=${sh}px, scale=${scale.toFixed(2)} < 0.86 — must split or reduce content`);
+        safe.style.outline = '3px solid rgba(255,50,50,0.8)';
+      } else {
+        const wrap = document.createElement('div');
+        wrap.style.cssText = `transform:scale(${scale});transform-origin:top left;width:${(100/scale).toFixed(2)}%;`;
+        while (safe.firstChild) wrap.appendChild(safe.firstChild);
+        safe.appendChild(wrap);
+        console.info(`[QA_FIT] Slide ${idx+1}: scrollHeight=${sh}px → scaled to ${(scale*100).toFixed(1)}%`);
+      }
+    });
+  });
+});
+</script>
+```
+
+This script must appear **after** `Reveal.initialize()`. It will:
+- Log `[QA_FIT]` for auto-corrected slides (scale 0.86–1.0)
+- Log `[QA_FAIL]` + red outline for slides that are too dense (scale < 0.86)
+- Do nothing for slides that fit correctly
+
+Auto-scale is a safety net only — the goal is zero `[QA_FIT]` logs, not "let the script handle it".
+
+### Why the earlier `.slide-safe` test produced a blank page
+
+Setting `position:relative` on sections overrides Reveal.js's `position:absolute` — all slides stack in document flow (staircase bug). Omitting `height:720px` causes section to collapse to 0px — `.slide-safe` is clipped to nothing (blank page). Both confirmed by live test. Correct spec: `width:1280px; height:720px; overflow:hidden` with NO `position`.
 
 All regular slide content goes inside `.slide-safe`; only backgrounds and explicitly intentional bleed elements may sit outside it.
 
