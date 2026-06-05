@@ -38,6 +38,8 @@ JsonDict = dict[str, Any]
 
 DEFAULT_PORT: int = 8765
 DEFAULT_HOST: str = "127.0.0.1"
+DECK_WORKSPACE_DIR: str = "Decks"
+LEGACY_DECK_WORKSPACE_DIR: str = "PPTX"
 IMAGE_EXTENSIONS: set[str] = {".png", ".jpg", ".jpeg", ".webp"}
 IMAGE_POLICY_VALUES: set[str] = {
     "none",
@@ -79,6 +81,7 @@ STATUS_FILES: dict[str, str] = {
     "confirmed": "confirmed.ready",
     "images-style": "images-style.ready",
     "images-placement": "images-placement.ready",
+    "preview-review": "preview-reviewed.ready",
     "revision": "revision.ready",
     "final-selection": "final-selected.ready",
 }
@@ -88,6 +91,7 @@ PAGE_PATHS: dict[str, str] = {
     "confirm": "/confirm",
     "image-style": "/image-style",
     "image-placement": "/image-placement",
+    "preview-review": "/preview-review",
     "style-review": "/style-review",
     "compare": "/compare",
 }
@@ -100,6 +104,15 @@ HTML_LANG: dict[str, str] = {
     "it": "it",
     "es": "es",
 }
+LANGUAGE_LABELS: dict[str, str] = {
+    "zh": "中文",
+    "en": "English",
+    "de": "Deutsch",
+    "fr": "Français",
+    "it": "Italiano",
+    "es": "Español",
+}
+LANGUAGE_SWITCH_LANGUAGES: tuple[str, ...] = ("zh", "en", "de")
 UI_COPY: dict[str, dict[str, str]] = {
     "zh": {
         "brief_gate": "Brief Confirmation Gate",
@@ -123,7 +136,7 @@ UI_COPY: dict[str, dict[str, str]] = {
         "risk": "风险",
         "pre_generation_risks": "生成前风险",
         "generation_strategy": "生成策略",
-        "generation_strategy_text": "先生成 v1 PPTX 和 contact sheet，并集中保存到 {task_dir}，然后打开 style-review.html 供选择是否重绘。",
+        "generation_strategy_text": "先生成 v1 并集中保存到 {task_dir}，然后打开 preview-review.html 供完整浏览；需要修改时再进入 style-review.html。",
         "back_visual": "返回修改视觉方向",
         "confirm_button": "确认并开始生成",
         "no_risks": "未发现明显风险。",
@@ -157,7 +170,7 @@ UI_COPY: dict[str, dict[str, str]] = {
         "risk": "Risk",
         "pre_generation_risks": "Pre-Generation Risks",
         "generation_strategy": "Generation Strategy",
-        "generation_strategy_text": "Generate the v1 PPTX and contact sheet first, save them under {task_dir}, then open style-review.html so you can decide whether to redraw the deck.",
+        "generation_strategy_text": "Generate v1 first, save it under {task_dir}, then open preview-review.html for browsing; enter style-review.html only if changes are needed.",
         "back_visual": "Back to visual direction",
         "confirm_button": "Confirm and start generation",
         "no_risks": "No obvious risks detected.",
@@ -191,7 +204,7 @@ UI_COPY: dict[str, dict[str, str]] = {
         "risk": "Risiko",
         "pre_generation_risks": "Risiken vor der Generierung",
         "generation_strategy": "Generierungsstrategie",
-        "generation_strategy_text": "Zuerst werden v1-PPTX und Contact Sheet erzeugt und unter {task_dir} gespeichert. Danach wird style-review.html geöffnet, damit Sie entscheiden können, ob das Deck visuell überarbeitet werden soll.",
+        "generation_strategy_text": "Zuerst wird v1 unter {task_dir} gespeichert. Danach wird preview-review.html zur vollständigen Ansicht geöffnet; style-review.html folgt nur bei Änderungsbedarf.",
         "back_visual": "Zur visuellen Richtung zurück",
         "confirm_button": "Bestätigen und Generierung starten",
         "no_risks": "Keine offensichtlichen Risiken erkannt.",
@@ -225,7 +238,7 @@ UI_COPY: dict[str, dict[str, str]] = {
         "risk": "Risque",
         "pre_generation_risks": "Risques avant génération",
         "generation_strategy": "Stratégie de génération",
-        "generation_strategy_text": "Générer d'abord le PPTX v1 et la planche de contact, les enregistrer dans {task_dir}, puis ouvrir style-review.html pour décider d'une éventuelle refonte visuelle.",
+        "generation_strategy_text": "Générer d'abord v1 dans {task_dir}, puis ouvrir preview-review.html pour la parcourir; style-review.html n'est utilisé que si des changements sont nécessaires.",
         "back_visual": "Retour à la direction visuelle",
         "confirm_button": "Confirmer et lancer la génération",
         "no_risks": "Aucun risque évident détecté.",
@@ -259,7 +272,7 @@ UI_COPY: dict[str, dict[str, str]] = {
         "risk": "Rischio",
         "pre_generation_risks": "Rischi prima della generazione",
         "generation_strategy": "Strategia di generazione",
-        "generation_strategy_text": "Genera prima il PPTX v1 e il contact sheet, salvali in {task_dir}, poi apri style-review.html per decidere se ridisegnare il deck.",
+        "generation_strategy_text": "Genera prima v1 in {task_dir}, poi apri preview-review.html per rivederla; usa style-review.html solo se servono modifiche.",
         "back_visual": "Torna alla direzione visiva",
         "confirm_button": "Conferma e avvia la generazione",
         "no_risks": "Nessun rischio evidente rilevato.",
@@ -293,7 +306,7 @@ UI_COPY: dict[str, dict[str, str]] = {
         "risk": "Riesgo",
         "pre_generation_risks": "Riesgos antes de generar",
         "generation_strategy": "Estrategia de generación",
-        "generation_strategy_text": "Primero genera el PPTX v1 y la hoja de contacto, guárdalos en {task_dir}, y luego abre style-review.html para decidir si redibujar el deck.",
+        "generation_strategy_text": "Primero genera v1 en {task_dir}, luego abre preview-review.html para revisarlo; usa style-review.html solo si hacen falta cambios.",
         "back_visual": "Volver a dirección visual",
         "confirm_button": "Confirmar e iniciar generación",
         "no_risks": "No se detectaron riesgos evidentes.",
@@ -316,7 +329,7 @@ ADDITIONAL_UI_COPY: dict[str, dict[str, str]] = {
         "no_sources": "未记录资料来源。可以在下面填写本地路径、网页 URL 或 Google Drive 地址。",
         "intake_topline": "Presentation Director",
         "intake_title": "生成前信息收集",
-        "intake_intro": "先确认会影响 PPTX 质量的关键信息。每题都有默认推荐，也可以选择自定义。",
+        "intake_intro": "先确认会影响演示文稿质量的关键信息。每题都有默认推荐，也可以选择自定义。",
         "source_material": "资料来源",
         "source_paths_label": "资料路径 / 网页 / Google Drive 地址",
         "source_paths_placeholder": "每行一个来源。例如：\n/Users/you/project/docs\nhttps://example.com/report\nhttps://drive.google.com/file/d/...\nhttps://docs.google.com/document/d/...",
@@ -328,7 +341,8 @@ ADDITIONAL_UI_COPY: dict[str, dict[str, str]] = {
         "next_visual": "下一步：视觉候选",
         "visual_gate": "视觉方向门禁",
         "visual_title": "选择第一版视觉方向",
-        "visual_intro": "这些候选会根据主题、PPT 类型和听众动态生成。它们借鉴 design-lock、ui-ux-pro-max、HTML deck/theme catalog 的做法，但最终仍交给 Codex Presentations 生成可编辑 PPTX。",
+        "visual_intro": "这些候选会根据主题、演示文稿类型和听众动态生成，借鉴 design-lock 和 ui-ux-pro-max 规律，确定配色、字体和版式方向。",
+        "visual_intro_html": "这些候选决定 Reveal.js HTML 演示的视觉主题、过渡动画和动效密度。选好方向后直接写出可在浏览器演示的 HTML 文件，无需 Codex Presentations 插件。每个候选已预先关联最适合的 HTML 主题和动效档位。",
         "current_topic": "当前主题",
         "visual_notes": "视觉补充要求",
         "visual_notes_placeholder": "例如：更像顶级咨询公司、更少卡片、背景更有层次、适合医学研究听众。",
@@ -355,6 +369,8 @@ ADDITIONAL_UI_COPY: dict[str, dict[str, str]] = {
         "final_notes_placeholder": "最终选择理由或仍需注意的问题。",
         "confirm_final_version": "确认最终版本",
         "continue_editing": "继续修改",
+        "revise_from_selected": "以选中版本为基础继续修改",
+        "revision_base_notice": "本次修改以 {version} 为基础 — 新版本将在此版本上进行调整，不会回到 v1",
         "choose_version": "选择 {version}",
         "no_contact_sheet": "没有 contact sheet。",
         "no_versions": "还没有可比较版本。请先生成 v1。",
@@ -372,6 +388,9 @@ ADDITIONAL_UI_COPY: dict[str, dict[str, str]] = {
         "image_style_gate": "图片风格门禁",
         "image_style_title": "确认 AI 生图模式",
         "image_style_intro": "这一步只决定图片权限和第一批 prompt 草稿。真正插入到哪一页，post-v1 模式会在看到 v1 预览后再确认。",
+        "image_manual_workflow_title": "如果选择手动生图，后续怎么做",
+        "image_manual_workflow_body": "选择需要图片的模式并保存后，agent 会把这些 prompt 在对话中展示出来。你可以用 Copilot、Ideogram、Firefly 或其他网页工具生成图片；生成后保存到下方目标路径，或把下载文件路径告诉 Codex，Codex 会复制并注册。没有真实图片就位时流程会停下，不会偷偷用渐变或占位图替代。",
+        "image_output_path": "目标保存路径",
         "image_policy_label": "当前 image_policy",
         "image_mode_label": "生成模式",
         "image_mode_none": "不生成 AI 图片",
@@ -388,10 +407,13 @@ ADDITIONAL_UI_COPY: dict[str, dict[str, str]] = {
         "html_motion_profile_subtle": "Subtle: 稳定、轻量、CSS-only",
         "html_motion_profile_expressive": "Expressive: 更强转场与元素入场，CSS-only",
         "html_motion_profile_cinematic": "Cinematic: 强化 CSS 动效；Canvas/WebGL 暂不启用",
+        "html_theme_key": "HTML 主题",
+        "html_theme_auto": "跟随视觉方向自动选（推荐）",
         "save_image_style": "保存图片风格门禁",
         "image_style_saved_title": "图片风格已保存",
         "image_style_saved_message": "图片风格门禁已保存。agent 会检测 images-style.ready 并继续。",
         "image_style_error_title": "图片风格门禁未通过",
+        "image_confirm_required": "⚠️ ask-before-use 模式下，选择 pre-v1 生图模式后必须逐条勾选下方的 Prompt 草稿确认框，然后再保存。未确认的 target：",
         "image_placement_gate": "图片插入门禁",
         "image_placement_title": "确认 v1 后图片插入",
         "image_placement_intro": "请基于 v1 预览选择哪些位置需要补充图片。PPTX 会用 targeted edit；HTML-only 会重新生成 v2/final.html。",
@@ -412,7 +434,7 @@ ADDITIONAL_UI_COPY: dict[str, dict[str, str]] = {
     "en": {
         "intake_topline": "Presentation Director",
         "intake_title": "Pre-Generation Intake",
-        "intake_intro": "Confirm the key details that affect PPTX quality. Each question has a recommended default, and you can choose a custom answer.",
+        "intake_intro": "Confirm the key details that affect the quality of your presentation. Each question has a recommended default, and you can choose a custom answer.",
         "source_material": "Source Material",
         "source_paths_label": "Source paths / web pages / Google Drive links",
         "source_paths_placeholder": "One source per line. For example:\n/Users/you/project/docs\nhttps://example.com/report\nhttps://drive.google.com/file/d/...\nhttps://docs.google.com/document/d/...",
@@ -424,7 +446,8 @@ ADDITIONAL_UI_COPY: dict[str, dict[str, str]] = {
         "next_visual": "Next: visual candidates",
         "visual_gate": "Visual Inspiration Gate",
         "visual_title": "Choose the First-Draft Visual Direction",
-        "visual_intro": "These candidates are generated from the topic, PPT type, and audience. They borrow from design-locks, ui-ux-pro-max, and HTML deck/theme catalog patterns, while Codex Presentations still creates the editable PPTX.",
+        "visual_intro": "These candidates are generated from the topic, PPT type, and audience. They draw from design-locks and ui-ux-pro-max patterns to define palette, typography, and layout direction.",
+        "visual_intro_html": "These candidates determine the visual theme, transition style, and animation density for your Reveal.js HTML deck. The output is a browser-ready HTML file — no Codex Presentations plugin required. Each candidate is pre-matched to an HTML theme and animation profile.",
         "current_topic": "Current Topic",
         "visual_notes": "Additional Visual Requirements",
         "visual_notes_placeholder": "For example: more like a top-tier consulting deck, fewer cards, richer backgrounds, or suitable for a medical research audience.",
@@ -451,6 +474,8 @@ ADDITIONAL_UI_COPY: dict[str, dict[str, str]] = {
         "final_notes_placeholder": "Reason for the final choice or remaining issues to watch.",
         "confirm_final_version": "Confirm final version",
         "continue_editing": "Continue editing",
+        "revise_from_selected": "Continue editing from selected version",
+        "revision_base_notice": "Revising based on {version} — the new version will build on this, not revert to v1",
         "choose_version": "Choose {version}",
         "no_contact_sheet": "No contact sheet found.",
         "no_versions": "No comparable versions yet. Generate v1 first.",
@@ -468,6 +493,9 @@ ADDITIONAL_UI_COPY: dict[str, dict[str, str]] = {
         "image_style_gate": "Image Style Gate",
         "image_style_title": "Confirm AI Image Mode",
         "image_style_intro": "This step decides image permissions and the first prompt drafts. In post-v1 modes, exact slide placement is confirmed only after the v1 preview exists.",
+        "image_manual_workflow_title": "How manual image generation works",
+        "image_manual_workflow_body": "After you choose an image mode and save this page, the agent will show these prompts in the conversation. You can generate the images in Copilot, Ideogram, Firefly, or any other web tool; then save each image to the target path below, or tell Codex the downloaded file path so it can copy and register it. If real image files are not in place, the workflow stops instead of silently using gradients or placeholders.",
+        "image_output_path": "Target save path",
         "image_policy_label": "Current image_policy",
         "image_mode_label": "Generation mode",
         "image_mode_none": "Do not generate AI images",
@@ -484,10 +512,13 @@ ADDITIONAL_UI_COPY: dict[str, dict[str, str]] = {
         "html_motion_profile_subtle": "Subtle: stable, light, CSS-only",
         "html_motion_profile_expressive": "Expressive: stronger transitions and element entrances, CSS-only",
         "html_motion_profile_cinematic": "Cinematic: stronger CSS motion; Canvas/WebGL is not enabled yet",
+        "html_theme_key": "HTML theme",
+        "html_theme_auto": "Follow visual direction automatically (Recommended)",
         "save_image_style": "Save image style gate",
         "image_style_saved_title": "Image style saved",
         "image_style_saved_message": "Image style gate saved. The agent will detect images-style.ready and continue.",
         "image_style_error_title": "Image style gate failed",
+        "image_confirm_required": "⚠️ In ask-before-use mode with a pre-v1 image mode selected, you must check every Prompt draft confirmation box below before saving. Unconfirmed targets:",
         "image_placement_gate": "Image Placement Gate",
         "image_placement_title": "Confirm Post-v1 Image Placement",
         "image_placement_intro": "Use the v1 preview to decide where generated images should be added. PPTX uses targeted edit; HTML-only regenerates v2/final.html.",
@@ -508,7 +539,7 @@ ADDITIONAL_UI_COPY: dict[str, dict[str, str]] = {
     "de": {
         "intake_topline": "Presentation Director",
         "intake_title": "Informationen vor der Generierung",
-        "intake_intro": "Bestätigen Sie zuerst die wichtigsten Angaben, die die PPTX-Qualität beeinflussen. Jede Frage hat eine empfohlene Standardeinstellung; Sie können auch eine eigene Antwort wählen.",
+        "intake_intro": "Bestätigen Sie zuerst die wichtigsten Angaben, die die Präsentationsqualität beeinflussen. Jede Frage hat eine empfohlene Standardeinstellung; Sie können auch eine eigene Antwort wählen.",
         "source_material": "Quellenmaterial",
         "source_paths_label": "Quellenpfade / Webseiten / Google-Drive-Links",
         "source_paths_placeholder": "Eine Quelle pro Zeile. Zum Beispiel:\n/Users/you/project/docs\nhttps://example.com/report\nhttps://drive.google.com/file/d/...\nhttps://docs.google.com/document/d/...",
@@ -520,7 +551,8 @@ ADDITIONAL_UI_COPY: dict[str, dict[str, str]] = {
         "next_visual": "Weiter: visuelle Kandidaten",
         "visual_gate": "Tor für visuelle Richtung",
         "visual_title": "Visuelle Richtung für den ersten Entwurf wählen",
-        "visual_intro": "Diese Kandidaten werden aus Thema, PPT-Typ und Zielgruppe abgeleitet. Sie nutzen Muster aus design-locks, ui-ux-pro-max und HTML deck/theme catalogs; Codex Presentations erstellt daraus weiterhin eine editierbare PPTX.",
+        "visual_intro": "Diese Kandidaten werden aus Thema, PPT-Typ und Zielgruppe abgeleitet. Sie nutzen Muster aus design-locks und ui-ux-pro-max, um Farbpalette, Typografie und Layout-Richtung festzulegen.",
+        "visual_intro_html": "Diese Kandidaten bestimmen visuelles Thema, Übergangseffekte und Animationsdichte für das Reveal.js-HTML-Deck. Das Ergebnis ist eine browserfähige HTML-Datei — kein Codex-Presentations-Plugin erforderlich.",
         "current_topic": "Aktuelles Thema",
         "visual_notes": "Zusätzliche visuelle Anforderungen",
         "visual_notes_placeholder": "Zum Beispiel: näher an einer Top-Consulting-Präsentation, weniger Karten, mehr Tiefe im Hintergrund oder passend für ein medizinisches Forschungspublikum.",
@@ -547,6 +579,8 @@ ADDITIONAL_UI_COPY: dict[str, dict[str, str]] = {
         "final_notes_placeholder": "Begründung der finalen Auswahl oder verbleibende Punkte.",
         "confirm_final_version": "Finale Version bestätigen",
         "continue_editing": "Weiter bearbeiten",
+        "revise_from_selected": "Gewählte Version als Basis weiterbearbeiten",
+        "revision_base_notice": "Bearbeitung auf Basis von {version} — neue Version baut darauf auf, kehrt nicht zu v1 zurück",
         "choose_version": "{version} wählen",
         "no_contact_sheet": "Kein Contact Sheet gefunden.",
         "no_versions": "Es gibt noch keine vergleichbaren Versionen. Erzeugen Sie zuerst v1.",
@@ -559,14 +593,213 @@ ADDITIONAL_UI_COPY: dict[str, dict[str, str]] = {
         "nav_visual": "Visuelle Richtung",
         "nav_style": "Visuelle Prüfung",
         "nav_compare": "Vergleich",
+        "image_style_title": "KI-Bildmodus bestätigen",
+        "image_style_error_title": "Bildstil-Gate fehlgeschlagen",
+        "image_confirm_required": "⚠️ Im ask-before-use-Modus mit einem pre-v1-Bildmodus müssen alle Prompt-Entwürfe unten einzeln bestätigt werden, bevor gespeichert werden kann. Nicht bestätigte Targets:",
+        "save_image_style": "Bildstil-Gate speichern",
     },
 }
 
 for language, copy_items in ADDITIONAL_UI_COPY.items():
     UI_COPY.setdefault(language, {}).update(copy_items)
+
+WORKFLOW_UI_COPY: dict[str, dict[str, str]] = {
+    "zh": {
+        "language_switch_label": "页面语言",
+        "nav_preview": "v1 预览",
+        "preview_review": "v1 预览门禁",
+        "preview_review_title": "浏览 v1 后再决定下一步",
+        "preview_review_intro": "先完整浏览当前版本，再决定直接交付、快速微调，还是生成对比版本。",
+        "open_full_preview": "全屏打开 v1",
+        "preview_action_title": "看完 v1 后怎么做?",
+        "preview_action_keep": "满意，直接使用 v1",
+        "preview_action_keep_desc": "不再生成新版本，直接把 v1 选为最终交付。",
+        "preview_action_style": "需要调整，进入复审选项",
+        "preview_action_style_desc": "先看清楚每种修改会花多少成本，再决定是否生成 v2。",
+        "preview_notes_placeholder": "例如：第 4 页太挤，或者整体已经可以交付。",
+        "save_preview_review": "确认 v1 预览选择",
+        "preview_review_saved_title": "v1 预览选择已保存",
+        "preview_review_saved_message": "v1 预览选择已收到。agent 会按你的选择继续。",
+        "style_intro": "你已经看过 {version_name}。这里不再用抽象风格词，而是按修改成本选择下一步。",
+        "style_action_title": "选择修改成本",
+        "style_action_keep": "保留当前版本",
+        "style_action_keep_desc": "不生成新文件，直接进入最终交付。",
+        "style_action_quick": "快速微调",
+        "style_action_quick_desc": "只调 CSS、间距、字号、对比度或动效强度，不重写内容。",
+        "style_action_targeted": "定点修改",
+        "style_action_targeted_desc": "只改你指定的页面或问题，保留整体风格和结构。",
+        "style_action_comparison": "生成对比版本",
+        "style_action_comparison_desc": "生成 v2，对视觉表达做较大调整，但保留事实、结构和资料边界。",
+        "style_action_switch": "切换视觉方向",
+        "style_action_switch_desc": "回到视觉方向页重新选择。这是大改，成本最高。",
+        "style_cost_zero": "成本：无",
+        "style_cost_low": "成本：低",
+        "style_cost_medium": "成本：中",
+        "style_cost_high": "成本：高",
+        "style_cost_highest": "成本：最高",
+        "style_examples": "示例",
+        "style_will_change": "会改变",
+        "style_will_not_change": "不会改变",
+        "style_tuning_title": "快速微调范围",
+        "style_tune_spacing": "间距和页面密度",
+        "style_tune_type": "字号和可读性",
+        "style_tune_contrast": "对比度和强调色",
+        "style_tune_motion": "HTML 动效强度",
+        "targeted_slides_label": "定点修改页码或位置",
+        "targeted_slides_placeholder": "例如：第 5 页、第 8 页图表、结束页。",
+        "comparison_count_title": "对比版本数量（仅用于生成对比版本）",
+        "style_notes_placeholder": "请写清楚你看到的问题。不要只写“更高级”，最好写“第几页哪里不好”。",
+        "image_placement_limit_notice": "此表单每轮最多支持 6 条插入请求。每次提交会覆盖上一轮请求；请等 agent 将本轮处理成新版本后，再重新打开门禁添加更多。",
+        "placement_global_notes_title": "整体备注",
+        "placement_global_notes_placeholder": "可选：本轮图片插入的整体说明。",
+    },
+    "en": {
+        "language_switch_label": "Page language",
+        "nav_preview": "v1 Preview",
+        "preview_review": "v1 Preview Gate",
+        "preview_review_title": "Review v1 before choosing the next step",
+        "preview_review_intro": "Browse the current version first, then decide whether to deliver it, tune it, or generate a comparison version.",
+        "open_full_preview": "Open v1 full screen",
+        "preview_action_title": "What should happen after reviewing v1?",
+        "preview_action_keep": "Use v1 as final",
+        "preview_action_keep_desc": "Do not generate another version; select v1 as the final delivery.",
+        "preview_action_style": "Adjust it, show review options",
+        "preview_action_style_desc": "Compare the cost of each change type before deciding whether to generate v2.",
+        "preview_notes_placeholder": "For example: slide 4 is crowded, or the deck is ready to deliver.",
+        "save_preview_review": "Confirm v1 preview choice",
+        "preview_review_saved_title": "v1 preview choice saved",
+        "preview_review_saved_message": "Your v1 preview choice was saved. The agent will continue from that decision.",
+        "style_intro": "You have already reviewed {version_name}. This page chooses by change cost, not vague style labels.",
+        "style_action_title": "Choose the change cost",
+        "style_action_keep": "Keep current version",
+        "style_action_keep_desc": "Generate nothing else and move to final delivery.",
+        "style_action_quick": "Quick tune",
+        "style_action_quick_desc": "Only adjust CSS, spacing, type size, contrast, or motion strength. Do not rewrite content.",
+        "style_action_targeted": "Targeted fix",
+        "style_action_targeted_desc": "Fix only the slides or issues you name while preserving the overall style and structure.",
+        "style_action_comparison": "Generate comparison version",
+        "style_action_comparison_desc": "Generate v2 with stronger visual changes while preserving facts, structure, and source boundaries.",
+        "style_action_switch": "Switch visual direction",
+        "style_action_switch_desc": "Return to Visual Direction and choose again. This is a major change and costs the most.",
+        "style_cost_zero": "Cost: none",
+        "style_cost_low": "Cost: low",
+        "style_cost_medium": "Cost: medium",
+        "style_cost_high": "Cost: high",
+        "style_cost_highest": "Cost: highest",
+        "style_examples": "Examples",
+        "style_will_change": "Changes",
+        "style_will_not_change": "Does not change",
+        "style_tuning_title": "Quick tune scope",
+        "style_tune_spacing": "Spacing and density",
+        "style_tune_type": "Type size and readability",
+        "style_tune_contrast": "Contrast and accent color",
+        "style_tune_motion": "HTML motion strength",
+        "targeted_slides_label": "Target slides or locations",
+        "targeted_slides_placeholder": "For example: slide 5, the chart on slide 8, or the closing slide.",
+        "comparison_count_title": "Comparison version count (only for comparison generation)",
+        "style_notes_placeholder": "Describe the visible issue. Prefer 'slide 5 is crowded' over vague requests like 'make it premium'.",
+        "image_placement_limit_notice": "This form supports up to 6 placement rows per round. Each submission replaces the previous placement request; wait for the agent to create the new version before reopening the gate for more.",
+        "placement_global_notes_title": "Overall notes",
+        "placement_global_notes_placeholder": "Optional: overall notes for this placement round.",
+    },
+    "de": {
+        "language_switch_label": "Seitensprache",
+        "nav_preview": "v1-Vorschau",
+        "preview_review": "v1-Vorschau-Gate",
+        "preview_review_title": "v1 ansehen, dann den nächsten Schritt wählen",
+        "preview_review_intro": "Sehen Sie zuerst die aktuelle Version an und entscheiden Sie dann, ob sie final ist, feinjustiert oder als Vergleichsversion neu erzeugt wird.",
+        "open_full_preview": "v1 im Vollbild öffnen",
+        "preview_action_title": "Was soll nach der v1-Vorschau passieren?",
+        "preview_action_keep": "v1 als final verwenden",
+        "preview_action_keep_desc": "Keine neue Version erzeugen; v1 wird als finale Lieferung gewählt.",
+        "preview_action_style": "Anpassen, Review-Optionen anzeigen",
+        "preview_action_style_desc": "Erst die Kosten jeder Änderungsart ansehen, dann entscheiden, ob v2 erzeugt wird.",
+        "preview_notes_placeholder": "Zum Beispiel: Folie 4 ist zu dicht, oder das Deck ist bereit.",
+        "save_preview_review": "v1-Vorschauauswahl bestätigen",
+        "preview_review_saved_title": "v1-Vorschauauswahl gespeichert",
+        "preview_review_saved_message": "Die v1-Auswahl wurde gespeichert. Der Agent fährt damit fort.",
+        "style_intro": "Sie haben {version_name} bereits angesehen. Diese Seite wählt nach Änderungskosten, nicht nach vagen Stilbegriffen.",
+        "style_action_title": "Änderungskosten wählen",
+        "style_action_keep": "Aktuelle Version behalten",
+        "style_action_keep_desc": "Nichts Neues erzeugen und zur finalen Lieferung gehen.",
+        "style_action_quick": "Schnelle Feinjustierung",
+        "style_action_quick_desc": "Nur CSS, Abstände, Schriftgröße, Kontrast oder Animation anpassen. Keine Inhalte neu schreiben.",
+        "style_action_targeted": "Gezielte Korrektur",
+        "style_action_targeted_desc": "Nur genannte Folien oder Probleme korrigieren; Gesamtstil und Struktur bleiben erhalten.",
+        "style_action_comparison": "Vergleichsversion erzeugen",
+        "style_action_comparison_desc": "v2 mit stärkerer visueller Änderung erzeugen; Fakten, Struktur und Quellenregeln bleiben erhalten.",
+        "style_action_switch": "Visuelle Richtung wechseln",
+        "style_action_switch_desc": "Zur Seite Visuelle Richtung zurückgehen und neu wählen. Das ist eine große Änderung.",
+        "style_cost_zero": "Kosten: keine",
+        "style_cost_low": "Kosten: niedrig",
+        "style_cost_medium": "Kosten: mittel",
+        "style_cost_high": "Kosten: hoch",
+        "style_cost_highest": "Kosten: sehr hoch",
+        "style_examples": "Beispiele",
+        "style_will_change": "Ändert",
+        "style_will_not_change": "Ändert nicht",
+        "style_tuning_title": "Umfang der Feinjustierung",
+        "style_tune_spacing": "Abstände und Dichte",
+        "style_tune_type": "Schriftgröße und Lesbarkeit",
+        "style_tune_contrast": "Kontrast und Akzentfarbe",
+        "style_tune_motion": "HTML-Animationsstärke",
+        "targeted_slides_label": "Zielfolien oder Positionen",
+        "targeted_slides_placeholder": "Zum Beispiel: Folie 5, Diagramm auf Folie 8 oder Schlussfolie.",
+        "comparison_count_title": "Anzahl Vergleichsversionen (nur für Vergleichserzeugung)",
+        "style_notes_placeholder": "Beschreiben Sie das sichtbare Problem. Besser 'Folie 5 ist zu dicht' als 'edler machen'.",
+        "nav_image_style": "Bildstil",
+        "nav_image_placement": "Bildplatzierung",
+        "image_style_gate": "Bildstil-Gate",
+        "image_style_intro": "Dieser Schritt legt Bildrechte und erste Prompt-Entwürfe fest. Bei post-v1-Modi wird die genaue Platzierung erst nach der v1-Vorschau bestätigt.",
+        "image_manual_workflow_title": "So funktioniert manuelle Bilderzeugung",
+        "image_manual_workflow_body": "Nach Auswahl und Speicherung eines Bildmodus zeigt der Agent die Prompts im Gespräch. Sie können die Bilder mit Copilot, Ideogram, Firefly oder einem anderen Webtool erzeugen und dann am Zielpfad speichern oder Codex den Downloadpfad nennen.",
+        "image_output_path": "Ziel-Speicherpfad",
+        "image_policy_label": "Aktuelle image_policy",
+        "image_mode_label": "Erzeugungsmodus",
+        "image_mode_none": "Keine KI-Bilder erzeugen",
+        "image_mode_global_background": "Ein globales abstraktes Hintergrundbild erzeugen",
+        "image_mode_cover_section_auto": "Titelbild und wiederverwendbaren Abschnittshintergrund erzeugen",
+        "image_mode_post_v1_slot_review": "Zuerst v1 erzeugen, danach Bildplätze bestätigen",
+        "image_mode_hybrid": "Basis-Hintergründe zuerst, zusätzliche Bilder nach v1 bestätigen",
+        "image_mode_warning": "Bei ask-before-use sind pre-v1-Modi erlaubt, aber jeder Prompt-Entwurf unten muss bestätigt werden.",
+        "image_prompt_drafts": "Prompt-Entwürfe",
+        "image_prompt_confirm": "Ich bestätige diesen Prompt für image-plan.json",
+        "image_style_notes": "Zusätzliche Bildstil-Hinweise",
+        "image_style_notes_placeholder": "Zum Beispiel: abstrakter, keine Personen, kein Text.",
+        "html_theme_key": "HTML-Thema",
+        "html_motion_profile": "HTML-Animationsprofil",
+        "html_motion_profile_subtle": "Subtle: stabil, leicht, CSS-only",
+        "html_motion_profile_expressive": "Expressive: stärkere Übergänge und Elementanimationen, CSS-only",
+        "html_motion_profile_cinematic": "Cinematic: stärkere CSS-Animation; Canvas/WebGL ist nicht aktiviert",
+        "image_placement_gate": "Bildplatzierungs-Gate",
+        "image_placement_title": "Bildplatzierung nach v1 bestätigen",
+        "image_placement_intro": "Wählen Sie anhand der v1-Vorschau, wo zusätzliche Bilder eingefügt werden sollen. PPTX nutzt gezielte Bearbeitung; HTML-only erzeugt v2/final.html neu.",
+        "preview_artifact": "v1-Vorschauartefakt",
+        "placement_rows": "Platzierungsanfragen",
+        "slide_index": "Folie / HTML-Abschnitt",
+        "slide_role": "Folienrolle",
+        "placement_type": "Platzierungsart",
+        "asset_kind": "Asset-Art",
+        "overlay_opacity": "Overlay-Deckkraft",
+        "placement_prompt": "Bildprompt / Beschreibung",
+        "placement_notes": "Platzierungshinweise",
+        "save_image_placement": "Bildplatzierung speichern",
+        "image_placement_saved_title": "Bildplatzierung gespeichert",
+        "image_placement_saved_message": "Die Bildplatzierung wurde gespeichert. Der Agent erkennt images-placement.ready und erzeugt v2.",
+        "image_placement_limit_notice": "Dieses Formular unterstützt pro Runde bis zu 6 Platzierungen. Jede Einsendung ersetzt die vorherige Anfrage; warten Sie auf die neue Version, bevor Sie weitere hinzufügen.",
+        "placement_global_notes_title": "Gesamtnotizen",
+        "placement_global_notes_placeholder": "Optional: Gesamthinweise für diese Platzierungsrunde.",
+    },
+}
+
+for language in ("fr", "it", "es"):
+    WORKFLOW_UI_COPY[language] = WORKFLOW_UI_COPY["en"].copy()
+
+for language, copy_items in WORKFLOW_UI_COPY.items():
+    UI_COPY.setdefault(language, {}).update(copy_items)
 QUESTION_TITLE_L10N: dict[str, dict[str, str]] = {
     "en": {
-        "deck_type": "PPT Type",
+        "deck_type": "Presentation Type",
         "output_format": "Output Format",
         "research_strategy": "Research Strategy",
         "audience": "Audience",
@@ -580,7 +813,7 @@ QUESTION_TITLE_L10N: dict[str, dict[str, str]] = {
         "reference_deck": "Reference Deck",
     },
     "de": {
-        "deck_type": "PPT-Typ",
+        "deck_type": "Präsentationstyp",
         "output_format": "Ausgabeformat",
         "research_strategy": "Recherche-Strategie",
         "audience": "Zielgruppe",
@@ -594,7 +827,7 @@ QUESTION_TITLE_L10N: dict[str, dict[str, str]] = {
         "reference_deck": "Referenzdeck",
     },
     "fr": {
-        "deck_type": "Type de PPT",
+        "deck_type": "Type de présentation",
         "output_format": "Format de sortie",
         "research_strategy": "Stratégie de recherche",
         "audience": "Public",
@@ -608,7 +841,7 @@ QUESTION_TITLE_L10N: dict[str, dict[str, str]] = {
         "reference_deck": "Deck de référence",
     },
     "it": {
-        "deck_type": "Tipo di PPT",
+        "deck_type": "Tipo di presentazione",
         "output_format": "Formato di output",
         "research_strategy": "Strategia di ricerca",
         "audience": "Pubblico",
@@ -622,7 +855,7 @@ QUESTION_TITLE_L10N: dict[str, dict[str, str]] = {
         "reference_deck": "Deck di riferimento",
     },
     "es": {
-        "deck_type": "Tipo de PPT",
+        "deck_type": "Tipo de presentación",
         "output_format": "Formato de salida",
         "research_strategy": "Estrategia de investigación",
         "audience": "Audiencia",
@@ -652,10 +885,9 @@ CHOICE_LABEL_L10N: dict[str, dict[str, dict[str, str]]] = {
             "both": "HTML + PPTX (Both)",
         },
         "research_strategy": {
-            "hybrid-deep-research": "Hybrid: external Deep Research + Codex verification",
-            "codex-web-deep": "Codex deep web research",
-            "external-deep-research": "Gemini / Perplexity Deep Research packet",
             "provided-materials": "Use only the materials I provide",
+            "codex-web-deep": "Let the AI search online",
+            "external-deep-research": "I will provide a research packet",
             "custom": "Custom",
         },
         "audience": {
@@ -678,7 +910,6 @@ CHOICE_LABEL_L10N: dict[str, dict[str, dict[str, str]]] = {
             "provided-only": "Strictly use my provided materials",
             "web-with-sources": "May supplement from the web with cited sources",
             "existing-doc": "Use an existing PPT / document as the content base",
-            "reference-quality": "Use a reference deck as the quality and style bar",
             "custom": "Custom",
         },
         "content_language": {
@@ -720,11 +951,8 @@ CHOICE_LABEL_L10N: dict[str, dict[str, dict[str, str]]] = {
             "custom": "Custom",
         },
         "reference_deck": {
-            "none": "No reference; generate from content",
-            "quality-only": "Reference exists, but only as a quality bar",
-            "visual-style": "Reference exists; get close to its visual style",
-            "existing-ppt": "Existing PPT needs to be revised",
-            "custom": "Custom",
+            "none": "No reference",
+            "has-reference": "Has reference file",
         },
     },
     "de": {
@@ -742,10 +970,9 @@ CHOICE_LABEL_L10N: dict[str, dict[str, dict[str, str]]] = {
             "both": "HTML + PPTX (Beide)",
         },
         "research_strategy": {
-            "hybrid-deep-research": "Hybrid: externe Deep Research + Codex-Prüfung",
-            "codex-web-deep": "Codex Deep-Web-Recherche",
-            "external-deep-research": "Gemini / Perplexity Deep-Research-Paket",
             "provided-materials": "Nur bereitgestellte Materialien verwenden",
+            "codex-web-deep": "KI online recherchieren lassen",
+            "external-deep-research": "Ich stelle ein Recherche-Paket bereit",
             "custom": "Benutzerdefiniert",
         },
         "audience": {
@@ -768,7 +995,6 @@ CHOICE_LABEL_L10N: dict[str, dict[str, dict[str, str]]] = {
             "provided-only": "Ausschließlich bereitgestellte Materialien verwenden",
             "web-with-sources": "Web-Ergänzungen mit Quellenangaben erlaubt",
             "existing-doc": "Bestehendes PPT / Dokument als Inhaltsbasis nutzen",
-            "reference-quality": "Referenzdeck als Qualitäts- und Stilmaßstab nutzen",
             "custom": "Benutzerdefiniert",
         },
         "content_language": {
@@ -810,38 +1036,18 @@ CHOICE_LABEL_L10N: dict[str, dict[str, dict[str, str]]] = {
             "custom": "Benutzerdefiniert",
         },
         "reference_deck": {
-            "none": "Keine Referenz; aus dem Inhalt generieren",
-            "quality-only": "Referenz vorhanden, nur als Qualitätsmaßstab",
-            "visual-style": "Referenz vorhanden; visuellen Stil annähern",
-            "existing-ppt": "Bestehendes PPT soll überarbeitet werden",
-            "custom": "Benutzerdefiniert",
+            "none": "Keine Referenz",
+            "has-reference": "Referenzdatei vorhanden",
         },
     },
 }
-ADDITIONAL_QUESTION_TITLE_L10N: dict[str, dict[str, str]] = {
-    "en": {
-        "palette_direction": "Palette Direction",
-        "structure_direction": "Structure Rhythm",
-        "visual_expression": "Visual Expression",
-        "image_strategy": "Image Strategy",
-        "logo_strategy": "Logo / Brand Presence",
-    },
-    "de": {
-        "palette_direction": "Farbpalette",
-        "structure_direction": "Strukturrhythmus",
-        "visual_expression": "Visueller Ausdruck",
-        "image_strategy": "Bildstrategie",
-        "logo_strategy": "Logo / Markenpräsenz",
-    },
-}
-
 QUESTION_PROMPT_L10N: dict[str, dict[str, str]] = {
     "en": {
-        "deck_type": "What kind of PPT are you creating?",
+        "deck_type": "What kind of presentation are you creating?",
         "output_format": "Which presentation output format should be generated?",
         "research_strategy": "If the material is incomplete, how should research material be gathered first?",
-        "audience": "Who is the main audience for this PPT?",
-        "goal": "What is the main goal of this PPT?",
+        "audience": "Who is the main audience for this presentation?",
+        "goal": "What is the main goal of this presentation?",
         "source_boundary": "How should source material be used?",
         "content_language": "What language should the slide body use?",
         "output_constraints": "What are the slide count and presentation duration constraints?",
@@ -849,18 +1055,13 @@ QUESTION_PROMPT_L10N: dict[str, dict[str, str]] = {
         "image_policy": "Should AI-generated images be allowed?",
         "visual_freedom": "How should the first-draft visual direction be handled?",
         "reference_deck": "Do you have a reference deck or style sample?",
-        "palette_direction": "Should the palette direction change?",
-        "structure_direction": "Should the structure rhythm change?",
-        "visual_expression": "Should the visual expression change?",
-        "image_strategy": "How should images and visual assets be adjusted?",
-        "logo_strategy": "How should logos and brand presence be adjusted?",
     },
     "de": {
-        "deck_type": "Welche Art von PPT soll erstellt werden?",
+        "deck_type": "Welche Art von Präsentation soll erstellt werden?",
         "output_format": "Welches Präsentationsformat soll erzeugt werden?",
         "research_strategy": "Wenn das Material unvollständig ist, wie sollen zuerst Recherchematerialien beschafft werden?",
-        "audience": "Für wen ist diese PPT hauptsächlich gedacht?",
-        "goal": "Was ist das Hauptziel dieser PPT?",
+        "audience": "Für wen ist diese Präsentation hauptsächlich gedacht?",
+        "goal": "Was ist das Hauptziel dieser Präsentation?",
         "source_boundary": "Wie soll das Quellenmaterial verwendet werden?",
         "content_language": "Welche Sprache soll der Folientext verwenden?",
         "output_constraints": "Welche Vorgaben gibt es für Folienzahl und Vortragsdauer?",
@@ -868,101 +1069,10 @@ QUESTION_PROMPT_L10N: dict[str, dict[str, str]] = {
         "image_policy": "Sollen KI-generierte Bilder erlaubt sein?",
         "visual_freedom": "Wie soll die visuelle Richtung des ersten Entwurfs behandelt werden?",
         "reference_deck": "Gibt es ein Referenzdeck oder Stilbeispiele?",
-        "palette_direction": "Soll sich die Farbpalette ändern?",
-        "structure_direction": "Soll sich der Strukturrhythmus ändern?",
-        "visual_expression": "Soll sich der visuelle Ausdruck ändern?",
-        "image_strategy": "Wie sollen Bilder und visuelle Materialien angepasst werden?",
-        "logo_strategy": "Wie sollen Logos und Markenpräsenz angepasst werden?",
     },
 }
 
 ADDITIONAL_CHOICE_LABEL_L10N: dict[str, dict[str, dict[str, str]]] = {
-    "en": {
-        "palette_direction": {
-            "keep": "Keep current",
-            "warm-editorial": "Warm paper-like / editorial",
-            "engineering-blue-gray": "Engineering blue-gray / technical",
-            "high-contrast-pitch": "High-contrast / pitch style",
-            "brand-boost": "Strengthen brand colors",
-            "custom": "Custom",
-        },
-        "structure_direction": {
-            "keep": "Keep current",
-            "stronger-story": "Stronger story rhythm",
-            "more-analytical": "More analytical",
-            "more-architecture": "More architecture / system diagrams",
-            "more-product-demo": "More product-launch / demo feel",
-            "denser-internal": "Denser internal review style",
-            "custom": "Custom",
-        },
-        "visual_expression": {
-            "keep": "Keep current",
-            "more-premium": "More premium / more designed",
-            "more-restrained": "More restrained / less decorative",
-            "less-cards": "Fewer cards, more open composition",
-            "stronger-evidence": "Stronger evidence-led storytelling",
-            "custom": "Custom",
-        },
-        "image_strategy": {
-            "keep": "Keep current",
-            "fewer-decorative": "Use fewer decorative images",
-            "more-ai-concept": "Add AI concept imagery",
-            "official-only": "Use only real screenshots / official assets",
-            "stronger-cover-section": "Strengthen cover or section visuals",
-            "custom": "Custom",
-        },
-        "logo_strategy": {
-            "keep": "Keep current",
-            "cover-final-only": "Keep logos only on cover and final slides",
-            "footer-brand": "Strengthen footer branding",
-            "partner-logo-page": "Add partner / school / company logo page",
-            "remove-all": "Remove all logos",
-            "custom": "Custom",
-        },
-    },
-    "de": {
-        "palette_direction": {
-            "keep": "Aktuell beibehalten",
-            "warm-editorial": "Warmer Papierlook / Editorial",
-            "engineering-blue-gray": "Engineering-Blaugrau / technisch",
-            "high-contrast-pitch": "Hoher Kontrast / Pitch-Stil",
-            "brand-boost": "Markenfarben stärken",
-            "custom": "Benutzerdefiniert",
-        },
-        "structure_direction": {
-            "keep": "Aktuell beibehalten",
-            "stronger-story": "Stärkerer Story-Rhythmus",
-            "more-analytical": "Analytischer",
-            "more-architecture": "Mehr Architektur- / Systemdiagramme",
-            "more-product-demo": "Mehr Produktlaunch- / Demo-Gefühl",
-            "denser-internal": "Dichterer Stil für interne Reviews",
-            "custom": "Benutzerdefiniert",
-        },
-        "visual_expression": {
-            "keep": "Aktuell beibehalten",
-            "more-premium": "Hochwertiger / stärker gestaltet",
-            "more-restrained": "Zurückhaltender / weniger dekorativ",
-            "less-cards": "Weniger Karten, offenere Komposition",
-            "stronger-evidence": "Stärker evidenzgeführtes Storytelling",
-            "custom": "Benutzerdefiniert",
-        },
-        "image_strategy": {
-            "keep": "Aktuell beibehalten",
-            "fewer-decorative": "Weniger dekorative Bilder verwenden",
-            "more-ai-concept": "KI-Konzeptbilder ergänzen",
-            "official-only": "Nur echte Screenshots / offizielle Materialien verwenden",
-            "stronger-cover-section": "Titel- oder Kapitelvisuals stärken",
-            "custom": "Benutzerdefiniert",
-        },
-        "logo_strategy": {
-            "keep": "Aktuell beibehalten",
-            "cover-final-only": "Logos nur auf Titel- und Schlussfolie behalten",
-            "footer-brand": "Footer-Branding stärken",
-            "partner-logo-page": "Partner- / Schul- / Unternehmenslogo-Seite hinzufügen",
-            "remove-all": "Alle Logos entfernen",
-            "custom": "Benutzerdefiniert",
-        },
-    },
     "fr": {
         "output_format": {
             "html-revealjs": "HTML (Reveal.js)",
@@ -985,9 +1095,6 @@ ADDITIONAL_CHOICE_LABEL_L10N: dict[str, dict[str, dict[str, str]]] = {
         },
     },
 }
-
-for language, title_items in ADDITIONAL_QUESTION_TITLE_L10N.items():
-    QUESTION_TITLE_L10N.setdefault(language, {}).update(title_items)
 
 for language, label_groups in ADDITIONAL_CHOICE_LABEL_L10N.items():
     CHOICE_LABEL_L10N.setdefault(language, {}).update(label_groups)
@@ -1050,13 +1157,108 @@ class VisualCandidate:
     html_transition: str = "slide"
     html_animation: str = "minimal"
     html_gradient: str = ""
+    suggested_html_theme: str = ""
+
+
+HTML_THEME_OPTIONS: tuple[tuple[str, str], ...] = (
+    ("auto", "Follow visual direction automatically"),
+    ("minimal-white", "Clean product, internal updates, quiet business decks"),
+    ("editorial-serif", "Narrative, essay, culture, long-form explanation"),
+    ("swiss-grid", "Structured reports, operations, precise comparisons"),
+    ("corporate-clean", "Boardroom, consulting, executive summaries"),
+    ("academic-paper", "Research, clinical, medical, evidence-heavy decks"),
+    ("blueprint", "Architecture, systems, technical explainers"),
+    ("engineering-whiteprint", "Engineering plans with a lighter technical surface"),
+    ("terminal-green", "Developer, security, CLI, infra storytelling"),
+    ("pitch-deck-vc", "Investor, launch, market-sizing, fundraising decks"),
+    ("news-broadcast", "Live briefing, sports/news analysis, fast facts"),
+    ("magazine-bold", "Editorial launches, brand stories, bold section openers"),
+    ("aurora", "Science, energy, AI, emerging technology narratives"),
+    ("glassmorphism", "Product, studio, premium brand, soft depth"),
+    ("cyberpunk-neon", "Futuristic demos, nightlife, high-energy concepts"),
+)
+
+HTML_THEME_DESCRIPTIONS: dict[str, str] = dict(HTML_THEME_OPTIONS)
+
+# Themes whose background is visually dark (helps users distinguish light vs dark at selection time).
+DARK_THEMES: frozenset[str] = frozenset({
+    "pitch-deck-vc", "glassmorphism", "cyberpunk-neon", "terminal-green",
+    "aurora", "news-broadcast", "blueprint", "editorial-serif",
+    "magazine-bold",
+})
+# Light themes (not listed above): auto, minimal-white, swiss-grid, corporate-clean,
+# academic-paper, engineering-whiteprint, soft-pastel, arctic-cool, solarized-light,
+# catppuccin-latte, neo-brutalism (light variant), japanese-minimal, xiaohongshu-white
+
+
+def theme_tone_badge(theme_key: str, ui_language: str = "zh") -> str:
+    """Return a short HTML badge indicating whether a theme is dark or light."""
+    if theme_key == "auto":
+        return ""
+    if theme_key in DARK_THEMES:
+        label = {"zh": "深色", "de": "Dunkel"}.get(ui_language, "dark")
+        return f'<span style="font-size:.75em;background:#1e293b;color:#94a3b8;border-radius:3px;padding:1px 5px;margin-left:4px;vertical-align:middle;">🌙 {label}</span>'
+    label = {"zh": "浅色", "de": "Hell"}.get(ui_language, "light")
+    return f'<span style="font-size:.75em;background:#f1f5f9;color:#475569;border-radius:3px;padding:1px 5px;margin-left:4px;vertical-align:middle;">☀️ {label}</span>'
+
+HTML_THEME_OPTIONS_L10N: dict[str, dict[str, str]] = {
+    "zh": {
+        "auto": "自动跟随视觉方向（推荐）",
+        "minimal-white": "简洁产品页、内部更新、轻量商业演示",
+        "editorial-serif": "叙事、文化、长篇解说类",
+        "swiss-grid": "结构化报告、运营分析、精确对比",
+        "corporate-clean": "董事会、咨询、高管汇报",
+        "academic-paper": "学术研究、临床医学、证据密集型演示",
+        "blueprint": "架构设计、系统说明、技术解释",
+        "engineering-whiteprint": "工程方案，更轻的技术底色",
+        "terminal-green": "开发者、安全、CLI、基础设施叙事",
+        "pitch-deck-vc": "投资人路演、市场规模、融资演示",
+        "news-broadcast": "实时简报、体育/新闻分析、快讯",
+        "magazine-bold": "编辑发布、品牌故事、大开篇",
+        "aurora": "科学、能源、AI、前沿技术叙事",
+        "glassmorphism": "产品、工作室、高端品牌、柔和深度",
+        "cyberpunk-neon": "未来感演示、夜生活、高能概念",
+    },
+    "de": {
+        "auto": "Folgt der visuellen Richtung automatisch (Empfohlen)",
+        "minimal-white": "Saubere Produktpräsentation, interne Updates, ruhige Geschäfts-Decks",
+        "editorial-serif": "Narrative, Essay, Kultur, ausführliche Erklärungen",
+        "swiss-grid": "Strukturierte Berichte, Betrieb, präzise Vergleiche",
+        "corporate-clean": "Vorstandssitzung, Beratung, Management-Zusammenfassungen",
+        "academic-paper": "Forschung, Klinik, Medizin, evidenzlastige Präsentationen",
+        "blueprint": "Architektur, Systeme, technische Erklärungen",
+        "engineering-whiteprint": "Ingenieurpläne mit hellerem technischen Hintergrund",
+        "terminal-green": "Entwickler, Sicherheit, CLI, Infrastruktur-Storytelling",
+        "pitch-deck-vc": "Investor, Launch, Marktgröße, Fundraising-Präsentationen",
+        "news-broadcast": "Live-Briefing, Sport-/Nachrichtenanalyse, Schnellfakten",
+        "magazine-bold": "Redaktionelle Launches, Markenstorys, große Abschnittsöffner",
+        "aurora": "Wissenschaft, Energie, KI, Technologie-Narrative",
+        "glassmorphism": "Produkt, Studio, Premium-Marke, weiche Tiefe",
+        "cyberpunk-neon": "Futuristische Demos, Nachtleben, hochenergetische Konzepte",
+    },
+}
+
+
+def html_theme_best_for(theme_key: str, ui_language: str) -> str:
+    """Return localized best_for description for an HTML theme key."""
+    l10n: dict[str, str] = HTML_THEME_OPTIONS_L10N.get(ui_language, {})
+    return l10n.get(theme_key) or HTML_THEME_DESCRIPTIONS.get(theme_key, theme_key)
+
+
+CONTEXT_LAYOUT_MAP: dict[str, list[str]] = {
+    "pitch": ["cover-hero", "stat-highlight", "kpi-grid", "claim-bullets", "cta-close"],
+    "engineering": ["cover-hero", "architecture-map", "flow-diagram", "code-terminal", "timeline"],
+    "research": ["cover-hero", "claim-bullets", "evidence-table", "chart-bar-line", "big-quote"],
+    "product": ["cover-hero", "process-steps", "diff-before-after", "kpi-grid", "cta-close"],
+    "default": ["cover-hero", "claim-bullets", "two-column-proof", "chart-bar-line", "cta-close"],
+}
 
 
 INTAKE_QUESTIONS: tuple[Question, ...] = (
     Question(
         key="deck_type",
-        title="PPT 类型",
-        prompt="你要做哪类 PPT?",
+        title="演示文稿类型",
+        prompt="你要做哪类演示文稿?",
         default="engineering-platform",
         choices=(
             Choice("project-report", "项目汇报", "说明进展、结果、风险和下一步。"),
@@ -1094,19 +1296,18 @@ INTAKE_QUESTIONS: tuple[Question, ...] = (
         key="research_strategy",
         title="资料研究策略",
         prompt="如果资料不完整，先怎么获得研究材料?",
-        default="hybrid-deep-research",
+        default="provided-materials",
         choices=(
-            Choice("hybrid-deep-research", "Hybrid：外部 Deep Research + Codex 定点核验", "适合医学、产业、政策、技术趋势等资料密集主题。"),
-            Choice("codex-web-deep", "Codex 深度联网研究", "由 Codex 查找、筛选、核验资料；更耗时和 token。"),
-            Choice("external-deep-research", "Gemini / Perplexity Deep Research 资料包", "先用外部 Deep Research 做广覆盖，再把资料包交给 Codex 结构化。"),
-            Choice("provided-materials", "只用我提供的资料", "不主动联网，缺失信息必须标注。"),
+            Choice("provided-materials", "只用我提供的资料", "严格按我给的材料生成，不联网补充，缺失内容直接标注。"),
+            Choice("codex-web-deep", "让 AI 联网查找", "由 Agent 主动联网搜索、筛选、核验资料后再生成。"),
+            Choice("external-deep-research", "我来提供研究资料包", "我自己用任意工具（Gemini、Kimi、Perplexity、豆包等）做研究，把报告交给 Agent 整理生成。"),
             Choice("custom", "自定义", "我有自己的研究资料策略。"),
         ),
     ),
     Question(
         key="audience",
         title="听众",
-        prompt="这份 PPT 主要给谁看?",
+        prompt="这份演示文稿主要给谁看?",
         default="technical-leaders",
         choices=(
             Choice("executives", "高层 / 老板 / 决策者", "更重结论、风险和决策请求。"),
@@ -1120,7 +1321,7 @@ INTAKE_QUESTIONS: tuple[Question, ...] = (
     Question(
         key="goal",
         title="目标",
-        prompt="这份 PPT 的主要目标是什么?",
+        prompt="这份演示文稿的主要目标是什么?",
         default="explain-value",
         choices=(
             Choice("understand-topic", "让对方快速理解一个主题", "强调清晰解释和结构化。"),
@@ -1139,15 +1340,14 @@ INTAKE_QUESTIONS: tuple[Question, ...] = (
         choices=(
             Choice("provided-only", "严格只用我提供的材料", "缺失信息必须标注，不联网补全。"),
             Choice("web-with-sources", "可以联网补充，但必须标注来源", "适合需要最新资料或外部事实。"),
-            Choice("existing-doc", "以已有 PPT / 文档为内容基础", "继承已有内容结构并改进表达。"),
-            Choice("reference-quality", "以参考 deck 作为质量和风格标杆", "参考是质量 bar，不盲目复制。"),
+            Choice("existing-doc", "以已有演示文稿 / 文档为内容基础", "继承已有内容结构并改进表达。"),
             Choice("custom", "自定义", "我有自己的资料使用规则。"),
         ),
     ),
     Question(
         key="content_language",
         title="内容语言",
-        prompt="PPT 正文使用什么语言?",
+        prompt="演示文稿正文使用什么语言?",
         default="zh",
         choices=(
             Choice("zh", "中文", "使用中文正文和中文标题。"),
@@ -1204,7 +1404,7 @@ INTAKE_QUESTIONS: tuple[Question, ...] = (
         prompt="第一版视觉方向怎么处理?",
         default="delegate",
         choices=(
-            Choice("delegate", "AI 自主决策", "由生成引擎根据主题、听众和视觉候选自主选择最优方案。Codex 环境下由 Presentations 插件主导；Claude Code 环境下由 AI 根据 brief 自主决策。"),
+            Choice("delegate", "AI 自主决策", "由 AI 根据主题、听众和视觉候选自主选择最优视觉方案。"),
             Choice("restrained", "更正式克制", "适合严肃汇报。"),
             Choice("technical", "更科技 / 工程感", "适合技术方案和架构解释。"),
             Choice("investor", "更投资人路演 / 高对比", "适合 pitch 或评审。"),
@@ -1218,89 +1418,11 @@ INTAKE_QUESTIONS: tuple[Question, ...] = (
         prompt="是否有参考 deck 或风格样张?",
         default="none",
         choices=(
-            Choice("none", "没有参考，按内容生成", "由 Presentations 自主设计。"),
-            Choice("quality-only", "有参考，但只作为质量标杆", "beat reference, do not clone。"),
-            Choice("visual-style", "有参考，需要接近其视觉风格", "继承风格但不盲目复制。"),
-            Choice("existing-ppt", "有已有 PPT，需要在它基础上改", "作为 source/template。"),
-            Choice("custom", "自定义", "我有自己的参考使用规则。"),
+            Choice("none", "没有参考", "由 AI 根据内容和视觉候选自主设计。"),
+            Choice("has-reference", "有参考文件", "请在启动时通过 --source 参数提供参考文件的路径或 URL，AI 会以它作为内容和风格的参照基础。"),
         ),
     ),
 )
-
-REVISION_GROUPS: tuple[Question, ...] = (
-    Question(
-        key="palette_direction",
-        title="配色方向",
-        prompt="是否要改变配色方向?",
-        default="keep",
-        choices=(
-            Choice("keep", "保持当前", "不改 v1 配色。"),
-            Choice("warm-editorial", "暖色纸感 / 编辑风", "更像高质量长文和研究报告。"),
-            Choice("engineering-blue-gray", "工程蓝灰 / 技术风", "更冷静、系统、技术。"),
-            Choice("high-contrast-pitch", "高对比 / 路演风", "更强冲击力。"),
-            Choice("brand-boost", "强化品牌色", "更明显使用品牌色。"),
-            Choice("custom", "自定义", "我有自己的配色方向。"),
-        ),
-    ),
-    Question(
-        key="structure_direction",
-        title="结构节奏",
-        prompt="是否要改变结构节奏?",
-        default="keep",
-        choices=(
-            Choice("keep", "保持当前", "不改整体节奏。"),
-            Choice("stronger-story", "更强故事节奏", "章节推进更明显。"),
-            Choice("more-analytical", "更数据分析", "更多 evidence-led 页面。"),
-            Choice("more-architecture", "更架构 / 系统图", "强化系统图和流程图。"),
-            Choice("more-product-demo", "更产品发布 / demo 感", "更像产品展示。"),
-            Choice("denser-internal", "更高密度内部汇报", "更适合内部评审。"),
-            Choice("custom", "自定义", "我有自己的结构方向。"),
-        ),
-    ),
-    Question(
-        key="visual_expression",
-        title="视觉表现力",
-        prompt="是否要改变视觉表现力?",
-        default="keep",
-        choices=(
-            Choice("keep", "保持当前", "不改表现力。"),
-            Choice("more-premium", "更高级 / 更有设计感", "提高整体 polished 感。"),
-            Choice("more-restrained", "更克制 / 更少装饰", "减少视觉噪音。"),
-            Choice("less-cards", "更少卡片，更开放构图", "避免 generic SaaS card grid。"),
-            Choice("stronger-evidence", "更强图表和 evidence-led storytelling", "让证据更直接证明标题。"),
-            Choice("custom", "自定义", "我有自己的表现力要求。"),
-        ),
-    ),
-    Question(
-        key="image_strategy",
-        title="图片策略",
-        prompt="图片和视觉素材怎么调整?",
-        default="keep",
-        choices=(
-            Choice("keep", "保持当前", "不改图片策略。"),
-            Choice("fewer-decorative", "减少装饰图", "更依赖图表和文字。"),
-            Choice("more-ai-concept", "增加 AI 概念图", "只用于已授权场景。"),
-            Choice("official-only", "只用真实截图 / 官方素材", "避免 AI 和不明来源素材。"),
-            Choice("stronger-cover-section", "增强封面或章节视觉", "提升第一印象。"),
-            Choice("custom", "自定义", "我有自己的图片策略。"),
-        ),
-    ),
-    Question(
-        key="logo_strategy",
-        title="Logo / 品牌露出",
-        prompt="Logo 和品牌露出怎么调整?",
-        default="keep",
-        choices=(
-            Choice("keep", "保持当前", "不改品牌露出。"),
-            Choice("cover-final-only", "只保留封面和结束页", "降低干扰。"),
-            Choice("footer-brand", "增强页脚品牌感", "每页轻品牌提示。"),
-            Choice("partner-logo-page", "增加合作方 / 学校 / 企业 logo 页", "适合展示生态或背书。"),
-            Choice("remove-all", "移除所有 logo", "避免品牌资产风险。"),
-            Choice("custom", "自定义", "我有自己的品牌策略。"),
-        ),
-    ),
-)
-
 
 def slugify(value: str) -> str:
     cleaned: str = re.sub(r"[^a-zA-Z0-9_-]+", "-", value.strip().lower()).strip("-")
@@ -1314,9 +1436,25 @@ def now_id() -> str:
 
 
 def workspace_root(base_dir: Path, thread_id: str, task_slug: str) -> Path:
-    # `thread_id` is kept for command compatibility. User-facing PPT assets
-    # should live together under one project-local folder.
-    return base_dir / "PPTX" / task_slug
+    # `thread_id` is kept for command compatibility. New user-facing deck
+    # assets live under Decks/; legacy PPTX/ task folders remain readable.
+    return base_dir / DECK_WORKSPACE_DIR / task_slug
+
+
+def legacy_workspace_root(base_dir: Path, task_slug: str) -> Path:
+    return base_dir / LEGACY_DECK_WORKSPACE_DIR / task_slug
+
+
+def resolve_workspace_root(base_dir: Path, task_slug: str, command: str = "") -> Path:
+    deck_dir: Path = base_dir / DECK_WORKSPACE_DIR / task_slug
+    legacy_dir: Path = legacy_workspace_root(base_dir, task_slug)
+    if command == "init":
+        return legacy_dir if legacy_dir.exists() and not deck_dir.exists() else deck_dir
+    if deck_dir.exists():
+        return deck_dir
+    if legacy_dir.exists():
+        return legacy_dir
+    return deck_dir
 
 
 def status_dir(task_dir: Path) -> Path:
@@ -1402,38 +1540,83 @@ def t(ui_language: str, key: str) -> str:
     return UI_COPY["zh"].get(key, key)
 
 
+def content_language_question() -> Question:
+    return next(question for question in INTAKE_QUESTIONS if question.key == "content_language")
+
+
+def sync_default_content_language(brief: JsonDict, ui_language: str) -> None:
+    if ui_language not in SUPPORTED_UI_LANGUAGES:
+        return
+    selections: Any = brief.get("selections")
+    if not isinstance(selections, dict):
+        return
+    raw_content: Any = selections.get("content_language")
+    if not isinstance(raw_content, dict):
+        return
+    source: str = str(raw_content.get("source", ""))
+    if source not in {"", "default", "auto-detected"}:
+        return
+    question: Question = content_language_question()
+    fallback_label: str = selected_choice(question, ui_language).label
+    raw_content["value"] = ui_language
+    raw_content["label"] = localized_choice_label_value(question, ui_language, fallback_label, ui_language)
+    raw_content["source"] = "default"
+
+
+def update_task_ui_language(task_dir: Path, ui_language: str) -> None:
+    if ui_language not in SUPPORTED_UI_LANGUAGES:
+        return
+    for filename in ("brief-draft.json", "intake-selection.json", "brief-confirmed.json"):
+        path: Path = task_dir / filename
+        data: JsonDict = read_json(path)
+        if not data:
+            continue
+        data["ui_language"] = ui_language
+        data["ui_language_source"] = "user-selected"
+        if filename != "brief-confirmed.json":
+            sync_default_content_language(data, ui_language)
+        write_json(path, data)
+    draft_brief: Path = task_dir / "brief" / "draft-brief.json"
+    data = read_json(draft_brief)
+    if data:
+        data["ui_language"] = ui_language
+        data["ui_language_source"] = "user-selected"
+        sync_default_content_language(data, ui_language)
+        write_json(draft_brief, data)
+
+
 def generation_strategy_text(output_format: str, task_dir: Path, ui_language: str) -> str:
     task_path: str = str(task_dir)
     messages: dict[str, dict[str, str]] = {
         "zh": {
-            "html-revealjs": f"先生成版本化 Reveal.js HTML 到 {task_path}/v1/final.html；最终选择后复制到 {task_path}/final/<task-slug>.html。用浏览器打开即可演示；附加 ?print-pdf 可导出 PDF。",
-            "pptx": f"先生成 v1 PPTX 和 contact sheet，集中保存到 {task_path}，然后打开 style-review.html 供选择是否重绘。",
-            "both": f"先生成 v1/final.pptx 与 v1/final.html；最终选择后复制到 {task_path}/final/。HTML 使用 Reveal.js 动效，PPTX 使用同调色板的纯色背景。",
+            "html-revealjs": f"先生成版本化 Reveal.js HTML 到 {task_path}/v1/final.html；然后打开 preview-review.html 供完整浏览，最终选择后复制到 {task_path}/final/<task-slug>.html。",
+            "pptx": f"先生成 v1 PPTX 和 contact sheet，集中保存到 {task_path}，然后打开 preview-review.html；需要修改时再进入 style-review.html。",
+            "both": f"先生成 v1/final.pptx 与 v1/final.html，然后打开 preview-review.html；最终选择后复制到 {task_path}/final/。",
         },
         "en": {
-            "html-revealjs": f"Generate versioned Reveal.js HTML at {task_path}/v1/final.html first; after final selection it is copied to {task_path}/final/<task-slug>.html. Open it in a browser to present; append ?print-pdf to export PDF.",
-            "pptx": f"Generate the v1 PPTX and contact sheet first, save them under {task_path}, then open style-review.html so you can decide whether to redraw the deck.",
-            "both": f"Generate v1/final.pptx and v1/final.html first; after final selection copy them under {task_path}/final/. HTML uses Reveal.js motion while PPTX uses solid-color equivalents.",
+            "html-revealjs": f"Generate versioned Reveal.js HTML at {task_path}/v1/final.html first; then open preview-review.html for browsing. After final selection it is copied to {task_path}/final/<task-slug>.html.",
+            "pptx": f"Generate the v1 PPTX and contact sheet first, save them under {task_path}, then open preview-review.html; enter style-review.html only if changes are needed.",
+            "both": f"Generate v1/final.pptx and v1/final.html first, then open preview-review.html. After final selection copy them under {task_path}/final/.",
         },
         "de": {
-            "html-revealjs": f"Zuerst wird versioniertes Reveal.js-HTML unter {task_path}/v1/final.html erzeugt; nach finaler Auswahl wird es nach {task_path}/final/<task-slug>.html kopiert.",
-            "pptx": f"Zuerst werden v1-PPTX und Contact Sheet erzeugt und unter {task_path} gespeichert. Danach wird style-review.html geöffnet, damit Sie entscheiden können, ob das Deck visuell überarbeitet werden soll.",
-            "both": f"Zuerst werden v1/final.pptx und v1/final.html erzeugt; nach finaler Auswahl werden sie unter {task_path}/final/ kopiert.",
+            "html-revealjs": f"Zuerst wird Reveal.js-HTML unter {task_path}/v1/final.html erzeugt; danach wird preview-review.html geöffnet. Nach finaler Auswahl wird es nach {task_path}/final/<task-slug>.html kopiert.",
+            "pptx": f"Zuerst werden v1-PPTX und Contact Sheet unter {task_path} gespeichert, danach wird preview-review.html geöffnet; style-review.html nur bei Änderungsbedarf.",
+            "both": f"Zuerst werden v1/final.pptx und v1/final.html erzeugt, danach wird preview-review.html geöffnet. Nach finaler Auswahl werden sie unter {task_path}/final/ kopiert.",
         },
         "fr": {
-            "html-revealjs": f"Générer d'abord le HTML Reveal.js versionné dans {task_path}/v1/final.html; après le choix final, le copier dans {task_path}/final/<task-slug>.html.",
-            "pptx": f"Générer d'abord le PPTX v1 et la planche de contact dans {task_path}, puis ouvrir style-review.html pour décider d'une éventuelle refonte visuelle.",
-            "both": f"Générer d'abord v1/final.pptx et v1/final.html; après le choix final, les copier dans {task_path}/final/.",
+            "html-revealjs": f"Générer d'abord le HTML Reveal.js versionné dans {task_path}/v1/final.html, puis ouvrir preview-review.html; après le choix final, le copier dans {task_path}/final/<task-slug>.html.",
+            "pptx": f"Générer d'abord le PPTX v1 et la planche de contact dans {task_path}, puis ouvrir preview-review.html; style-review.html seulement si des changements sont nécessaires.",
+            "both": f"Générer d'abord v1/final.pptx et v1/final.html, puis ouvrir preview-review.html; après le choix final, les copier dans {task_path}/final/.",
         },
         "it": {
-            "html-revealjs": f"Genera prima l'HTML Reveal.js versionato in {task_path}/v1/final.html; dopo la scelta finale copialo in {task_path}/final/<task-slug>.html.",
-            "pptx": f"Genera prima il PPTX v1 e il contact sheet in {task_path}, poi apri style-review.html per decidere se ridisegnare il deck.",
-            "both": f"Genera prima v1/final.pptx e v1/final.html; dopo la scelta finale copiali in {task_path}/final/.",
+            "html-revealjs": f"Genera prima l'HTML Reveal.js versionato in {task_path}/v1/final.html, poi apri preview-review.html; dopo la scelta finale copialo in {task_path}/final/<task-slug>.html.",
+            "pptx": f"Genera prima il PPTX v1 e il contact sheet in {task_path}, poi apri preview-review.html; style-review.html solo se servono modifiche.",
+            "both": f"Genera prima v1/final.pptx e v1/final.html, poi apri preview-review.html; dopo la scelta finale copiali in {task_path}/final/.",
         },
         "es": {
-            "html-revealjs": f"Primero genera el HTML Reveal.js versionado en {task_path}/v1/final.html; tras la selección final cópialo a {task_path}/final/<task-slug>.html.",
-            "pptx": f"Primero genera el PPTX v1 y la hoja de contacto en {task_path}, y luego abre style-review.html para decidir si redibujar el deck.",
-            "both": f"Primero genera v1/final.pptx y v1/final.html; tras la selección final cópialos en {task_path}/final/.",
+            "html-revealjs": f"Primero genera el HTML Reveal.js versionado en {task_path}/v1/final.html, luego abre preview-review.html; tras la selección final cópialo a {task_path}/final/<task-slug>.html.",
+            "pptx": f"Primero genera el PPTX v1 y la hoja de contacto en {task_path}, luego abre preview-review.html; style-review.html solo si hacen falta cambios.",
+            "both": f"Primero genera v1/final.pptx y v1/final.html, luego abre preview-review.html; tras la selección final cópialos en {task_path}/final/.",
         },
     }
     language_messages: dict[str, str] = messages.get(ui_language, messages["en"])
@@ -1592,10 +1775,17 @@ def validate_generation_guard(task_dir: Path) -> list[str]:
             errors.append("confirmation_gate.token_verified is not true.")
 
     raw_image_mode: Any = brief.get("image_generation_mode")
-    if raw_image_mode is None:
-        return errors
-
     image_policy: str = image_policy_from_brief(brief)
+
+    # When image_policy requires a decision and no mode has been set, the
+    # Image Style Gate was never completed — block generation.
+    if raw_image_mode is None:
+        if image_policy != "none":
+            errors.append(
+                "image_generation_mode is not set. "
+                "Open the Image Style Gate and save your image settings before generating."
+            )
+        return errors
     image_mode: str = normalize_image_generation_mode(str(raw_image_mode), image_policy)
     if str(raw_image_mode) not in IMAGE_GENERATION_MODES:
         errors.append(f"Invalid image_generation_mode: {raw_image_mode}")
@@ -1642,6 +1832,16 @@ def validate_generation_guard(task_dir: Path) -> list[str]:
                 + ", ".join(stale_or_missing)
             )
 
+        # Stub placeholders exist on disk but are not real AI images — block delivery.
+        stub_ids: set[str] = stub_placeholder_target_ids(task_dir) & planned_target_ids
+        if stub_ids:
+            errors.append(
+                "Pre-v1 image targets are solid-colour stub placeholders, not real AI images: "
+                + ", ".join(sorted(stub_ids))
+                + ". Run `generate_images.py show` to get prompts, generate images with any AI tool, "
+                "then register them with `generate_images.py place --source <path> --target-id <id>`."
+            )
+
     output_format: str = output_format_from_brief(brief, "pptx")
     if image_mode in POST_V1_IMAGE_MODES and v1_preview_exists(task_dir, output_format):
         if not status_exists(task_dir, "images-placement"):
@@ -1672,6 +1872,13 @@ def validate_generation_guard(task_dir: Path) -> list[str]:
                 last_error = str(last_attempt.get("error", ""))
         suffix: str = f": {last_error}" if last_error else ""
         errors.append(f"Image asset {target_id} failed after retry policy{suffix}")
+
+    # Font-size QA: warn if a previously-generated HTML deck has unreadably small text.
+    v1_html: Path = task_dir / "v1" / "final.html"
+    font_warnings: list[str] = html_small_font_warnings(v1_html)
+    for fw in font_warnings:
+        errors.append(f"HTML font-size QA: {fw}")
+
     return errors
 
 
@@ -1689,9 +1896,9 @@ def default_intake_value(question: Question, sources: list[str], ui_language: st
         return "provided-only" if sources else "web-with-sources"
     if question.key == "research_strategy":
         if not sources:
-            return "hybrid-deep-research"
+            return "codex-web-deep"
         source_text: str = " ".join(sources).lower()
-        if any(token in source_text for token in ("gemini", "perplexity", "deep-research", "deep research")):
+        if any(token in source_text for token in ("gemini", "perplexity", "deep-research", "deep research", "kimi", "doubao")):
             return "external-deep-research"
         return "provided-materials"
     return question.default
@@ -1770,15 +1977,37 @@ def html_motion_profile_from_brief(brief: JsonDict) -> str:
     return "presenter"
 
 
+def html_layout_families_from_brief(brief: JsonDict) -> list[str]:
+    topic: str = str(brief.get("topic", ""))
+    selections: JsonDict = brief.get("selections", {}) if isinstance(brief.get("selections"), dict) else {}
+    context: str = classify_visual_context(topic, selections)
+    context_key: str = {
+        "research": "research",
+        "engineering": "engineering",
+        "market": "pitch",
+    }.get(context, "default")
+    return list(CONTEXT_LAYOUT_MAP.get(context_key, CONTEXT_LAYOUT_MAP["default"]))
+
+
+def html_theme_key_from_brief(brief: JsonDict, candidate: JsonDict) -> str:
+    selected_theme: str = str(brief.get("html_theme_key", "auto")).strip() or "auto"
+    if selected_theme != "auto":
+        return selected_theme
+    return str(candidate.get("suggested_html_theme", "")).strip() or "minimal-white"
+
+
 def html_config_from_brief(brief: JsonDict, motion_level: str) -> JsonDict:
     candidate: JsonDict = selected_visual_candidate_from_brief(brief)
+    motion_profile: str = html_motion_profile_from_brief(brief)
     return {
-        "motion_profile": html_motion_profile_from_brief(brief),
+        "theme_key": html_theme_key_from_brief(brief, candidate),
+        "motion_profile": motion_profile,
         "motion_level": motion_level,
         "animation_density": html_animation_density_for_level(motion_level),
         "transition": str(candidate.get("html_transition", "fade")),
         "animation": str(candidate.get("html_animation", "minimal")),
         "gradient": str(candidate.get("html_gradient", "")),
+        "layout_families": html_layout_families_from_brief(brief),
         "effects_runtime": "css-only",
         "canvas_fx": False,
         "notes": "Canvas/WebGL effects are future capability; current cinematic mode uses CSS-only motion.",
@@ -1803,6 +2032,21 @@ def image_prompt_draft(brief: JsonDict, target_id: str, slide_role: str, placeme
     palette_values: list[str] = [str(color) for color in candidate.get("palette", []) if str(color).strip()]
     palette: str = ", ".join(palette_values[:4]) or "the confirmed visual palette"
     visual_style: str = str(candidate.get("name", "confirmed visual direction"))
+    lang: str = ui_language_from_brief(brief)
+    if lang == "zh":
+        return (
+            f"演示文稿抽象背景图，主题「{topic}」，用途：{slide_role}，放置方式：{placement_type}。"
+            f"使用「{visual_style}」视觉方向和调色板 {palette}。"
+            "禁止出现：文字、字母、logo、人物、面孔、虚假截图、任何现实品牌或产品声索。"
+            "为幻灯片文字内容留出充足负空间，保持足够的对比度以便文字叠加。"
+        )
+    if lang == "de":
+        return (
+            f"Abstrakter Präsentationshintergrund zum Thema '{topic}', Verwendung: {slide_role}, Platzierung: {placement_type}. "
+            f"Visuelle Richtung '{visual_style}', Palette {palette}. "
+            "Kein Text, keine Buchstaben, keine Logos, keine Personen, keine Gesichter, keine gefälschten Screenshots. "
+            "Ausreichend Negativraum für Folieninhalt, Kontrast für Textüberlagerung sicherstellen."
+        )
     return (
         f"Abstract presentation background for '{topic}', {slide_role}, {placement_type}. "
         f"Use the {visual_style} direction and palette {palette}. "
@@ -1883,11 +2127,28 @@ def successful_asset_target_ids(task_dir: Path) -> set[str]:
     return target_ids
 
 
+def stub_placeholder_target_ids(task_dir: Path) -> set[str]:
+    """Return target IDs that were generated by the stub backend (solid-colour placeholders)."""
+    target_ids: set[str] = set()
+    for record in image_asset_records(task_dir):
+        if record.get("final_status") != "stub-placeholder":
+            continue
+        target_id: str = str(record.get("target_id", record.get("id", ""))).strip()
+        if target_id:
+            target_ids.add(target_id)
+    return target_ids
+
+
 def successful_asset_prompts(task_dir: Path) -> dict[str, str]:
-    """Return target_id → prompt used in the last successful attempt."""
+    """Return target_id → prompt for the last successful or stub-placeholder attempt.
+
+    Stub images count as "present" so the guard's missing-target check does not
+    fire with a generic message; the dedicated stub-placeholder check handles them.
+    """
     result: dict[str, str] = {}
     for record in image_asset_records(task_dir):
-        if record.get("final_status") != "success":
+        final_status: str = str(record.get("final_status", ""))
+        if final_status not in ("success", "stub-placeholder"):
             continue
         target_id: str = str(record.get("target_id", record.get("id", ""))).strip()
         if not target_id:
@@ -1896,11 +2157,43 @@ def successful_asset_prompts(task_dir: Path) -> dict[str, str]:
         attempts: list[JsonDict] = [a for a in attempts_any if isinstance(a, dict)] if isinstance(attempts_any, list) else []
         prompt: str = ""
         for attempt in reversed(attempts):
-            if attempt.get("status") == "success":
+            if attempt.get("status") in ("success", "stub-placeholder"):
                 prompt = str(attempt.get("prompt", ""))
                 break
         result[target_id] = prompt
     return result
+
+
+def html_small_font_warnings(html_path: Path, min_em: float = 0.72) -> list[str]:
+    """Scan an HTML file for CSS font-size values below min_em and return warning strings.
+
+    Only em/px values in style blocks and inline styles are checked.
+    Pixel threshold is derived from Reveal.js default base of 16px.
+    """
+    import re as _re
+    if not html_path.exists():
+        return []
+    text: str = html_path.read_text(encoding="utf-8", errors="replace")
+    min_px: float = min_em * 16
+    warnings: list[str] = []
+    seen: set[str] = set()
+
+    for m in _re.finditer(r"font-size\s*:\s*([\d.]+)(em|px)", text):
+        value_str, unit = m.group(1), m.group(2)
+        try:
+            value = float(value_str)
+        except ValueError:
+            continue
+        px = value if unit == "px" else value * 16
+        if px < min_px:
+            key = f"{value_str}{unit}"
+            if key not in seen:
+                seen.add(key)
+                warnings.append(
+                    f"font-size:{value_str}{unit} ({px:.1f}px) is below the {min_em}em "
+                    f"({min_px:.1f}px) minimum — increase to avoid unreadable text."
+                )
+    return warnings
 
 
 def failed_image_asset_messages(task_dir: Path) -> list[str]:
@@ -1966,6 +2259,7 @@ def visual_candidate_to_json(candidate: VisualCandidate) -> JsonDict:
         "html_transition": candidate.html_transition,
         "html_animation": candidate.html_animation,
         "html_gradient": candidate.html_gradient,
+        "suggested_html_theme": candidate.suggested_html_theme,
     }
 
 
@@ -1986,340 +2280,236 @@ def classify_visual_context(topic: str, selections: JsonDict) -> str:
     return "general"
 
 
-def html_profile_for_candidate(context: str, candidate: VisualCandidate) -> tuple[str, str, str]:
+def _palette_is_light(palette: tuple[str, ...]) -> bool:
+    """Return True if palette[0] is a light colour (background colour)."""
+    if not palette:
+        return True
+    hex_color: str = palette[0].lstrip("#")
+    if len(hex_color) != 6:
+        return True
+    r, g, b = int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16)
+    # Relative luminance threshold: > 0.45 is considered light
+    luminance: float = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+    return luminance > 0.45
+
+
+def html_profile_for_candidate(context: str, candidate: VisualCandidate) -> tuple[str, str, str, str]:
     text: str = f"{context} {candidate.key} {candidate.name} {candidate.summary}".lower()
-    if any(token in text for token in ("pitch", "investor", "studio-pitch", "路演", "投资")):
-        return "zoom", "rich", "linear-gradient(135deg, #1a1a2e, #16213e, #0f3460)"
-    if any(token in text for token in ("product", "launch", "brand", "studio-visual", "creative", "产品", "创意")):
-        return "convex", "rich", "linear-gradient(135deg, #667eea, #764ba2)"
-    if "aurora" in text:
-        return "zoom", "rich", "linear-gradient(135deg, #e0f2fe, #dbeafe, #f0fdf4)"
+    is_light: bool = _palette_is_light(candidate.palette)
+
+    # Dark-theme profiles — only applied when palette is also dark
+    if not is_light:
+        if any(token in text for token in ("pitch", "investor", "launch", "studio-pitch", "路演", "投资")):
+            return "zoom", "rich", "linear-gradient(135deg, #1a1a2e, #16213e, #0f3460)", "pitch-deck-vc"
+        if context == "engineering" or any(token in text for token in ("engineering", "terminal", "system", "signal", "architecture", "科技", "工程")):
+            return "slide", "moderate", "linear-gradient(135deg, #0f0c29, #302b63, #24243e)", "blueprint"
+
+    # Light-theme profiles
     if context == "research" or any(token in text for token in ("academic", "clinical", "medical", "atlas", "research", "学术", "知识")):
-        return "fade", "minimal", "linear-gradient(135deg, #f5f7fa, #c3cfe2)"
-    if any(token in text for token in ("boardroom", "consulting", "roadmap", "restrained", "正式", "克制")):
-        return "fade", "minimal", ""
-    if context == "engineering" or any(token in text for token in ("engineering", "terminal", "system", "signal", "architecture", "科技", "工程")):
-        return "slide", "moderate", "linear-gradient(135deg, #0f0c29, #302b63, #24243e)"
-    return "fade", "minimal", ""
+        return "fade", "minimal", "linear-gradient(135deg, #f5f7fa, #c3cfe2)", "academic-paper"
+    if any(token in text for token in ("editorial", "narrative", "essay")):
+        return "fade", "moderate", "", "editorial-serif"
+    if any(token in text for token in ("product", "brand", "studio-visual", "creative", "launch", "产品", "创意")):
+        if is_light:
+            return "zoom", "rich", "", "minimal-white"
+        return "convex", "rich", "linear-gradient(135deg, #667eea, #764ba2)", "glassmorphism"
+    if any(token in text for token in ("aurora", "science", "tech", "energy")):
+        return "zoom", "rich", "linear-gradient(135deg, #e0f2fe, #dbeafe, #f0fdf4)", "aurora"
+
+    # Dark fallback for dark palettes
+    if not is_light:
+        return "zoom", "rich", "linear-gradient(135deg, #1a1a2e, #16213e, #0f3460)", "pitch-deck-vc"
+    return "fade", "minimal", "", "corporate-clean"
 
 
 def with_html_profile(context: str, candidate: VisualCandidate) -> VisualCandidate:
-    html_transition, html_animation, html_gradient = html_profile_for_candidate(context, candidate)
+    html_transition, html_animation, html_gradient, suggested_html_theme = html_profile_for_candidate(context, candidate)
     return replace(
         candidate,
         html_transition=html_transition,
         html_animation=html_animation,
         html_gradient=html_gradient,
+        suggested_html_theme=suggested_html_theme,
     )
 
 
 def build_visual_candidates(topic: str, selections: JsonDict) -> tuple[VisualCandidate, ...]:
+    """Return 6 universal visual direction candidates (3 light + 3 dark).
+
+    Candidates are reordered so the most context-relevant one is first,
+    but all six are always available. The HTML theme is baked into each
+    candidate — there is no separate theme selection step.
+    """
     context: str = classify_visual_context(topic, selections)
-    libraries: dict[str, tuple[VisualCandidate, ...]] = {
-        "sports": (
-            VisualCandidate(
-                "broadcast-analytics",
-                "Broadcast Analytics",
-                "像体育转播数据大屏，节奏强、数字醒目、对比高。",
-                "赛事复盘、球队经营、体育商业分析。",
-                "严肃学术汇报或低调内部材料。",
-                ("#07111f", "#f7f8fb", "#24d18b", "#ffcc33"),
-                "深色场地感背景，少量动线和数据网格。",
-                "粗标题 + 紧凑数字标签。",
-                "比分板式大数字、左右对抗、关键事件时间线。",
-                "排名、雷达、趋势线，直接标注而少用图例。",
-                "真实赛事/训练素材优先；没有素材时使用抽象运动轨迹。",
-                "sports broadcast UI + html deck theme catalog + evidence dashboard",
-                "容易过于娱乐化，商业策略页需要降噪。",
-            ),
-            VisualCandidate(
-                "performance-lab",
-                "Performance Lab",
-                "运动科学实验室风格，干净、精准、强调指标和方法。",
-                "训练表现、运动医学、青训体系、数据分析。",
-                "需要强情绪感染力的路演封面。",
-                ("#f4f7f8", "#17202a", "#006b7a", "#f05a28"),
-                "浅底实验室网格，局部使用测量线和坐标标尺。",
-                "清晰无衬线，数字使用 tabular 风格。",
-                "指标卡 + 流程图 + 对比切片。",
-                "小 multiples、区间带、前后对照。",
-                "真实运动员素材需来源明确；可用抽象人体运动线框。",
-                "performance dashboard + scientific poster + ui-ux-pro-max chart grammar",
-                "可能偏理性，封面需要额外增强视觉冲击。",
-            ),
-            VisualCandidate(
-                "club-strategy-room",
-                "Club Strategy Room",
-                "俱乐部董事会/战术室风格，适合把体育主题讲成战略问题。",
-                "球队战略、商业化、组织治理、赞助规划。",
-                "纯技术训练分析。",
-                ("#102033", "#f0eadc", "#b99855", "#e85d04"),
-                "暖纸 + 深色战术线，背景像会议室白板和策略地图。",
-                "稳重标题字体，正文较克制。",
-                "战略地图、路径图、stakeholder matrix。",
-                "瀑布图、路线图、二维象限。",
-                "尽量使用真实 logo/球衣/场馆素材；无授权则不用。",
-                "strategy room + editorial deck + locked visual contract",
-                "如果资料很多，需要避免把每页做成咨询报告表格。",
-            ),
-        ),
-        "strategy": (
-            VisualCandidate(
-                "executive-boardroom",
-                "Executive Boardroom",
-                "高层决策汇报风格，克制但有权威感。",
-                "战略规划、预算、组织调整、董事会汇报。",
-                "创意发布会或教学课程。",
-                ("#0f172a", "#f8fafc", "#3b82f6", "#c8a24a"),
-                "浅底为主，关键页使用深色整页强调。",
-                "强层级标题，正文短句化。",
-                "决策摘要、风险矩阵、路线图、经营仪表盘。",
-                "waterfall、scenario matrix、milestone roadmap。",
-                "少装饰，优先使用真实业务图表和图标。",
-                "consulting deck + executive dashboard + design-lock discipline",
-                "如果全程深色，会显得压抑；应控制深色页比例。",
-            ),
-            VisualCandidate(
-                "consulting-roadmap",
-                "Consulting Roadmap",
-                "咨询公司路线图风格，结构强、阶段清楚。",
-                "三年规划、转型项目、市场进入策略。",
-                "需要强品牌个性的产品发布。",
-                ("#ffffff", "#111827", "#2563eb", "#f97316"),
-                "纯白背景，细线分区，少量高饱和强调。",
-                "标题结论句化，正文像 executive memo。",
-                "阶段推进、2x2、能力地图、优先级排序。",
-                "矩阵、堆叠条、战略地图。",
-                "不依赖图片，强调结构图和业务对象。",
-                "strategy scaffold + html-ppt-skill template catalog + ui-ux-pro-max UX rules",
-                "容易变成普通咨询模板，需要用主题专属 proof object 打破通用感。",
-            ),
-            VisualCandidate(
-                "operating-model-dashboard",
-                "Operating Model Dashboard",
-                "运营模型仪表盘风格，适合把规划落到指标和机制。",
-                "年度经营计划、组织运行、OKR、流程治理。",
-                "纯品牌故事或情绪型演讲。",
-                ("#eef2f6", "#1f2937", "#0f766e", "#7c3aed"),
-                "浅灰工作台背景，模块边界清楚，强调可扫描。",
-                "中等字号、高信息密度但留白稳定。",
-                "机制图、RACI、节奏表、指标看板。",
-                "KPI cards、heatmap、pipeline funnel。",
-                "真实流程图/组织图优先，不用装饰性背景图。",
-                "operational SaaS UI + dashboard grammar + quality gates",
-                "过密时容易不适合演讲，需要 split slide。",
-            ),
-        ),
-        "research": (
-            VisualCandidate(
-                "clinical-atlas",
-                "Clinical Atlas",
-                "研究图谱风格，适合复杂证据链和研发路径。",
-                "医学、生命科学、政策研究、技术综述。",
-                "销售型产品发布和强情绪路演。",
-                ("#f6f8fb", "#132238", "#0f6f8f", "#d97706"),
-                "浅底研究图谱，局部使用细网格、节点和证据线。",
-                "学术无衬线，标题清楚，来源小字统一。",
-                "证据链、pipeline、机制图、分层框架。",
-                "pipeline、forest-like comparison、evidence table。",
-                "真实图表和示意图优先；AI 图只作抽象章节背景。",
-                "academic design-lock + evidence dashboard + source-first QA",
-                "如果每页都很理性，封面和章节页需要更强视觉记忆点。",
-            ),
-            VisualCandidate(
-                "biotech-pipeline",
-                "Biotech Pipeline",
-                "生物科技投资人 deck 风格，重点突出机会、管线和决策。",
-                "药物研发、创新技术、融资路演、BD 汇报。",
-                "纯课程教学或极保守学术答辩。",
-                ("#08111f", "#f8fafc", "#4cc9f0", "#ffb703"),
-                "深浅交替，封面和章节页有高对比抽象分子/路径背景。",
-                "大标题 + 突出 milestone 和数据。",
-                "研发管线、市场窗口、风险消减、里程碑。",
-                "pipeline chart、TAM blocks、risk ladder。",
-                "可生成抽象科学背景，但不能伪造实验图片或监管标志。",
-                "startup pitch + clinical pipeline layout + visual preview selection",
-                "容易过度路演化，需保留来源和监管谨慎语气。",
-            ),
-            VisualCandidate(
-                "medical-editorial",
-                "Medical Editorial",
-                "高质量医学长文/期刊特稿风格，适合解释复杂主题。",
-                "研究综述、课程讲解、公众科普、专家分享。",
-                "需要强销售转化的商业 deck。",
-                ("#f2efe8", "#1f2933", "#6b7c93", "#b35c1e"),
-                "暖纸底、细分隔线、少量图像纹理。",
-                "出版物式标题，正文段落可读性优先。",
-                "定义、分层、对比、时间线、注释式图表。",
-                "annotated timeline、small multiples、callout table。",
-                "少量抽象背景；内容页保持干净。",
-                "editorial design-lock + beautiful template contract + typography rules",
-                "可能不够有冲击力，商业听众需要增加关键数字页。",
-            ),
-            VisualCandidate(
-                "aurora-light",
-                "Aurora Light",
-                "浅色底+渐变光晕+动感数据展示。兼顾可读性与科技感动画，深色字配发光强调色。",
-                "学术讲演、公众演讲、科技科普、混合光源投影场景。",
-                "需要强戏剧感的深色大屏路演或暗场展示。",
-                ("#f0f9ff", "#0d2137", "#0d7ea2", "#d97706"),
-                "浅蓝白底，封面使用淡蓝/薄荷渐变；内容页用渐变色标题和发光数字强调。",
-                "深色主文字 + 渐变色大标题（CSS gradient-text）+ 发光数字。",
-                "发光数据卡、渐变进度条、动态机制图、3D标题效果。",
-                "渐变色填充进度条、光晕数字卡、轻玻璃感卡片。",
-                "浅底+淡色渐变，封面使用蓝/薄荷渐变光晕；内容页保持高对比深色文字。",
-                "aurora design + glassmorphism light + gradient-text + animated accents",
-                "投影机亮度不足时渐变光晕可能变浅，建议调高亮度；避免纯白内容页缺乏层次。",
-            ),
-        ),
-        "engineering": (
-            VisualCandidate(
-                "signal-system",
-                "Signal System",
-                "系统评审风格，清晰、工程化、数据前置。",
-                "平台架构、工程汇报、技术路线、SRE/数据系统。",
-                "品牌发布会或教学科普。",
-                ("#f8fafc", "#111827", "#0061ff", "#16a34a"),
-                "浅底工程网格，少量蓝色信号线。",
-                "紧凑标题，代码/指标用等宽或 tabular 数字。",
-                "架构图、数据流、模块责任、指标看板。",
-                "latency charts、dependency map、before/after bars。",
-                "真实截图优先，截图可美化但不重画事实。",
-                "Signal design language + architecture QA + screenshot treatment rules",
-                "如果不加故事节奏，容易像技术文档。",
-            ),
-            VisualCandidate(
-                "terminal-architecture",
-                "Terminal Architecture",
-                "高对比开发者工具风格，适合代码和基础设施。",
-                "infra、DevOps、AI agent、开发者平台。",
-                "非技术高层或客户销售。",
-                ("#09090b", "#fafafa", "#7dd3fc", "#a3e635"),
-                "深色终端背景，细线拓扑和命令行提示。",
-                "大标题清晰，代码块严格控制长度。",
-                "系统拓扑、调用链、状态机、故障演练。",
-                "sequence diagram、service map、error budget chart。",
-                "避免假 UI；真实终端/产品截图需来源明确。",
-                "Terminal design language + locked layout IDs + render QA",
-                "不适合长正文，文字必须拆页。",
-            ),
-            VisualCandidate(
-                "product-operations",
-                "Product Operations",
-                "产品运营工作台风格，适合把技术价值讲给业务方。",
-                "产品方案、客户场景、运营效率、自动化平台。",
-                "底层架构深挖。",
-                ("#f4f6f8", "#1f2937", "#0ea5e9", "#f59e0b"),
-                "浅灰 SaaS 工作台，但减少普通卡片堆叠。",
-                "清楚的组件标题和短解释。",
-                "用户旅程、功能流程、价值闭环、仪表盘。",
-                "funnel、cohort trend、task flow。",
-                "真实产品截图优先，必要时使用线框场景图。",
-                "SaaS UI + product launch scaffold + no generic card grid rule",
-                "若卡片过多会显得普通，需要开放构图页做节奏变化。",
-            ),
-        ),
-        "market": (
-            VisualCandidate(
-                "studio-pitch",
-                "Studio Pitch",
-                "更像高质量创业路演，节奏快、对比强、视觉记忆点明显。",
-                "融资、比赛、产品发布、BD。",
-                "监管、医学、法务等需要克制语气的汇报。",
-                ("#101828", "#ffffff", "#5b7cfa", "#ff6b35"),
-                "深浅切换，大封面和章节图形成记忆点。",
-                "短标题、大数字、强对比。",
-                "问题-方案-证明-增长-请求。",
-                "traction chart、market map、before/after。",
-                "可以用抽象概念图，但不能伪造客户 logo 或产品截图。",
-                "Studio design language + pitch deck scaffold + visual-led HTML previews",
-                "若证据不足，强表现力会放大可信度风险。",
-            ),
-            VisualCandidate(
-                "product-launch",
-                "Product Launch",
-                "产品发布会风格，突出用户场景和体验。",
-                "新品发布、功能介绍、客户演示。",
-                "高密度内部复盘。",
-                ("#ffffff", "#0f172a", "#7c3aed", "#06b6d4"),
-                "干净背景 + 大图区域 + 少量品牌渐变。",
-                "标题直接，辅助文案短。",
-                "场景、功能、流程、价值证明。",
-                "feature matrix、workflow、adoption trend。",
-                "真实产品截图优先；无截图时用抽象线框，不伪造 UI。",
-                "product launch template + screenshot slot contract + ui-ux-pro-max style match",
-                "如果没有真实素材，视觉会偏概念化。",
-            ),
-            VisualCandidate(
-                "brand-narrative",
-                "Brand Narrative",
-                "品牌叙事风格，强调信任、愿景和故事线。",
-                "品牌升级、客户提案、公益/教育项目。",
-                "纯技术评审或数据审计。",
-                ("#f7f2e8", "#1c1917", "#2563eb", "#c2410c"),
-                "暖底、摄影/插画槽位、章节像短篇故事。",
-                "叙事标题，正文强调节奏。",
-                "用户故事、价值阶梯、生态地图。",
-                "impact metrics、quote callout、timeline。",
-                "真实人物/客户素材必须授权；否则使用抽象场景图。",
-                "editorial template + brand system + visual contract depth",
-                "如果目标是做决策，故事页必须配决策页。",
-            ),
-        ),
-    }
-    default_candidates: tuple[VisualCandidate, ...] = (
-        VisualCandidate(
-            "atlas-explanatory",
-            "Atlas Explanatory",
-            "结构化知识图谱风格，适合把复杂主题讲清楚。",
-            "研究、课程、政策、行业分析。",
-            "强销售转化或纯代码评审。",
-            ("#f6f3ee", "#1f2937", "#2563eb", "#b45309"),
-            "浅底、细网格、少量章节色块。",
-            "稳健标题，正文强调可读性。",
-            "框架图、时间线、对比表、证据链。",
-            "timeline、matrix、annotated chart。",
-            "抽象背景只用于封面和章节页。",
-            "Atlas design language + design-lock registry + source-first planner",
-            "可能偏解释型，需要在封面增强主题记忆点。",
-        ),
-        VisualCandidate(
-            "signal-dashboard",
-            "Signal Dashboard",
-            "数据和机制先行，适合把主题变成可行动判断。",
-            "策略、运营、工程、管理汇报。",
-            "情绪型演讲或品牌故事。",
-            ("#f8fafc", "#0f172a", "#0f766e", "#f59e0b"),
-            "浅灰工作台背景，图表和流程为主。",
-            "数字清楚，标签短。",
-            "dashboard、flow、roadmap、decision matrix。",
-            "KPI、trend、heatmap、funnel。",
-            "少图片，多使用原生图表和形状。",
-            "Signal design language + dashboard UI + quality gates",
-            "容易过密，必须控制每页 proof object 数量。",
-        ),
-        VisualCandidate(
-            "studio-visual",
-            "Studio Visual",
-            "更强视觉表达，适合需要第一眼吸引力的 deck。",
-            "路演、发布、竞赛、客户提案。",
-            "保守审计或纯学术材料。",
-            ("#111827", "#ffffff", "#6366f1", "#f97316"),
-            "强封面、章节视觉和深浅对比。",
-            "大标题、短句、视觉锚点。",
-            "hero statement、before/after、proof snapshot。",
-            "大数字、对比图、简化趋势。",
-            "允许抽象概念图，禁止伪造真实资产。",
-            "Studio design language + 3-preview workflow + visual-led templates",
-            "表现力强时更需要事实来源压住可信度。",
-        ),
+
+    # ── 3 light-background candidates ────────────────────────────────
+    product_launch = VisualCandidate(
+        key="product-launch",
+        name="简洁产品（浅色）",
+        summary="白底干净，视觉焦点在内容本身，适合大多数演示场合的默认选择。",
+        best_for="产品介绍、课堂讲义、功能展示、客户演示、教学课程。",
+        avoid_for="需要强视觉冲击力或暗场放映的场合。",
+        palette=("#ffffff", "#0f172a", "#7c3aed", "#06b6d4"),
+        background="纯白底 + 少量紫/青品牌渐变装饰，内容页保持极简。",
+        typography="无衬线标题直接有力，正文短句，数字突出。",
+        layout="封面英雄区、功能卡片网格、流程箭头、价值证明、行动号召。",
+        chart="feature matrix、workflow、adoption trend、KPI 卡片。",
+        image_strategy="真实产品截图优先；无截图时用抽象线框，不伪造 UI。",
+        inspiration="product launch template + screenshot slot contract + ui-ux-pro-max style match",
+        risk="如果没有真实素材，视觉会偏概念化；需要补充真实 proof object。",
+        html_transition="zoom",
+        html_animation="rich",
+        html_gradient="",
+        suggested_html_theme="minimal-white",
     )
-    selected_candidates: tuple[VisualCandidate, ...] = libraries.get(context, default_candidates)
-    return tuple(with_html_profile(context, candidate) for candidate in selected_candidates)
+
+    academic_paper = VisualCandidate(
+        key="academic-paper",
+        name="学术论文（浅色）",
+        summary="暖白底、证据优先，适合需要清楚呈现来源和研究逻辑的演示。",
+        best_for="论文答辩、学术汇报、研究成果展示、临床报告、课题汇报。",
+        avoid_for="需要强视觉娱乐性或销售转化的商业路演。",
+        palette=("#fdf4f0", "#1c1917", "#2563eb", "#c2410c"),
+        background="暖白底，局部使用细网格和来源标注线，不用装饰背景图。",
+        typography="标题清楚结论化，正文段落可读性优先，来源标注统一小字。",
+        layout="摘要框、证据链、机制图、数据表、对比分析、结论 + 局限性。",
+        chart="forest plot、annotated timeline、evidence table、small multiples。",
+        image_strategy="只使用有授权或自制的实验图和示意图；AI 图仅作抽象章节背景。",
+        inspiration="academic design-lock + evidence dashboard + source-first QA",
+        risk="全理性容易无聊；封面和章节页需要更强视觉记忆点。",
+        html_transition="fade",
+        html_animation="minimal",
+        html_gradient="",
+        suggested_html_theme="academic-paper",
+    )
+
+    business_report = VisualCandidate(
+        key="business-report",
+        name="商务简报（浅色）",
+        summary="中性白底、网格结构、商务严谨，适合内部汇报和管理层演示。",
+        best_for="运营分析、管理汇报、年度总结、数据对比、工作计划。",
+        avoid_for="创意类、娱乐类、或需要品牌个性的产品发布。",
+        palette=("#f8fafc", "#1e293b", "#0ea5e9", "#10b981"),
+        background="浅灰工作台底色，模块边界清楚，强调可扫描性。",
+        typography="中等字号、高信息密度但留白稳定，标题结论句化。",
+        layout="决策摘要、KPI 仪表盘、路线图、风险矩阵、对比切片。",
+        chart="waterfall、KPI cards、heatmap、pipeline funnel、milestone roadmap。",
+        image_strategy="少用图片，优先使用原生图表、流程图和业务对象。",
+        inspiration="consulting deck + operational SaaS UI + executive dashboard",
+        risk="过密时容易不适合演讲，需要拆分幻灯片控制信息量。",
+        html_transition="slide",
+        html_animation="minimal",
+        html_gradient="",
+        suggested_html_theme="corporate-clean",
+    )
+
+    # ── 3 dark-background candidates ─────────────────────────────────
+    investor_pitch = VisualCandidate(
+        key="investor-pitch",
+        name="路演融资（深色）",
+        summary="深色底强节奏，短标题大对比，适合以说服和决策为目标的高压演示。",
+        best_for="投资路演、竞赛答辩、产品发布会、BD 汇报、融资提案。",
+        avoid_for="监管、医学、法务等需要克制语气的汇报；学术答辩。",
+        palette=("#0f172a", "#f0f9ff", "#7c3aed", "#f59e0b"),
+        background="深蓝底，封面和章节页使用品牌渐变，内容页统一深色卡片。",
+        typography="短标题、大数字、强对比；正文极简，信息留给语音。",
+        layout="问题-方案-证明-增长-请求；hero statement、traction、ask。",
+        chart="traction chart、market map、before/after、竞品对比。",
+        image_strategy="允许抽象概念图；不得伪造客户 logo、产品截图或官方数据。",
+        inspiration="Studio design language + pitch deck scaffold + visual-led HTML previews",
+        risk="若证据不足，强表现力会放大可信度风险；需要真实数字压住。",
+        html_transition="zoom",
+        html_animation="rich",
+        html_gradient="linear-gradient(135deg, #1a1a2e, #16213e, #0f3460)",
+        suggested_html_theme="pitch-deck-vc",
+    )
+
+    premium_brand = VisualCandidate(
+        key="premium-brand",
+        name="高端品牌（深色）",
+        summary="深海蓝底、玻璃质感卡片、柔和紫蓝渐变，适合高价值产品和品牌叙事。",
+        best_for="高端产品 Demo、品牌故事、SaaS 客户提案、设计工作室展示。",
+        avoid_for="政府、医疗、法律等保守场合；高密度数据汇报。",
+        palette=("#0b1024", "#e2e8f0", "#7dd3fc", "#c084fc"),
+        background="深海蓝底，玻璃卡片（backdrop-blur），局部使用紫/青径向渐变光晕。",
+        typography="优雅大标题，强调色突出，正文浅色柔和。",
+        layout="英雄封面、功能展示卡、用户场景、价值证明、行动号召。",
+        chart="feature matrix、glassmorphism 卡片统计、流程图、对比表。",
+        image_strategy="允许高质量抽象背景图；不伪造产品截图或品牌资产。",
+        inspiration="glassmorphism design + premium SaaS UI + brand narrative",
+        risk="投影仪亮度不足时深色底细节损失；需要提高关键文字对比度。",
+        html_transition="zoom",
+        html_animation="expressive",
+        html_gradient="",
+        suggested_html_theme="glassmorphism",
+    )
+
+    tech_blueprint = VisualCandidate(
+        key="tech-blueprint",
+        name="科技工程（深色）",
+        summary="深蓝底、网格线框、工程制图感，适合把技术方案和架构讲清楚。",
+        best_for="系统架构、技术方案评审、数据分析、API 文档、工程汇报。",
+        avoid_for="人文、文化、叙事类演示；需要强情感感染力的路演封面。",
+        palette=("#0d1b2a", "#e2e8f0", "#4fc3f7", "#34d399"),
+        background="深蓝工程底色，局部使用细网格和蓝色信号线装饰。",
+        typography="紧凑无衬线，代码/指标使用等宽字体，标注简短。",
+        layout="架构图、数据流、模块责任矩阵、指标看板、部署路线图。",
+        chart="系统拓扑、sequence diagram、KPI trend、error/latency 分布。",
+        image_strategy="优先使用真实架构截图和监控图表；AI 图只作抽象章节背景。",
+        inspiration="Signal design language + architecture QA + screenshot treatment rules",
+        risk="全部用深色且信息密度高时容易疲劳；章节页需要降密度换气。",
+        html_transition="slide",
+        html_animation="moderate",
+        html_gradient="linear-gradient(135deg, #0f0c29, #0d1b2a, #1a2744)",
+        suggested_html_theme="blueprint",
+    )
+
+    all_candidates: tuple[VisualCandidate, ...] = (
+        product_launch,
+        academic_paper,
+        business_report,
+        investor_pitch,
+        premium_brand,
+        tech_blueprint,
+    )
+
+    # Context-aware reordering: bump the most relevant candidate to first place
+    priority_key: str = {
+        "research":    "academic-paper",
+        "engineering": "tech-blueprint",
+        "market":      "product-launch",
+        "strategy":    "business-report",
+        "general":     "product-launch",
+        "sports":      "business-report",
+    }.get(context, "product-launch")
+
+    ordered: list[VisualCandidate] = sorted(
+        all_candidates,
+        key=lambda c: (0 if c.key == priority_key else 1),
+    )
+    return tuple(ordered)
+
+
+
+def language_switch_html(ui_language: str) -> str:
+    links: list[str] = []
+    for language in LANGUAGE_SWITCH_LANGUAGES:
+        label: str = LANGUAGE_LABELS[language]
+        active_class: str = " active" if language == ui_language else ""
+        links.append(
+            f'<a class="language-link{active_class}" data-language="{html.escape(language)}" '
+            f'href="/set-language?ui_language={html.escape(language)}">{html.escape(label)}</a>'
+        )
+    return (
+        f'<nav class="language-switch" aria-label="{html.escape(t(ui_language, "language_switch_label"))}">'
+        f'<span>{html.escape(t(ui_language, "language_switch_label"))}</span>'
+        f'{"".join(links)}</nav>'
+    )
 
 
 def html_page(title: str, body: str, ui_language: str = "zh") -> str:
     html_language: str = HTML_LANG.get(ui_language, HTML_LANG["zh"])
+    language_switch: str = language_switch_html(ui_language)
     return f"""<!doctype html>
 <html lang="{html.escape(html_language)}">
 <head>
@@ -2345,12 +2535,53 @@ def html_page(title: str, body: str, ui_language: str = "zh") -> str:
       line-height: 1.5;
     }}
     main {{ max-width: 1120px; margin: 0 auto; padding: 40px 24px 72px; }}
+    .language-switch {{
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 18px;
+      color: var(--muted);
+      font-size: 13px;
+    }}
+    .language-switch span {{ margin-right: 2px; font-weight: 700; }}
+    .language-link {{
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      padding: 4px 9px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      color: var(--ink);
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 700;
+    }}
+    .language-link.active {{
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }}
     h1 {{ font-size: 32px; margin: 0 0 8px; letter-spacing: 0; }}
     h2 {{ font-size: 22px; margin: 28px 0 12px; }}
     h3 {{ font-size: 17px; margin: 0 0 8px; }}
     p {{ color: var(--muted); margin: 0 0 16px; }}
     .topline {{ text-transform: uppercase; letter-spacing: .08em; color: var(--accent-2); font-size: 12px; font-weight: 700; }}
     .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }}
+    .candidate-grid {{
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      align-items: stretch;
+    }}
+    @media (max-width: 900px) {{
+      .candidate-grid {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
+    }}
+    @media (max-width: 620px) {{
+      .candidate-grid {{ grid-template-columns: 1fr; }}
+    }}
     .card, .section {{
       background: var(--panel);
       border: 1px solid var(--line);
@@ -2451,6 +2682,29 @@ def html_page(title: str, body: str, ui_language: str = "zh") -> str:
       border-radius: 8px;
       background: #fff;
     }}
+    .info-banner {{
+      background: #eef6ff;
+      border: 1.5px solid #93c5fd;
+      border-left: 4px solid #3b82f6;
+      border-radius: 0 8px 8px 0;
+      padding: 10px 14px;
+      font-size: .9em;
+      color: #1e40af;
+      margin-bottom: 14px;
+    }}
+    .preview-wrap {{ position: relative; }}
+    .fullscreen-btn {{
+      display: inline-block;
+      margin-top: 8px;
+      padding: 6px 14px;
+      background: var(--accent, #7c3aed);
+      color: #fff;
+      border-radius: 6px;
+      font-size: .82em;
+      font-weight: 600;
+      text-decoration: none;
+    }}
+    .fullscreen-btn:hover {{ opacity: .85; }}
     code {{ background: #eee7da; padding: 2px 5px; border-radius: 4px; }}
     table {{ width: 100%; border-collapse: collapse; background: var(--panel); }}
     th, td {{ border: 1px solid var(--line); padding: 10px; text-align: left; vertical-align: top; }}
@@ -2459,8 +2713,15 @@ def html_page(title: str, body: str, ui_language: str = "zh") -> str:
 </head>
 <body>
 <main>
+{language_switch}
 {body}
 </main>
+<script>
+  for (const link of document.querySelectorAll('.language-link')) {{
+    const next = window.location.pathname + window.location.search;
+    link.href = `/set-language?ui_language=${{encodeURIComponent(link.dataset.language)}}&next=${{encodeURIComponent(next)}}`;
+  }}
+</script>
 </body>
 </html>
 """
@@ -2649,6 +2910,7 @@ def apply_visual_selection(selected: JsonDict, form: dict[str, list[str]]) -> Js
     selected_key: str = first_form_value(form, "visual_candidate", candidates[0].key)
     candidate: VisualCandidate = next((item for item in candidates if item.key == selected_key), candidates[0])
     updated: JsonDict = dict(selected)
+    # HTML theme is always derived from the selected candidate — no separate selector
     updated["visual_direction"] = {
         "selected_candidate": visual_candidate_to_json(candidate),
         "available_candidates": [visual_candidate_to_json(item) for item in candidates],
@@ -2656,6 +2918,7 @@ def apply_visual_selection(selected: JsonDict, form: dict[str, list[str]]) -> Js
         "notes": first_form_value(form, "visual_notes", "").strip(),
         "selected_at": datetime.now().isoformat(timespec="seconds"),
     }
+    updated["html_theme_key"] = candidate.suggested_html_theme or "auto"
     updated["updated_at"] = datetime.now().isoformat(timespec="seconds")
     updated["confirmed"] = False
     return updated
@@ -2708,17 +2971,23 @@ def apply_image_style_selection(brief: JsonDict, form: dict[str, list[str]]) -> 
             if str(target.get("id", "")) not in confirmed_targets
         ]
         if missing_confirmations:
+            ui_lang: str = ui_language_from_brief(brief)
             errors.append(
-                "ask-before-use pre-v1 mode requires prompt confirmation for: "
-                + ", ".join(missing_confirmations)
+                t(ui_lang, "image_confirm_required") + " " + ", ".join(missing_confirmations)
             )
 
     html_motion_level: str = first_form_value(form, "html_motion_level", "subtle")
     if html_motion_level not in {"subtle", "expressive", "cinematic"}:
         html_motion_level = "subtle"
 
+    html_theme_key: str = first_form_value(form, "html_theme_key", "auto").strip()
+    valid_theme_keys: set[str] = {theme_key for theme_key, _description in HTML_THEME_OPTIONS}
+    if html_theme_key not in valid_theme_keys:
+        html_theme_key = "auto"
+
     updated_brief: JsonDict = dict(brief)
     updated_brief["image_generation_mode"] = image_mode
+    updated_brief["html_theme_key"] = html_theme_key
     updated_brief["image_style_gate"] = {
         "method": "browser-form",
         "confirmed_by": "user-click",
@@ -2830,7 +3099,7 @@ def record_image_asset_attempt(
     validated_status: str = status_value
     size_bytes: int = 0
     validation_error: str = error_text
-    if status_value == "success":
+    if status_value in ("success", "stub-placeholder"):
         if output_path.exists() and output_path.is_file():
             size_bytes = output_path.stat().st_size
         if size_bytes <= 0:
@@ -2851,8 +3120,8 @@ def record_image_asset_attempt(
     })
     record["attempts"] = attempts
     record["updated_at"] = datetime.now().isoformat(timespec="seconds")
-    if validated_status == "success":
-        record["final_status"] = "success"
+    if validated_status in ("success", "stub-placeholder"):
+        record["final_status"] = validated_status
         record["output_path"] = str(output_path)
         record["size_bytes"] = size_bytes
     elif attempt_number >= MAX_IMAGE_ATTEMPTS:
@@ -3030,6 +3299,68 @@ def write_share_html(
     return target
 
 
+def finalize_selected_version(task_dir: Path, selected_version: str, notes: str = "") -> JsonDict:
+    brief: JsonDict = read_json(task_dir / "brief-confirmed.json")
+    output_format: str = output_format_from_brief(brief, "pptx") if brief else "pptx"
+    selected_version_dir: Path = task_dir / selected_version
+    selected_pptx: Path = selected_version_dir / "final.pptx"
+    final_dir: Path = task_dir / "final"
+    final_pptx: Path = final_dir / f"{task_dir.name}.pptx"
+    if output_format in {"pptx", "both"} and selected_pptx.exists():
+        final_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(selected_pptx, final_pptx)
+    final_html: Path | None = None
+    share_html_error: str = ""
+    selected_html: Path = selected_version_html_path(task_dir, selected_version)
+    selected_pptx_value: str = ""
+    final_pptx_value: str = ""
+    selected_html_value: str = ""
+    final_html_value: str = ""
+    if output_format in {"html-revealjs", "both"}:
+        if selected_html.exists():
+            final_dir.mkdir(parents=True, exist_ok=True)
+            final_html = final_html_path_for_output(task_dir, output_format)
+            shutil.copy2(selected_html, final_html)
+            selected_html_value = str(selected_html)
+            final_html_value = str(final_html)
+        else:
+            share_html_error = f"Missing selected HTML deck: {selected_html}"
+    elif output_format == "pptx":
+        try:
+            final_html = write_share_html(
+                task_dir,
+                selected_version_dir,
+                task_dir.name,
+                output_path=final_html_path_for_output(task_dir, output_format, companion=True),
+            )
+            final_html_value = str(final_html)
+        except ValueError as exc:
+            share_html_error = str(exc)
+    if output_format in {"pptx", "both"} and selected_pptx.exists():
+        selected_pptx_value = str(selected_pptx)
+        final_pptx_value = str(final_pptx if final_pptx.exists() else selected_pptx)
+    payload: JsonDict = {
+        "version": "0.1",
+        "selected_version": selected_version,
+        "selected_pptx": selected_pptx_value,
+        "final_pptx": final_pptx_value,
+        "selected_html": selected_html_value,
+        "final_html": final_html_value,
+        "output_format": output_format,
+        "notes": notes.strip(),
+        "selected_at": datetime.now().isoformat(timespec="seconds"),
+    }
+    if share_html_error:
+        payload["share_html_error"] = share_html_error
+    write_json(task_dir / "final-selection.json", payload)
+    touch_status(task_dir, "final-selection")
+    # Clean up revision-base.json — workflow complete, no stale base for future sessions.
+    revision_base_path: Path = task_dir / "revision-base.json"
+    if revision_base_path.exists():
+        revision_base_path.unlink()
+    return payload
+
+
 def _render_pptx_structure_panel(structure: list[JsonDict], ui_language: str) -> str:
     if not structure:
         return ""
@@ -3143,6 +3474,7 @@ def render_visual_inspiration(task_dir: Path) -> str:
         render_visual_candidate_card(candidate, current_key == candidate.key, ui_language, show_html_fields)
         for candidate in candidates
     ]
+    current_candidate: VisualCandidate = next((c for c in candidates if c.key == current_key), candidates[0])
     body: str = f"""<div class="topline">{html.escape(t(ui_language, "visual_gate"))}</div>
 <h1>{html.escape(t(ui_language, "visual_title"))}</h1>
 <p>{html.escape(t(ui_language, "visual_intro"))}</p>
@@ -3151,7 +3483,7 @@ def render_visual_inspiration(task_dir: Path) -> str:
   <p><strong>{html.escape(topic)}</strong></p>
 </section>
 <form method="post" action="/api/visual-inspiration">
-  <div class="grid">
+  <div class="candidate-grid">
     {''.join(candidate_cards)}
   </div>
   <section class="section">
@@ -3191,19 +3523,18 @@ def render_visual_candidate_card(
     <span class="value" style="background: {html.escape(candidate.html_gradient)}; color: white; padding: 2px 8px; border-radius: 4px;">{html.escape(gradient_label)}</span>
   </div>"""
         )
-    html_fields: str = ""
-    if show_html_fields:
-        html_fields = f"""<div class="section" style="margin-top: 12px; padding: 10px;">
-  <div class="html-field">
-    <span class="label">{html.escape(t(ui_language, "html_transition"))}</span>
-    <span class="value">{html.escape(candidate.html_transition)}</span>
-  </div>
-  <div class="html-field">
-    <span class="label">{html.escape(t(ui_language, "html_animation"))}</span>
-    <span class="value">{html.escape(candidate.html_animation)}</span>
-  </div>
-  {gradient_preview}
-</div>"""
+    # Theme badge — always shown; no separate theme selector needed
+    theme_key: str = candidate.suggested_html_theme or "auto"
+    theme_badge: str = theme_tone_badge(theme_key, ui_language)
+    theme_desc_str: str = HTML_THEME_DESCRIPTIONS.get(theme_key, "")
+    theme_info_label: str = {"zh": "HTML 主题", "de": "HTML-Thema"}.get(ui_language, "HTML theme")
+    theme_info: str = (
+        f'<div style="margin-top:8px;font-size:.82em;color:#64748b;">'
+        f'{html.escape(theme_info_label)}: '
+        f'<strong style="color:#4f46e5;">{html.escape(theme_key)}</strong>{theme_badge}'
+        f'{"  —  " + html.escape(theme_desc_str) if theme_desc_str else ""}'
+        f'</div>'
+    )
     return f"""<label class="option candidate">
   <input type="radio" name="visual_candidate" value="{html.escape(candidate.key)}"{is_checked}>
   <strong>{html.escape(candidate.name)}</strong>
@@ -3226,7 +3557,7 @@ def render_visual_candidate_card(
   <p><strong>{html.escape(t(ui_language, "best_for"))}:</strong> {html.escape(localized_visual_field(candidate_json, "best_for", ui_language))}</p>
   <p><strong>{html.escape(t(ui_language, "background"))}:</strong> {html.escape(localized_visual_field(candidate_json, "background", ui_language))}</p>
   <p><strong>{html.escape(t(ui_language, "chart"))}:</strong> {html.escape(localized_visual_field(candidate_json, "chart", ui_language))}</p>
-  {html_fields}
+  {theme_info}
   <p><strong>{html.escape(t(ui_language, "inspiration"))}:</strong> {html.escape(localized_visual_field(candidate_json, "inspiration", ui_language))}</p>
   <p class="meta"><strong>{html.escape(t(ui_language, "risk"))}:</strong> {html.escape(localized_visual_field(candidate_json, "risk", ui_language))}</p>
 </label>"""
@@ -3389,11 +3720,19 @@ def render_image_style(task_dir: Path, error_messages: list[str] | None = None) 
     for target in prompt_targets:
         target_id: str = str(target.get("id", ""))
         prompt_text: str = str(target.get("prompt_draft", ""))
+        output_path_value: str = str(target.get("output_path", "")).strip()
+        target_output_path: str = str(task_dir / output_path_value) if output_path_value else ""
+        output_path_html: str = (
+            f"""<p class="meta">{html.escape(t(ui_language, "image_output_path"))}: <code>{html.escape(target_output_path)}</code></p>"""
+            if target_output_path
+            else ""
+        )
         checked: str = " checked" if target_id in confirmed_target_prompts else ""
         prompt_cards.append(
             f"""<section class="section">
   <h3>{html.escape(target_id)}</h3>
   <p class="meta">{html.escape(str(target.get("slide_role", "")))} / {html.escape(str(target.get("placement_type", "")))} / {html.escape(str(target.get("asset_kind", "")))}</p>
+  {output_path_html}
   <textarea name="target_prompt__{html.escape(target_id)}">{html.escape(prompt_text)}</textarea>
   <label><input type="checkbox" name="target_confirm__{html.escape(target_id)}" value="yes"{checked}> {html.escape(t(ui_language, "image_prompt_confirm"))}</label>
 </section>"""
@@ -3412,13 +3751,36 @@ def render_image_style(task_dir: Path, error_messages: list[str] | None = None) 
 
     errors_html: str = ""
     if error_messages:
-        errors_html = "<section class='warning-box'><ul>" + "".join(
-            f"<li>{html.escape(message)}</li>" for message in error_messages
-        ) + "</ul></section>"
+        error_title: str = t(ui_language, "image_style_error_title")
+        errors_html = (
+            f"<div style='position:sticky;top:0;z-index:999;background:#7f1d1d;"
+            f"border:2px solid #ef4444;border-radius:8px;padding:14px 20px;margin-bottom:20px;'>"
+            f"<strong style='color:#fca5a5;font-size:.95em;display:block;margin-bottom:6px'>"
+            f"⛔ {html.escape(error_title)}</strong><ul style='margin:0;padding-left:1.4em'>"
+            + "".join(f"<li style='color:#fecaca;font-size:.85em;margin-bottom:4px'>{html.escape(m)}</li>" for m in error_messages)
+            + "</ul></div>"
+        )
 
     html_motion_section: str = ""
     if output_format in {"html-revealjs", "both"}:
+        # Theme is locked from the Visual Inspiration gate — show it read-only so
+        # users cannot accidentally override their design direction here.
+        locked_theme_key: str = str(brief.get("html_theme_key", "auto"))
+        locked_theme_desc: str = html_theme_best_for(locked_theme_key, ui_language)
+        badge: str = theme_tone_badge(locked_theme_key, ui_language)
+        lock_label: str = {"zh": "主题已在视觉方向页锁定，如需更改请返回上一步。",
+                           "de": "Thema in der Visual-Inspiration-Seite gesperrt. Bitte zurückgehen, um es zu ändern."
+                           }.get(ui_language, "Theme is locked from the Visual Inspiration step. Go back to change it.")
         html_motion_section = f"""<section class="section">
+  <h2>{html.escape(t(ui_language, "html_theme_key"))}</h2>
+  <p style="font-size:.9em;color:#64748b;margin-bottom:8px;">{html.escape(lock_label)}</p>
+  <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;display:inline-flex;align-items:center;gap:8px;">
+    🔒 <strong>{html.escape(locked_theme_key)}</strong>{badge}
+    <span style="color:#64748b;font-size:.85em;">— {html.escape(locked_theme_desc)}</span>
+  </div>
+  <input type="hidden" name="html_theme_key" value="{html.escape(locked_theme_key)}">
+</section>
+<section class="section">
   <h2>{html.escape(t(ui_language, "html_motion_profile"))}</h2>
   <div class="grid">{''.join(motion_options)}</div>
 </section>"""
@@ -3426,6 +3788,10 @@ def render_image_style(task_dir: Path, error_messages: list[str] | None = None) 
     body: str = f"""<div class="topline">{html.escape(t(ui_language, "image_style_gate"))}</div>
 <h1>{html.escape(t(ui_language, "image_style_title"))}</h1>
 <p>{html.escape(t(ui_language, "image_style_intro"))}</p>
+<section class="section">
+  <h2>{html.escape(t(ui_language, "image_manual_workflow_title"))}</h2>
+  <p>{html.escape(t(ui_language, "image_manual_workflow_body"))}</p>
+</section>
 {errors_html}
 <section class="section">
   <h2>{html.escape(t(ui_language, "image_policy_label"))}</h2>
@@ -3448,7 +3814,6 @@ def render_image_style(task_dir: Path, error_messages: list[str] | None = None) 
   </section>
   <div class="actions">
     <button type="submit">{html.escape(t(ui_language, "save_image_style"))}</button>
-    <a class="button secondary" href="/confirm">{html.escape(t(ui_language, "confirm_title"))}</a>
   </div>
 </form>"""
     return html_page(t(ui_language, "image_style_title"), body, ui_language)
@@ -3476,7 +3841,10 @@ def render_image_placement(task_dir: Path) -> str:
             preview_html = (
                 f'<p>{html.escape(t(ui_language, "preview_artifact"))}: '
                 f'<code>{html.escape(str(html_path))}</code></p>'
+                f'<div class="preview-wrap">'
                 f'<iframe class="html-preview" src="/static/v1/final.html"></iframe>'
+                f'<a class="fullscreen-btn" href="/static/v1/final.html" target="_blank">⛶ 全屏浏览</a>'
+                f'</div>'
             )
     else:
         contact_sheet: Path = task_dir / "v1" / "contact-sheet.png"
@@ -3549,12 +3917,12 @@ def render_image_placement(task_dir: Path) -> str:
 <form method="post" action="/api/image-placement">
   <section class="section">
     <h2>{html.escape(t(ui_language, "placement_rows"))}</h2>
-    <p class="meta notice">{"This form supports up to 6 placement rows per round. Each submission replaces the previous placement request — the agent must process these into a new version before you re-open the gate for additional placements." if ui_language == "en" else "此表单每轮最多支持 6 条插入请求。每次提交会覆盖上一轮请求；请等 agent 将本轮处理成新版本后，再重新打开门禁添加更多。"}</p>
+    <p class="meta notice">{html.escape(t(ui_language, "image_placement_limit_notice"))}</p>
     {''.join(row_html)}
   </section>
   <section class="section">
-    <h2>{"Overall notes" if ui_language == "en" else "整体备注"}</h2>
-    <textarea name="placement_global_notes" placeholder="{"Optional: overall notes for this placement round." if ui_language == "en" else "可选：本轮图片插入的整体说明。"}">{html.escape(str(existing_request.get("notes", "")))}</textarea>
+    <h2>{html.escape(t(ui_language, "placement_global_notes_title"))}</h2>
+    <textarea name="placement_global_notes" placeholder="{html.escape(t(ui_language, "placement_global_notes_placeholder"))}">{html.escape(str(existing_request.get("notes", "")))}</textarea>
   </section>
   <div class="actions">
     <button type="submit">{html.escape(t(ui_language, "save_image_placement"))}</button>
@@ -3564,48 +3932,214 @@ def render_image_placement(task_dir: Path) -> str:
     return html_page(t(ui_language, "image_placement_title"), body, ui_language)
 
 
-def render_style_review(task_dir: Path) -> str:
+def render_version_preview(task_dir: Path, version_name: str, output_format: str, ui_language: str) -> tuple[str, Path]:
+    version_dir: Path = task_dir / version_name
+    html_path: Path = version_dir / "final.html"
+    pptx_path: Path = version_dir / "final.pptx"
+    contact_sheet: Path = version_dir / "contact-sheet.png"
+    if output_format == "html-revealjs":
+        if html_path.exists():
+            return (
+                f'<p><a class="button" target="_blank" rel="noopener" href="/static/{html.escape(version_name)}/final.html">{html.escape(t(ui_language, "open_full_preview"))}</a></p>'
+                f'<iframe class="html-preview" src="/static/{html.escape(version_name)}/final.html"></iframe>',
+                html_path,
+            )
+        return f"<p class='risk'>{html.escape(t(ui_language, 'missing_preview_artifact'))}</p>", html_path
+    if contact_sheet.exists():
+        return (
+            f'<img class="contact-sheet" src="/static/{html.escape(version_name)}/contact-sheet.png" alt="{html.escape(version_name)} contact sheet">'
+            f'<p>{html.escape(t(ui_language, "pptx_label"))}: <code>{html.escape(str(pptx_path))}</code></p>',
+            pptx_path,
+        )
+    return f"<p class='risk'>{html.escape(t(ui_language, 'missing_contact_sheet').format(path=f'{version_name}/contact-sheet.png'))}</p>", pptx_path
+
+
+def render_preview_review(task_dir: Path) -> str:
     ui_language: str = ui_language_for_task(task_dir)
     brief: JsonDict = read_json(task_dir / "brief-confirmed.json")
     output_format: str = output_format_from_brief(brief, "pptx") if brief else "pptx"
     version_name: str = latest_review_version(task_dir)
-    version_dir: Path = task_dir / version_name
-    contact_sheet: Path = version_dir / "contact-sheet.png"
-    qa_summary: Path = version_dir / "qa-summary.md"
-    pptx_path: Path = version_dir / "final.pptx"
-    html_path: Path = version_dir / "final.html"
-    if output_format == "html-revealjs":
-        image_html: str = (
-            f'<iframe class="html-preview" src="/static/{html.escape(version_name)}/final.html"></iframe>'
-            if html_path.exists()
-            else f"<p class='risk'>{html.escape(t(ui_language, 'missing_preview_artifact'))}</p>"
+    preview_html, artifact_path = render_version_preview(task_dir, version_name, output_format, ui_language)
+    qa_summary: Path = task_dir / version_name / "qa-summary.md"
+    qa_text: str = qa_summary.read_text(encoding="utf-8") if qa_summary.exists() else t(ui_language, "missing_qa_summary")
+    body: str = f"""<div class="topline">{html.escape(t(ui_language, "preview_review"))}</div>
+<h1>{html.escape(t(ui_language, "preview_review_title"))}</h1>
+<p>{html.escape(t(ui_language, "preview_review_intro"))}</p>
+<section class="section">
+  <h2>{html.escape(t(ui_language, "current_version"))}: {html.escape(version_name.upper())}</h2>
+  {preview_html}
+  <p>{html.escape(t(ui_language, "preview_artifact"))}: <code>{html.escape(str(artifact_path))}</code></p>
+  <pre>{html.escape(qa_text[:1800])}</pre>
+</section>
+<form method="post" action="/api/preview-review">
+  <input type="hidden" name="base_version" value="{html.escape(version_name)}">
+  <section class="section">
+    <h2>{html.escape(t(ui_language, "preview_action_title"))}</h2>
+    <div class="grid">
+      <label class="option">
+        <input type="radio" name="preview_action" value="keep-final" checked>
+        <strong>{html.escape(t(ui_language, "preview_action_keep"))}</strong>
+        <p>{html.escape(t(ui_language, "preview_action_keep_desc"))}</p>
+      </label>
+      <label class="option">
+        <input type="radio" name="preview_action" value="style-review">
+        <strong>{html.escape(t(ui_language, "preview_action_style"))}</strong>
+        <p>{html.escape(t(ui_language, "preview_action_style_desc"))}</p>
+      </label>
+    </div>
+    <textarea name="notes" placeholder="{html.escape(t(ui_language, "preview_notes_placeholder"))}"></textarea>
+  </section>
+  <div class="actions">
+    <button type="submit">{html.escape(t(ui_language, "save_preview_review"))}</button>
+  </div>
+</form>"""
+    return html_page(t(ui_language, "preview_review_title"), body, ui_language)
+
+
+def apply_preview_review(task_dir: Path, form: dict[str, list[str]]) -> JsonDict:
+    base_version: str = first_form_value(form, "base_version", "v1").strip() or "v1"
+    preview_action: str = first_form_value(form, "preview_action", "keep-final").strip() or "keep-final"
+    notes: str = first_form_value(form, "notes", "").strip()
+    request: JsonDict = {
+        "version": "0.1",
+        "base_version": base_version,
+        "preview_action": preview_action,
+        "notes": notes,
+        "created_at": datetime.now().isoformat(timespec="seconds"),
+    }
+    write_json(task_dir / "preview-review.json", request)
+    touch_status(task_dir, "preview-review")
+    if preview_action == "keep-final":
+        finalize_selected_version(task_dir, base_version, notes)
+    return request
+
+
+STYLE_ACTION_DETAILS: dict[str, dict[str, dict[str, str]]] = {
+    "keep-current": {
+        "examples": {
+            "zh": "已经满意；只需要最终文件。",
+            "en": "The deck is ready; only final delivery is needed.",
+            "de": "Das Deck ist bereit; nur die finale Lieferung fehlt.",
+        },
+        "changes": {"zh": "复制当前版本到 final/", "en": "Copies current version to final/", "de": "Kopiert die aktuelle Version nach final/"},
+        "no_changes": {"zh": "不改内容、不改视觉、不生成 v2", "en": "No content, visual, or v2 generation changes", "de": "Keine Inhalts-, Design- oder v2-Erzeugung"},
+    },
+    "quick-tune": {
+        "examples": {
+            "zh": "字号略大一点；页面别太挤；动效更轻。",
+            "en": "Make type slightly larger; reduce crowding; lighten motion.",
+            "de": "Schrift etwas größer; weniger Dichte; Animation leichter.",
+        },
+        "changes": {"zh": "CSS、间距、字号、对比度、动效", "en": "CSS, spacing, type size, contrast, motion", "de": "CSS, Abstände, Schriftgröße, Kontrast, Animation"},
+        "no_changes": {"zh": "不重写内容，不切换主题，不重排整套叙事", "en": "No content rewrite, theme switch, or full narrative restructure", "de": "Kein Umschreiben, kein Themenwechsel, keine komplette Strukturänderung"},
+    },
+    "targeted-fix": {
+        "examples": {
+            "zh": "第 5 页图太小；第 8 页表格挤；结束页行动项不清楚。",
+            "en": "Slide 5 visual is too small; slide 8 table is crowded; closing CTA is unclear.",
+            "de": "Folie 5 ist zu klein; Tabelle auf Folie 8 ist dicht; Schlussfolie ist unklar.",
+        },
+        "changes": {"zh": "指定页面或指定问题", "en": "Named slides or named issues", "de": "Genannte Folien oder Probleme"},
+        "no_changes": {"zh": "不重做无关页面，不覆盖已选视觉方向", "en": "Does not rebuild unrelated slides or override the chosen direction", "de": "Keine Änderung ungenannter Folien, keine Überschreibung der visuellen Richtung"},
+    },
+    "generate-comparison": {
+        "examples": {
+            "zh": "想看一个更开放构图的 v2；想减少卡片感但保留内容。",
+            "en": "Try a more open-layout v2; reduce card-heavy design while preserving content.",
+            "de": "Eine offenere v2 testen; weniger Kartenoptik bei gleichem Inhalt.",
+        },
+        "changes": {"zh": "整体视觉表达、布局节奏、页面构图", "en": "Overall visual expression, layout rhythm, composition", "de": "Visueller Gesamtausdruck, Layout-Rhythmus, Komposition"},
+        "no_changes": {"zh": "不编造事实，不换资料边界，不自动换成未选主题", "en": "No fabricated facts, no source-boundary change, no unapproved theme switch", "de": "Keine erfundenen Fakten, keine Änderung der Quellenregeln, kein ungefragter Themenwechsel"},
+    },
+    "switch-direction": {
+        "examples": {
+            "zh": "当前浅色产品风不合适，想回到视觉方向页重新选。",
+            "en": "The current visual direction is wrong; go back and choose another one.",
+            "de": "Die aktuelle visuelle Richtung passt nicht; zurück und neu wählen.",
+        },
+        "changes": {"zh": "回到 Visual Inspiration 重新选择", "en": "Returns to Visual Direction for a new choice", "de": "Zurück zur visuellen Richtung für eine neue Auswahl"},
+        "no_changes": {"zh": "不会在本页直接生成新版本", "en": "Does not generate a new version from this page", "de": "Erzeugt auf dieser Seite keine neue Version"},
+    },
+}
+
+
+def style_detail(action: str, field: str, ui_language: str) -> str:
+    values: dict[str, str] = STYLE_ACTION_DETAILS.get(action, {}).get(field, {})
+    return values.get(ui_language, values.get("en", ""))
+
+
+def render_style_action_card(action: str, title_key: str, desc_key: str, cost_key: str, checked: bool, ui_language: str) -> str:
+    checked_attr: str = " checked" if checked else ""
+    return f"""<label class="option cost-card">
+  <input type="radio" name="revision_action" value="{html.escape(action)}"{checked_attr}>
+  <strong>{html.escape(t(ui_language, title_key))}</strong>
+  <span class="source-tag">{html.escape(t(ui_language, cost_key))}</span>
+  <p>{html.escape(t(ui_language, desc_key))}</p>
+  <p class="meta"><strong>{html.escape(t(ui_language, "style_examples"))}:</strong> {html.escape(style_detail(action, "examples", ui_language))}</p>
+  <p class="meta"><strong>{html.escape(t(ui_language, "style_will_change"))}:</strong> {html.escape(style_detail(action, "changes", ui_language))}</p>
+  <p class="meta"><strong>{html.escape(t(ui_language, "style_will_not_change"))}:</strong> {html.escape(style_detail(action, "no_changes", ui_language))}</p>
+</label>"""
+
+
+def render_style_review(task_dir: Path) -> str:
+    ui_language: str = ui_language_for_task(task_dir)
+    brief: JsonDict = read_json(task_dir / "brief-confirmed.json")
+    output_format: str = output_format_from_brief(brief, "pptx") if brief else "pptx"
+    # If the user came from compare via "revise from selected", use that version as base.
+    revision_base: JsonDict = read_json(task_dir / "revision-base.json")
+    if revision_base and revision_base.get("base_version"):
+        version_name: str = revision_base["base_version"]
+        base_notice: str = (
+            f'<div class="info-banner">'
+            f'{html.escape(t(ui_language, "revision_base_notice").format(version=version_name.upper()))}'
+            f'</div>'
         )
     else:
-        image_html = (
-            f'<img class="contact-sheet" src="/static/{html.escape(version_name)}/contact-sheet.png" alt="{html.escape(version_name)} contact sheet">'
-            if contact_sheet.exists()
-            else f"<p class='risk'>{html.escape(t(ui_language, 'missing_contact_sheet').format(path=f'{version_name}/contact-sheet.png'))}</p>"
-        )
+        version_name = latest_review_version(task_dir)
+        base_notice = ""
+    version_dir: Path = task_dir / version_name
+    qa_summary: Path = version_dir / "qa-summary.md"
+    image_html, artifact_path = render_version_preview(task_dir, version_name, output_format, ui_language)
     qa_text: str = qa_summary.read_text(encoding="utf-8") if qa_summary.exists() else t(ui_language, "missing_qa_summary")
-    artifact_label: str = str(html_path if output_format == "html-revealjs" else pptx_path)
+    action_cards: list[str] = [
+        render_style_action_card("keep-current", "style_action_keep", "style_action_keep_desc", "style_cost_zero", True, ui_language),
+        render_style_action_card("quick-tune", "style_action_quick", "style_action_quick_desc", "style_cost_low", False, ui_language),
+        render_style_action_card("targeted-fix", "style_action_targeted", "style_action_targeted_desc", "style_cost_medium", False, ui_language),
+        render_style_action_card("generate-comparison", "style_action_comparison", "style_action_comparison_desc", "style_cost_high", False, ui_language),
+        render_style_action_card("switch-direction", "style_action_switch", "style_action_switch_desc", "style_cost_highest", False, ui_language),
+    ]
     body: str = f"""<div class="topline">{html.escape(t(ui_language, "style_review"))}</div>
 <h1>{html.escape(t(ui_language, "style_title"))}</h1>
+{base_notice}
 <p>{html.escape(t(ui_language, "style_intro").format(version_name=version_name))}</p>
 <section class="section">
   <h2>{html.escape(t(ui_language, "current_version"))}</h2>
   {image_html}
-  <p>{html.escape(t(ui_language, "preview_artifact"))}: <code>{html.escape(artifact_label)}</code></p>
+  <p>{html.escape(t(ui_language, "preview_artifact"))}: <code>{html.escape(str(artifact_path))}</code></p>
   <pre>{html.escape(qa_text[:2400])}</pre>
 </section>
 <form method="post" action="/api/revision">
   <input type="hidden" name="base_version" value="{html.escape(version_name)}">
-  {''.join(question_section(group, ui_language=ui_language) for group in REVISION_GROUPS)}
   <section class="section">
-    <h2>{html.escape(t(ui_language, "revision_count_title"))}</h2>
-    <label class="option"><input type="radio" name="revision_count" value="0"> {html.escape(t(ui_language, "keep_current_version"))}</label>
-    <label class="option"><input type="radio" name="revision_count" value="1" checked> {html.escape(t(ui_language, "one_revision"))}</label>
-    <label class="option"><input type="radio" name="revision_count" value="2"> {html.escape(t(ui_language, "two_revisions"))}</label>
-    <textarea name="notes" placeholder="{html.escape(t(ui_language, "revision_notes_placeholder"))}"></textarea>
+    <h2>{html.escape(t(ui_language, "style_action_title"))}</h2>
+    <div class="grid">{''.join(action_cards)}</div>
+  </section>
+  <section class="section">
+    <h2>{html.escape(t(ui_language, "style_tuning_title"))}</h2>
+    <label><input type="checkbox" name="quick_tune" value="spacing"> {html.escape(t(ui_language, "style_tune_spacing"))}</label>
+    <label><input type="checkbox" name="quick_tune" value="type"> {html.escape(t(ui_language, "style_tune_type"))}</label>
+    <label><input type="checkbox" name="quick_tune" value="contrast"> {html.escape(t(ui_language, "style_tune_contrast"))}</label>
+    <label><input type="checkbox" name="quick_tune" value="motion"> {html.escape(t(ui_language, "style_tune_motion"))}</label>
+  </section>
+  <section class="section">
+    <h2>{html.escape(t(ui_language, "targeted_slides_label"))}</h2>
+    <input type="text" name="targeted_slides" placeholder="{html.escape(t(ui_language, "targeted_slides_placeholder"))}">
+  </section>
+  <section class="section">
+    <h2>{html.escape(t(ui_language, "comparison_count_title"))}</h2>
+    <label class="option"><input type="radio" name="comparison_count" value="1" checked> {html.escape(t(ui_language, "one_revision"))}</label>
+    <label class="option"><input type="radio" name="comparison_count" value="2"> {html.escape(t(ui_language, "two_revisions"))}</label>
+    <textarea name="notes" placeholder="{html.escape(t(ui_language, "style_notes_placeholder"))}"></textarea>
   </section>
   <div class="actions">
     <button type="submit">{html.escape(t(ui_language, "confirm_visual_choice"))}</button>
@@ -3616,10 +4150,27 @@ def render_style_review(task_dir: Path) -> str:
 
 def apply_revision_request(form: dict[str, list[str]]) -> JsonDict:
     base_version: str = first_form_value(form, "base_version", "v1").strip() or "v1"
+    revision_action: str = first_form_value(form, "revision_action", "keep-current").strip() or "keep-current"
+    comparison_count_raw: str = first_form_value(form, "comparison_count", "1").strip() or "1"
+    try:
+        comparison_count: int = int(comparison_count_raw)
+    except ValueError:
+        comparison_count = 1
+    comparison_count = 2 if comparison_count >= 2 else 1
+    revision_count: int = {
+        "keep-current": 0,
+        "quick-tune": 1,
+        "targeted-fix": 1,
+        "generate-comparison": comparison_count,
+        "switch-direction": 0,
+    }.get(revision_action, 0)
     request: JsonDict = {
         "version": "0.1",
         "base_version": base_version,
-        "revision_count": int(first_form_value(form, "revision_count", "1")),
+        "revision_action": revision_action,
+        "revision_count": revision_count,
+        "quick_tune": form.get("quick_tune", []),
+        "targeted_slides": first_form_value(form, "targeted_slides", "").strip(),
         "created_at": datetime.now().isoformat(timespec="seconds"),
         "preserve": [
             "factual content",
@@ -3627,14 +4178,9 @@ def apply_revision_request(form: dict[str, list[str]]) -> JsonDict:
             "source attribution",
             "official asset policy",
             "imagegen policy",
+            "confirmed visual direction unless revision_action is switch-direction",
         ],
     }
-    for group in REVISION_GROUPS:
-        value: str = first_form_value(form, group.key, group.default)
-        choice: Choice = selected_choice(group, value)
-        custom: str = first_form_value(form, f"{group.key}__custom", "").strip()
-        request[group.key] = custom if value == "custom" and custom else value
-        request[f"{group.key}_label"] = custom if value == "custom" and custom else choice.label
     request["notes"] = first_form_value(form, "notes", "").strip()
     return request
 
@@ -3654,7 +4200,10 @@ def render_compare(task_dir: Path) -> str:
         html_path: Path = version_dir / "final.html"
         if output_format == "html-revealjs":
             image_html: str = (
+                f'<div class="preview-wrap">'
                 f'<iframe class="html-preview" src="/static/{version}/final.html"></iframe>'
+                f'<a class="fullscreen-btn" href="/static/{version}/final.html" target="_blank">⛶ 全屏浏览</a>'
+                f'</div>'
                 if html_path.exists()
                 else f"<p class='risk'>{html.escape(t(ui_language, 'missing_preview_artifact'))}</p>"
             )
@@ -3687,8 +4236,8 @@ def render_compare(task_dir: Path) -> str:
     <textarea name="notes" placeholder="{html.escape(t(ui_language, "final_notes_placeholder"))}"></textarea>
   </section>
   <div class="actions">
-    <button type="submit">{html.escape(t(ui_language, "confirm_final_version"))}</button>
-    <a class="button secondary" href="/style-review">{html.escape(t(ui_language, "continue_editing"))}</a>
+    <button type="submit" name="action" value="finalize">{html.escape(t(ui_language, "confirm_final_version"))}</button>
+    <button type="submit" name="action" value="revise" class="secondary">{html.escape(t(ui_language, "revise_from_selected"))}</button>
   </div>
 </form>"""
     return html_page(t(ui_language, "compare_title"), body, ui_language)
@@ -3700,6 +4249,7 @@ def render_all_pages(task_dir: Path) -> None:
     write_text(task_dir / "brief-confirm.html", render_confirm(task_dir))
     write_text(task_dir / "image-style.html", render_image_style(task_dir))
     write_text(task_dir / "image-placement.html", render_image_placement(task_dir))
+    write_text(task_dir / "preview-review.html", render_preview_review(task_dir))
     write_text(task_dir / "style-review.html", render_style_review(task_dir))
     write_text(task_dir / "compare.html", render_compare(task_dir))
 
@@ -3734,6 +4284,7 @@ def initial_prompt(task_dir: Path) -> str:
     if not brief:
         return "No confirmed brief found. Confirm intake first."
     script_path: Path = Path(__file__).resolve()
+    generate_images_path: Path = script_path.parent / "generate_images.py"
     output_format: str = output_format_from_brief(brief, "pptx")
     image_policy: str = image_policy_from_brief(brief)
     raw_image_mode: Any = brief.get("image_generation_mode")
@@ -3760,10 +4311,16 @@ def initial_prompt(task_dir: Path) -> str:
     if image_mode in PRE_V1_IMAGE_MODES:
         pre_v1_image_instruction = f"""AI image pre-v1 requirements:
 - Read {image_plan_path(task_dir)} before creating v1.
-- Generate only the pre-v1 targets listed in `targets[]`; do not invent extra generated images.
-- Use the image generation capability for those targets. Do not replace failed images with CSS gradients or decorative vector fallbacks.
-- Retry failed image generation up to 2 times. After 3 failed attempts, record `final_status: failed`, print the failure to stderr, and stop.
-{image_asset_record_command}- After recording successful image assets, run guard again before creating v1.
+- First show the prompt requests in the conversation:
+  python3 "{generate_images_path}" --task-dir "{task_dir}" show
+- Ask the user to generate or provide the requested image files. Do not invent extra generated images and do not replace missing images with CSS gradients, SVGs, or placeholders.
+- When the user provides a file path for a target, register it with:
+  python3 "{generate_images_path}" --task-dir "{task_dir}" place --source "<user-image-path>" --target-id "<target-id>"
+- If the user places files directly under assets/images, run:
+  python3 "{generate_images_path}" --task-dir "{task_dir}" place
+- Automatic backends remain available only when explicitly chosen or for testing, for example:
+  python3 "{generate_images_path}" --task-dir "{task_dir}" --api stub
+{image_asset_record_command}- After all pre-v1 images are recorded, run guard again and continue only when all active targets are success with matching prompts.
 """
     post_v1_image_instruction: str = ""
     if image_mode in POST_V1_IMAGE_MODES:
@@ -3776,15 +4333,30 @@ def initial_prompt(task_dir: Path) -> str:
 - For HTML-only output, regenerate the HTML deck to {html_v2_output}; do not mutate v1/final.html in place.
 - For `both`, treat PPTX as primary for placement review, then regenerate the matching HTML deck to {html_v2_output}.
 """
+    preview_review_instruction: str = f"""After generation:
+- Regenerate Director pages so the review page can see the new artifacts:
+  python3 "{script_path}" --base-dir "{task_dir.parent.parent}" render --task "{task_dir.name}"
+- Open the v1 Preview Gate before any style review. Do not jump directly to Style Review:
+  python3 "{script_path}" --base-dir "{task_dir.parent.parent}" serve-wait --task "{task_dir.name}" --open-page preview-review --for preview-review
+- Read {task_dir / "preview-review.json"}.
+  - If `preview_action` is `keep-final`, final-selection.json has already been written and the selected version is copied to final/.
+  - If `preview_action` is `style-review`, open Style Review and wait for the revision request:
+    python3 "{script_path}" --base-dir "{task_dir.parent.parent}" serve-wait --task "{task_dir.name}" --open-page style-review --for revision
+    Then read revision-request.json. Generate a new version only when `revision_count` is greater than 0.
+"""
     common_rules: str = f"""Confirmed brief:
 {json.dumps(brief, ensure_ascii=False, indent=2)}
 
 Rules:
 - Before generating, run the required Director gates:
-{image_style_gate_instruction}- Then run:
-  python3 "{script_path}" --base-dir "{task_dir.parent.parent}" guard --task "{task_dir.name}"
-  If the guard fails because the brief is not confirmed, open the confirmation page through serve-wait and continue only after the user's HTML click:
-  python3 "{script_path}" --base-dir "{task_dir.parent.parent}" serve-wait --task "{task_dir.name}" --for confirmed
+{image_style_gate_instruction}- Run serve-wait with --then-guard so guard executes automatically once the user completes the last browser step.
+  Use Bash run_in_background=True so you are notified when the full pipeline finishes — do NOT poll or sleep:
+  python3 "{script_path}" --base-dir "{task_dir.parent.parent}" serve-wait --task "{task_dir.name}" --for confirmed --then-guard
+  The command exits with code 0 and prints GUARD_PASSED + the generation prompt on success,
+  or exits with code 2 and prints GUARD_FAILED + error details on failure.
+  Only proceed to generation after receiving GUARD_PASSED.
+  If guard fails mid-flow (e.g. stale brief), re-run serve-wait to get a fresh user click:
+  python3 "{script_path}" --base-dir "{task_dir.parent.parent}" serve-wait --task "{task_dir.name}" --for confirmed --then-guard
 - Audience, goal, output_format, research strategy, source boundary, content language, logo policy, image policy, selected visual direction, and output constraints are locked.
 - Do not fabricate metrics, logos, customer names, screenshots, or official-looking brand assets.
 - Use official or user-provided brand assets only.
@@ -3809,6 +4381,78 @@ Rules:
 - PPTX brief-field boundary: ignore HTML-only fields such as `html_config`, `html_motion_level`, `html_motion_profile`, `html_animation`, `html_transition`, and `html_gradient` when deciding PPTX mechanics. Use solid-color PPTX equivalents from the selected visual candidate instead of HTML gradients or HTML animations.
 - The only exception is an explicit user request to bypass Presentations after you report the missing runtime."""
 
+    html_requirements: str = ""
+    if output_format in {"html-revealjs", "both"}:
+        html_config: JsonDict = brief.get("html_config", {}) if isinstance(brief.get("html_config"), dict) else {}
+        # html_theme_key at top level (set by Visual Inspiration) takes precedence over html_config.theme_key
+        theme_key: str = (
+            str(html_config.get("theme_key", "")).strip()
+            or str(brief.get("html_theme_key", "minimal-white")).strip()
+            or "minimal-white"
+        )
+        motion_level: str = str(html_config.get("motion_level", "subtle"))
+        # visual candidate's transition/gradient take precedence when html_config is not yet written
+        visual_candidate: JsonDict = selected_visual_candidate_from_brief(brief) if not html_config.get("transition") else {}
+        html_transition: str = str(html_config.get("transition", "")) or str(visual_candidate.get("html_transition", "fade"))
+        html_gradient: str = str(html_config.get("gradient", "")) or str(visual_candidate.get("html_gradient", ""))
+        layout_families: Any = html_config.get("layout_families", [])
+        layout_families_json: str = json.dumps(layout_families if isinstance(layout_families, list) else [], ensure_ascii=False)
+        html_requirements = f"""Reveal.js requirements:
+- Use pinned CDN links for reveal.js@5.1.0: reset.css, reveal.css, a built-in theme, reveal.js, and the Notes plugin.
+- Notes plugin: import RevealNotes from https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/notes/notes.esm.js
+  Initialize with: Reveal.initialize({{ transition: "{html_transition}", plugins: [RevealNotes] }})
+- theme_key from html_config: "{theme_key}". Implement by defining CSS custom properties in <style>:
+  :root {{
+    --deck-bg: <from theme>;
+    --deck-ink: <from theme>;
+    --deck-muted: <from theme>;
+    --deck-accent: <from theme>;
+    --deck-accent-2: <from theme>;
+    --deck-line: <from theme>;
+  }}
+  Apply these tokens to .reveal background-color, h1-h3, p, code, hr, dividers, charts, and cards.
+  Do not hard-code one-off hex values per slide; consume the tokens. Cover/section gradient hint: "{html_gradient or 'use --deck-bg solid color'}".
+- Safe-area contract — NO EXCEPTIONS, including cover and section-divider slides:
+  .slide-safe {{ position:absolute; left:54px; top:70px; width:1172px; height:590px; overflow:hidden; }}
+  .bleed {{ position:absolute; inset:0; }}
+  REQUIRED structure for every slide type (cover, section, content, end):
+    <section>
+      <div class="bleed ..."><!-- background gradient / image ONLY --></div>
+      <div class="slide-safe">
+        <!-- ALL content: title, body, columns, charts, code, images -->
+      </div>
+    </section>
+  Inside .slide-safe use normal flow or flex/grid layout. Do NOT use position:absolute on
+  content elements inside .slide-safe unless stacking layers within those 1172×590 bounds.
+  FORBIDDEN patterns — these silently push content outside the visible area:
+    ✗ position:absolute on direct children of <section> (other than .bleed and .slide-safe)
+    ✗ top:50%; transform:translateY(-50%) on any element outside .slide-safe
+    ✗ display:flex or display:grid on the <section> element itself to position content
+    ✗ left/top/right/bottom values on section children that bypass .slide-safe coordinates
+    ✗ treating the cover slide as exempt ("it's decorative, safe-area doesn't apply")
+  The cover slide is NOT exempt. Put the title, subtitle, kicker, and badge content inside
+  .slide-safe, then use flexbox row/column inside it for the two-column cover layout.
+- motion_level from html_config: "{motion_level}". Use animation vocabulary from the animation catalog:
+  subtle -> fade-up, rise-in, stagger-list only.
+  expressive -> adds zoom-pop, counter-up, path-draw, blur-in.
+  cinematic -> adds spotlight, shimmer-sweep, kenburns for cover/section/end slides only.
+  Implement as local @keyframes; do not link external animation CSS.
+  Template for rise-in + stagger:
+    @keyframes rise-in {{from{{opacity:0;transform:translateY(18px)}}to{{opacity:1;transform:translateY(0)}}}}
+    @keyframes fade-up {{from{{opacity:0;transform:translateY(12px)}}to{{opacity:1;transform:translateY(0)}}}}
+    .rise-in {{ animation: rise-in .55s ease both; }}
+    .stagger>*{{ animation: rise-in .5s ease both; }}
+    .stagger>*:nth-child(2){{ animation-delay:.08s; }}
+    .stagger>*:nth-child(3){{ animation-delay:.16s; }}
+    .stagger>*:nth-child(4){{ animation-delay:.24s; }}
+    @media(prefers-reduced-motion:reduce){{*{{animation:none!important}}}}
+- Chart data: use Chart.js 4.x CDN (https://cdn.jsdelivr.net/npm/chart.js) and chartjs-plugin-datalabels for bar/line/pie slides. Use direct data labels instead of legends.
+- layout_families from html_config: {layout_families_json}. Do not repeat the same layout family 3 slides in a row.
+- Every slide needs one primary proof object: chart, diagram, table, quote, image, or code artifact.
+- Speaker notes: put <aside class="notes"> on every slide. Notes plugin must be loaded and the S key must open speaker notes.
+- Save the versioned output to {html_output}.
+- Include PDF export guidance: append ?print-pdf, print from Chrome/Edge, landscape, no headers/footers."""
+
     if output_format == "html-revealjs":
         return f"""Write a Reveal.js 5.1.0 HTML presentation directly. Do NOT call the Codex Presentations plugin.
 
@@ -3816,22 +4460,15 @@ Rules:
 
 {pre_v1_image_instruction}
 
-Reveal.js requirements:
-- Use pinned CDN links for reveal.js@5.1.0 reset.css, reveal.css, a built-in theme, and reveal.js.
-- Use `html_config`, `html_motion_profile`, and the selected visual candidate's `html_transition`, `html_animation`, and `html_gradient`.
-- HTML motion is CSS-only. Do not add Canvas/WebGL effects unless a future capability explicitly enables them.
-- Put speaker notes in `<aside class="notes">` on each slide.
-- Keep the file browser-runnable and save it to {html_output}.
-- Include PDF export guidance: append `?print-pdf`, print from Chrome/Edge, landscape, no headers/footers.
+{html_requirements}
 
 {post_v1_image_instruction}
 
-After generation:
-- If post-v1 image placement created v2, open style review on v2; otherwise open it on v1.
+{preview_review_instruction}
 - Final selection copies the selected `vN/final.html` to {final_html_path_for_output(task_dir, "html-revealjs")}.
 
 QA:
-- Open in a browser or capture screenshots to verify slide navigation, gradients, speaker notes, and no text overflow.
+- Open in browser: verify all slides at 16:9, no overflow outside .slide-safe, speaker notes panel works (press S).
 - Return HTML path, screenshot/QA evidence, and remaining risks.
 """
 
@@ -3855,14 +4492,11 @@ PPTX route:
 
 HTML route:
 - Write Reveal.js HTML directly; do NOT call Presentations plugin for HTML.
-- Use pinned reveal.js@5.1.0 CDN links.
-- Use `html_config`, `html_motion_profile`, and the selected visual candidate's `html_transition`, `html_animation`, and `html_gradient`.
-- HTML motion is CSS-only. Do not add Canvas/WebGL effects unless a future capability explicitly enables them.
-- Save the HTML deck to {html_output}.
+{html_requirements}
 
 {post_v1_image_instruction}
 
-After generation:
+{preview_review_instruction}
 - Final selection copies the selected PPTX to {task_dir / "final" / (task_dir.name + ".pptx")} and the selected Reveal.js deck to {final_html_path_for_output(task_dir, "both")}.
 - Do not generate a separate companion HTML in `both` mode.
 
@@ -3893,10 +4527,8 @@ Output:
 
 {post_v1_image_instruction}
 
+{preview_review_instruction}
 - After final selection, generate a view-only HTML companion at {final_html_path_for_output(task_dir, "pptx", companion=True)} from the selected version's per-slide previews.
-- Before returning control to the user after the latest required version is generated, regenerate Director pages and start the local Director server with the style-review page open:
-  python3 "{script_path}" --base-dir "{task_dir.parent.parent}" serve --task "{task_dir.name}" --open-page style-review
-- If waiting for a style decision, use serve-wait and continue from the revision/final-selection signal rather than asking the user to reply in chat.
 - Return PPTX path, HTML companion path, contact sheet path, QA summary, and remaining risks.
 """
 
@@ -3908,6 +4540,12 @@ def revision_prompt(task_dir: Path) -> str:
     brief: JsonDict = read_json(task_dir / "brief-confirmed.json")
     output_format: str = output_format_from_brief(brief, "pptx") if brief else "pptx"
     base_version: str = str(request.get("base_version") or "v1")
+    revision_action: str = str(request.get("revision_action", "keep-current"))
+    revision_count: int = int(request.get("revision_count", 0) or 0)
+    if revision_action == "switch-direction":
+        return "The user chose to switch visual direction. Reopen Visual Inspiration, confirm the updated brief, then regenerate from the new confirmed direction."
+    if revision_count <= 0:
+        return "No generated revision requested. The current version should be kept or finalized."
     base_pptx: Path = task_dir / base_version / "final.pptx"
     base_html: Path = task_dir / base_version / "final.html"
     existing_versions: list[int] = [
@@ -3916,7 +4554,16 @@ def revision_prompt(task_dir: Path) -> str:
         if item.is_dir() and version_number(item) >= 1
     ]
     next_version_number: int = (max(existing_versions) if existing_versions else 1) + 1
-    next_version: str = f"v{next_version_number}"
+    target_versions: list[str] = [f"v{next_version_number + offset}" for offset in range(revision_count)]
+    target_version_text: str = ", ".join(target_versions)
+    html_version_outputs: str = "\n".join(
+        f"  - {version}: {task_dir / version / 'final.html'} and {task_dir / version / 'qa-summary.md'}"
+        for version in target_versions
+    )
+    pptx_version_outputs: str = "\n".join(
+        f"  - {version}: {task_dir / version / 'final.pptx'}, contact-sheet.png, slides/, and qa-summary.md"
+        for version in target_versions
+    )
     if output_format == "html-revealjs":
         return f"""Revise the existing {base_version} Reveal.js HTML deck using the selected revision request.
 
@@ -3932,19 +4579,24 @@ Preserve:
 - sources and omission notes
 - official asset policy
 - imagegen policy
+- confirmed visual direction unless the request explicitly says switch-direction
 
-Change only the selected visual directions:
-- palette direction
-- structure rhythm
-- visual expression
-- image/logo treatment
+Revision action:
+- {revision_action}
+- quick-tune means CSS/spacing/type/contrast/motion only; do not rewrite content.
+- targeted-fix means change only the named slides or issues.
+- generate-comparison means create a comparison version while preserving facts and structure.
 
 HTML route:
-- Keep Reveal.js 5.1.0 with pinned CDN links.
-- Keep speaker notes in `<aside class="notes">`.
+- Keep Reveal.js 5.1.0 with pinned CDN links, including the Notes plugin import:
+  https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/notes/notes.esm.js
+  Initialize with: Reveal.initialize({{ plugins: [RevealNotes] }})
+- Keep speaker notes in `<aside class="notes">` on every slide.
+- Preserve the safe-area contract: regular content stays inside `.slide-safe`; only backgrounds use `.bleed`.
 - Use CSS-only motion from `html_config` and `html_motion_profile`; do not introduce Canvas/WebGL effects.
-- Write the revised deck to {task_dir / next_version / "final.html"}.
-- Write a concise QA summary to {task_dir / next_version / "qa-summary.md"}.
+- Generate {revision_count} revised version(s): {target_version_text}.
+- Write outputs:
+{html_version_outputs}
 - Verify browser load, navigation, presenter notes, print-PDF readiness, and no text overflow.
 - Do not mutate {base_html}; each version must remain reproducible.
 """
@@ -3962,12 +4614,13 @@ Preserve:
 - sources and omission notes
 - official asset policy
 - imagegen policy
+- confirmed visual direction unless the request explicitly says switch-direction
 
-Change only the selected visual directions:
-- palette direction
-- structure rhythm
-- visual expression
-- image/logo treatment
+Revision action:
+- {revision_action}
+- quick-tune means spacing/type/contrast/motion adjustments only; do not rebuild slide content.
+- targeted-fix means change only the named slides or issues.
+- generate-comparison means create a comparison version while preserving facts and structure.
 
 Codex PPTX hard requirement:
 - Before writing or rendering any PPTX, verify Codex Presentations / artifact-tool `presentation-jsx`. Do not treat plugin UI or tool-search absence as missing by itself.
@@ -3980,10 +4633,13 @@ Codex PPTX hard requirement:
 
 Render and QA:
 - use the Presentations internal scratch workspace as required by the plugin
-- copy revised PPTX under {task_dir / next_version / "final.pptx"} unless generating multiple versions
+- Generate {revision_count} revised version(s): {target_version_text}.
+- Write outputs:
+{pptx_version_outputs}
 - copy per-slide preview PNGs into the version's `slides/` folder
 - copy contact sheet and QA summary into the same version folder
-- if output_format is `both`, also revise the matching Reveal.js deck to {task_dir / next_version / "final.html"} using CSS-only HTML motion
+- if output_format is `both`, also revise matching Reveal.js decks using CSS-only HTML motion:
+{html_version_outputs}
 - explicitly check rendered slides for text overlap, especially wrapped titles covering subtitles or body text
 - fix any overlap/cropping/too-tight spacing and re-render affected slides before final selection
 - compare against {base_version}
@@ -4001,7 +4657,17 @@ class DirectorHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
         path: str = parsed.path
-        if path in ("/", "/intake"):
+        if path == "/set-language":
+            query: dict[str, list[str]] = parse_qs(parsed.query, keep_blank_values=True)
+            requested_language: str = str(query.get("ui_language", [""])[0])
+            next_path: str = str(query.get("next", ["/intake"])[0]) or "/intake"
+            if requested_language in SUPPORTED_UI_LANGUAGES:
+                update_task_ui_language(self.task_dir, requested_language)
+                render_all_pages(self.task_dir)
+            if not next_path.startswith("/") or next_path.startswith("//"):
+                next_path = "/intake"
+            self.redirect(next_path)
+        elif path in ("/", "/intake"):
             self.send_html(render_intake(self.task_dir))
         elif path == "/visual-inspiration":
             self.send_html(render_visual_inspiration(self.task_dir))
@@ -4011,6 +4677,8 @@ class DirectorHandler(BaseHTTPRequestHandler):
             self.send_html(render_image_style(self.task_dir))
         elif path == "/image-placement":
             self.send_html(render_image_placement(self.task_dir))
+        elif path == "/preview-review":
+            self.send_html(render_preview_review(self.task_dir))
         elif path == "/style-review":
             self.send_html(render_style_review(self.task_dir))
         elif path == "/compare":
@@ -4026,6 +4694,9 @@ class DirectorHandler(BaseHTTPRequestHandler):
         elif path == "/image-placement-saved":
             ui_language: str = ui_language_for_task(self.task_dir)
             self.send_html(message_page(t(ui_language, "image_placement_saved_title"), t(ui_language, "image_placement_saved_message"), ui_language))
+        elif path == "/preview-review-saved":
+            ui_language: str = ui_language_for_task(self.task_dir)
+            self.send_html(message_page(t(ui_language, "preview_review_saved_title"), t(ui_language, "preview_review_saved_message"), ui_language))
         elif path == "/revision-saved":
             ui_language: str = ui_language_for_task(self.task_dir)
             self.send_html(message_page(t(ui_language, "revision_saved_title"), t(ui_language, "revision_saved_message"), ui_language))
@@ -4105,59 +4776,40 @@ class DirectorHandler(BaseHTTPRequestHandler):
             touch_status(self.task_dir, "images-placement")
             render_all_pages(self.task_dir)
             self.redirect("/image-placement-saved")
+        elif parsed.path == "/api/preview-review":
+            request = apply_preview_review(self.task_dir, form)
+            render_all_pages(self.task_dir)
+            if str(request.get("preview_action", "")) == "style-review":
+                self.redirect("/style-review")
+            else:
+                self.redirect("/final-selected")
         elif parsed.path == "/api/revision":
             request: JsonDict = apply_revision_request(form)
             write_json(self.task_dir / "revision-request.json", request)
             touch_status(self.task_dir, "revision")
             render_all_pages(self.task_dir)
-            self.redirect("/revision-saved")
+            revision_action: str = str(request.get("revision_action", ""))
+            if revision_action == "keep-current":
+                finalize_selected_version(self.task_dir, str(request.get("base_version", "v1")), str(request.get("notes", "")))
+                self.redirect("/final-selected")
+            elif revision_action == "switch-direction":
+                self.redirect("/visual-inspiration")
+            else:
+                self.redirect("/revision-saved")
         elif parsed.path == "/api/final-selection":
-            brief: JsonDict = read_json(self.task_dir / "brief-confirmed.json")
-            output_format: str = output_format_from_brief(brief, "pptx") if brief else "pptx"
             selected_version: str = first_form_value(form, "selected_version", "v1")
-            selected_version_dir: Path = self.task_dir / selected_version
-            selected_pptx: Path = selected_version_dir / "final.pptx"
-            final_dir: Path = self.task_dir / "final"
-            final_pptx: Path = final_dir / f"{self.task_dir.name}.pptx"
-            if output_format in {"pptx", "both"} and selected_pptx.exists():
-                final_dir.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(selected_pptx, final_pptx)
-            final_html: Path | None = None
-            share_html_error: str = ""
-            selected_html: Path = selected_version_html_path(self.task_dir, selected_version)
-            if output_format in {"html-revealjs", "both"}:
-                if selected_html.exists():
-                    final_dir.mkdir(parents=True, exist_ok=True)
-                    final_html = final_html_path_for_output(self.task_dir, output_format)
-                    shutil.copy2(selected_html, final_html)
-                else:
-                    share_html_error = f"Missing selected HTML deck: {selected_html}"
-            elif output_format == "pptx":
-                try:
-                    final_html = write_share_html(
-                        self.task_dir,
-                        selected_version_dir,
-                        self.task_dir.name,
-                        output_path=final_html_path_for_output(self.task_dir, output_format, companion=True),
-                    )
-                except ValueError as exc:
-                    share_html_error = str(exc)
-            payload: JsonDict = {
-                "version": "0.1",
-                "selected_version": selected_version,
-                "selected_pptx": str(selected_pptx),
-                "final_pptx": str(final_pptx if final_pptx.exists() else selected_pptx),
-                "selected_html": str(selected_html),
-                "final_html": str(final_html) if final_html else "",
-                "output_format": output_format,
-                "notes": first_form_value(form, "notes", "").strip(),
-                "selected_at": datetime.now().isoformat(timespec="seconds"),
-            }
-            if share_html_error:
-                payload["share_html_error"] = share_html_error
-            write_json(self.task_dir / "final-selection.json", payload)
-            touch_status(self.task_dir, "final-selection")
-            self.redirect("/final-selected")
+            notes: str = first_form_value(form, "notes", "")
+            action: str = first_form_value(form, "action", "finalize")
+            if action == "revise":
+                write_json(self.task_dir / "revision-base.json", {
+                    "base_version": selected_version,
+                    "notes": notes,
+                    "created_at": datetime.now().isoformat(timespec="seconds"),
+                })
+                self.redirect("/style-review")
+            else:
+                finalize_selected_version(self.task_dir, selected_version, notes)
+                self.redirect("/final-selected")
         else:
             self.send_error(HTTPStatus.NOT_FOUND)
 
@@ -4216,6 +4868,7 @@ def message_page(title: str, message: str, ui_language: str = "zh") -> str:
   <a class="button" href="/visual-inspiration">{html.escape(t(ui_language, "nav_visual"))}</a>
   <a class="button" href="/image-style">{html.escape(t(ui_language, "nav_image_style"))}</a>
   <a class="button" href="/image-placement">{html.escape(t(ui_language, "nav_image_placement"))}</a>
+  <a class="button" href="/preview-review">{html.escape(t(ui_language, "nav_preview"))}</a>
   <a class="button" href="/style-review">{html.escape(t(ui_language, "nav_style"))}</a>
   <a class="button" href="/compare">{html.escape(t(ui_language, "nav_compare"))}</a>
 </div>"""
@@ -4272,7 +4925,8 @@ def resolve_task_dir(args: argparse.Namespace) -> Path:
     base_dir: Path = Path(args.base_dir).expanduser().resolve()
     thread_id: str = args.thread_id or os.environ.get("CODEX_THREAD_ID") or now_id()
     task_slug: str = slugify(args.task)
-    return workspace_root(base_dir, thread_id, task_slug)
+    resolved: Path = resolve_workspace_root(base_dir, task_slug, str(getattr(args, "command", "")))
+    return resolved if resolved else workspace_root(base_dir, thread_id, task_slug)
 
 
 def command_init(args: argparse.Namespace) -> None:
@@ -4296,14 +4950,21 @@ def command_init(args: argparse.Namespace) -> None:
                 print(f"Extracted {len(structure)} slides from {pptx_sources[0]}")
             else:
                 print("Warning: could not extract PPTX structure (python-pptx missing or file unreadable).")
+    # Clear stale status ready files so every init starts with a clean slate.
+    for ready_file in status_dir(task_dir).glob("*.ready"):
+        ready_file.unlink(missing_ok=True)
     write_json(task_dir / "brief-draft.json", brief)
     write_json(task_dir / "brief" / "draft-brief.json", brief)
     render_all_pages(task_dir)
     mode_label: str = " [ENHANCE MODE — PPTX→HTML]" if enhance_mode else ""
+    script_rel: str = "skills/deck-builder/scripts/presentation_director.py"
+    task_slug: str = slugify(args.task)
     print(f"Presentation Director task created{mode_label}: {task_dir}")
-    print(f"Open intake page: {task_dir / 'intake.html'}")
-    print("For click-to-submit flow, run:")
-    print(f"  python3 scripts/presentation_director.py serve --task {slugify(args.task)}")
+    print(f"Rendered local review pages under: {task_dir}")
+    print("Do not open intake.html separately; serve-wait opens the interactive browser page once.")
+    print("Run intake → confirmation → guard pipeline (use run_in_background=True in Bash tool):")
+    print(f"  python3 {script_rel} --base-dir . serve-wait --task {task_slug} --for confirmed --then-guard")
+    print("The command exits with GUARD_PASSED + generation prompt on success, GUARD_FAILED on failure.")
 
 
 def command_render(args: argparse.Namespace) -> None:
@@ -4341,6 +5002,7 @@ def command_serve(args: argparse.Namespace) -> None:
     print(f"Confirm:            http://{args.host}:{args.port}/confirm")
     print(f"Image style:        http://{args.host}:{args.port}/image-style")
     print(f"Image placement:    http://{args.host}:{args.port}/image-placement")
+    print(f"v1 preview:         http://{args.host}:{args.port}/preview-review")
     print(f"Style review:       http://{args.host}:{args.port}/style-review")
     print(f"Compare:            http://{args.host}:{args.port}/compare")
     if not args.no_open and args.open_page:
@@ -4351,6 +5013,20 @@ def command_serve(args: argparse.Namespace) -> None:
         print("\nStopping server.")
     finally:
         server.server_close()
+
+
+def _needs_image_style_gate(task_dir: Path) -> bool:
+    """Return True if the confirmed brief requires the Image Style Gate before generation."""
+    brief: JsonDict = read_json(task_dir / "brief-confirmed.json")
+    if not brief:
+        return False
+    if image_policy_from_brief(brief) == "none":
+        return False
+    # Gate is needed if image_generation_mode is not set yet in the brief,
+    # regardless of whether a stale images-style.ready exists.
+    if brief.get("image_generation_mode") is not None:
+        return False
+    return True
 
 
 def command_serve_wait(args: argparse.Namespace) -> None:
@@ -4381,15 +5057,52 @@ def command_serve_wait(args: argparse.Namespace) -> None:
     print(f"Confirm:            http://{args.host}:{args.port}/confirm")
     print(f"Image style:        http://{args.host}:{args.port}/image-style")
     print(f"Image placement:    http://{args.host}:{args.port}/image-placement")
+    print(f"v1 preview:         http://{args.host}:{args.port}/preview-review")
     print(f"Waiting for:        {target}")
     if not args.no_open and args.open_page:
         open_director_page(args.host, args.port, args.open_page)
 
+    chained_to_image_gate: bool = False
     started: float = time.time()
     try:
         while True:
             if target.exists():
+                # After brief confirmation, auto-chain to image style gate if needed
+                if args.for_status == "confirmed" and not chained_to_image_gate:
+                    if _needs_image_style_gate(task_dir):
+                        image_style_target: Path = status_dir(task_dir) / STATUS_FILES["images-style"]
+                        print("Brief confirmed. Image style gate needed — opening image-style page.")
+                        target = image_style_target
+                        chained_to_image_gate = True
+                        open_director_page(args.host, args.port, "image-style")
+                        time.sleep(args.interval)
+                        continue
                 print(f"Ready: {target}")
+                if getattr(args, "then_guard", False):
+                    _run_guard_after_wait(task_dir)
+                    # After GUARD_PASSED, stay alive and wait for generation output,
+                    # then auto-open preview-review so the user never needs a second command.
+                    v1_html: Path = task_dir / "v1" / "final.html"
+                    v1_pptx: Path = task_dir / "v1" / "final.pptx"
+                    print("\nWaiting for generated output (v1/final.html or v1/final.pptx)…")
+                    while True:
+                        if v1_html.exists() or v1_pptx.exists():
+                            print("Generation output detected — rendering review pages.")
+                            render_all_pages(task_dir)
+                            preview_target: Path = status_dir(task_dir) / STATUS_FILES["preview-review"]
+                            if preview_target.exists():
+                                preview_target.unlink()
+                            open_director_page(args.host, args.port, "preview-review")
+                            print("Waiting for preview-review decision…")
+                            while not preview_target.exists():
+                                if args.timeout > 0 and time.time() - started > args.timeout:
+                                    raise SystemExit("Timed out waiting for preview-review")
+                                time.sleep(args.interval)
+                            print(f"Ready: {preview_target}")
+                            return
+                        if args.timeout > 0 and time.time() - started > args.timeout:
+                            raise SystemExit("Timed out waiting for generated output")
+                        time.sleep(args.interval)
                 return
             if args.timeout > 0 and time.time() - started > args.timeout:
                 raise SystemExit(f"Timed out waiting for {target}")
@@ -4401,6 +5114,35 @@ def command_serve_wait(args: argparse.Namespace) -> None:
         server.shutdown()
         server.server_close()
         thread.join(timeout=2)
+
+
+def _run_guard_after_wait(task_dir: Path) -> None:
+    """Run validate_generation_guard and print a machine-readable result line.
+
+    Prints GUARD_PASSED + the generation prompt on success.
+    Prints GUARD_FAILED + error list and raises SystemExit(2) on failure.
+    This is called by serve-wait --then-guard so the agent running with
+    run_in_background=True gets a single completion notification that already
+    includes the guard result — no extra manual step required.
+    """
+    print("\n── Guard check ──────────────────────────────────────────")
+    errors: list[str] = validate_generation_guard(task_dir)
+    if errors:
+        print("GUARD_FAILED", file=sys.stderr)
+        for err in errors:
+            print(f"  - {err}", file=sys.stderr)
+        print(
+            "\nFix the issues above, then re-run guard or re-run serve-wait --then-guard.",
+            file=sys.stderr,
+        )
+        raise SystemExit(2)
+
+    print(f"GUARD_PASSED: {task_dir}")
+    print("\n── Generation prompt ────────────────────────────────────")
+    try:
+        print(initial_prompt(task_dir))
+    except Exception as exc:  # prompt generation is best-effort
+        print(f"(Could not render generation prompt: {exc})")
 
 
 def command_wait(args: argparse.Namespace) -> None:
@@ -4479,7 +5221,7 @@ def build_parser() -> argparse.ArgumentParser:
         description="Presentation Director helper for Codex + Presentations workflows."
     )
     parser.add_argument("--base-dir", default=".", help="Repository/workspace root. Default: current directory.")
-    parser.add_argument("--thread-id", default=None, help="Deprecated compatibility option; user-facing files now live in PPTX/<task-slug>/.")
+    parser.add_argument("--thread-id", default=None, help="Deprecated compatibility option; user-facing files now live in Decks/<task-slug>/; legacy PPTX/<task-slug>/ is still readable.")
 
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -4547,6 +5289,17 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Treat an already-existing status file as ready instead of waiting for a fresh click.",
     )
+    serve_wait_parser.add_argument(
+        "--then-guard",
+        action="store_true",
+        help=(
+            "After the status file is detected, automatically run the generation guard. "
+            "Prints GUARD_PASSED and the generation prompt on success; "
+            "prints GUARD_FAILED with error details and exits with code 2 on failure. "
+            "Use with Bash run_in_background=True so the agent is notified when the full "
+            "intake → confirmation → guard pipeline completes."
+        ),
+    )
     serve_wait_parser.set_defaults(func=command_serve_wait)
 
     wait_parser = subparsers.add_parser("wait", help="Wait for a ready status file.")
@@ -4570,7 +5323,7 @@ def build_parser() -> argparse.ArgumentParser:
     image_asset_parser.add_argument("--target-id", required=True, help="image-plan target id.")
     image_asset_parser.add_argument("--prompt", required=True, help="Prompt used for the attempt.")
     image_asset_parser.add_argument("--output-path", required=True, help="Generated image path, absolute or relative to the task folder.")
-    image_asset_parser.add_argument("--status", choices=("success", "failed"), required=True, help="Attempt status before file validation.")
+    image_asset_parser.add_argument("--status", choices=("success", "stub-placeholder", "failed"), required=True, help="Attempt status before file validation. Use stub-placeholder for solid-colour test images.")
     image_asset_parser.add_argument("--error", default="", help="Failure reason, if any.")
     image_asset_parser.add_argument("--asset-kind", default="abstract-texture", help="Asset kind for the image asset record.")
     image_asset_parser.add_argument("--placement-type", default="full-bleed-background", help="Placement type for the image asset record.")
@@ -4585,10 +5338,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     share_parser = subparsers.add_parser("share-html", help="Build a view-only final HTML companion from per-slide preview images.")
     share_parser.add_argument("--task", required=True, help="Task slug or title.")
-    share_parser.add_argument("--version", default="v1", help="Version folder under PPTX/<task-slug>/. Default: v1.")
+    share_parser.add_argument("--version", default="v1", help="Version folder under Decks/<task-slug>/. Default: v1.")
     share_parser.add_argument("--slides-dir", help="Optional explicit directory containing per-slide PNG/JPG/WebP previews.")
     share_parser.add_argument("--title", default="", help="Optional HTML title and output filename slug.")
-    share_parser.add_argument("--output", help="Optional output HTML path. Default: PPTX/<task-slug>/final/<title>.html.")
+    share_parser.add_argument("--output", help="Optional output HTML path. Default: Decks/<task-slug>/final/<title>.html.")
     share_parser.set_defaults(func=command_share_html)
 
     return parser

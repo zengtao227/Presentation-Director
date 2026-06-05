@@ -68,12 +68,18 @@ Codex 交互式全新 PPTX 请求必须打开确认页并自动等待用户在 H
 
 ### Research Strategy Gate
 
-当用户只给主题、没有给可直接使用的资料包时，不要马上开始 PPTX 生成。Presentation Director 应先让用户选择研究资料策略：
+当用户只给主题、没有给可直接使用的资料包时，不要马上开始 PPTX 生成。Presentation Director 应先让用户选择资料获取策略：
 
-- `Hybrid`: 外部 Deep Research 资料包加 Codex 定点核验。适合医学、药物研发、政策、产业研究、技术趋势等资料密集主题，默认推荐。
-- `Codex web deep research`: 由 Codex 深入联网检索、筛选和核验资料，质量高但更耗时和耗 token。
-- `External Deep Research packet`: 用户先用 Gemini Deep Research、Perplexity Deep Research 等生成研究报告和来源列表，再交给 Codex 做二次筛选、结构化、关键事实核验和 PPTX 规划。
-- `Provided materials only`: 严格只用用户提供资料，缺失信息必须标注。
+| 策略 | 描述 | 适用场景 |
+|------|------|--------|
+| **联网研究** | 使用任何联网研究工具（用户自选：Claude、Gemini、Perplexity、Kimi、豆包等）进行深度研究、验证和内容结构化 | 医学、产业、政策、技术趋势等资料密集主题；用户想让 AI 自动查证信息 |
+| **混合策略** | 用户先用任何 Deep Research 工具生成研究报告和来源列表，再由 Agent 做二次筛选、结构化、事实核验和演示规划 | 用户对资料有基本了解但需要深化；想保留对关键信息的控制权 |
+| **仅用提供资料** | 严格只用用户直接提供的材料（文本、文件、链接）；缺失信息必须标注；不进行任何外部查证 | 教学场景（教材内容）；专有信息；用户明确要求离线工作 |
+
+**工具选择原则：**
+- 用户可自由选择任何联网研究工具或 AI 助手（无论是云端还是本地）
+- Agent 的职责是：接收用户的资料来源，进行结构化、筛选、核验和演示规划
+- 不强制指定具体工具，尊重用户的工具生态和偏好
 
 研究策略和 `output_format` 必须写入 `brief-confirmed.json`，并在 handoff prompt 中作为内容边界的一部分。
 
@@ -93,12 +99,12 @@ Codex 交互式全新 PPTX 请求必须打开确认页并自动等待用户在 H
 - 已经存在用户确认过的 `brief-confirmed.json`
 - 任务是现有 PPTX 的小改、QA 或 targeted edit
 
-### PPTX Workspace
+### Deck Workspace
 
-在任何项目中生成 PPT 时，用户可见的所有相关文件都应集中放到项目内 `PPTX/<task-slug>/`，不要散落在根目录、`assets/` 或多个临时目录里。推荐结构：
+在任何项目中生成演示文稿时，用户可见的所有相关文件都应集中放到项目内 `Decks/<task-slug>/`，不要散落在根目录、`assets/` 或多个临时目录里。旧版 `PPTX/<task-slug>/` 目录仍作为 legacy task workspace 被工具读取，但新任务默认使用 `Decks/`。推荐结构：
 
 ```text
-PPTX/<task-slug>/
+Decks/<task-slug>/
   brief/
     draft-brief.json
     visual-contract.md
@@ -111,6 +117,7 @@ PPTX/<task-slug>/
   image-plan.json
   image-assets.json
   image-placement-request.json
+  preview-review.html
   style-review.html
   revision-request.json
   compare.html
@@ -136,7 +143,7 @@ PPTX/<task-slug>/
     final-report.md
 ```
 
-Codex Presentations 插件内部可能仍按插件规则使用 `outputs/<thread-id>/presentations/...` 作为 scratch workspace；但交给用户看的 brief、版本、逐页预览图、contact sheet、QA 摘要、最终 PPTX 和最终 HTML 分享版必须复制或保存到 `PPTX/<task-slug>/`。
+Codex Presentations 插件内部可能仍按插件规则使用 `outputs/<thread-id>/presentations/...` 作为 scratch workspace；但交给用户看的 brief、版本、逐页预览图、contact sheet、QA 摘要、最终 PPTX 和最终 HTML 分享版必须复制或保存到 `Decks/<task-slug>/`。
 
 `brief-confirmed.json` 必须包含：
 
@@ -172,21 +179,43 @@ output_format: "html-revealjs" | "pptx" | "both"
 
 生成层：Claude/Codex 直接写 Reveal.js HTML。不要调用 Codex Presentations plugin，不依赖 `html-ppt-skill` 或 `guizang-ppt-skill`。
 
-输出路径：每个候选版本先写入 `PPTX/<task-slug>/vN/final.html`；用户最终选择后，复制到 `PPTX/<task-slug>/final/<task-slug>.html`。
+输出路径：每个候选版本先写入 `Decks/<task-slug>/vN/final.html`；用户最终选择后，复制到 `Decks/<task-slug>/final/<task-slug>.html`。
 
 ### HTML Companion
 
-最终 `.pptx` 的只读分享版。它由最终版本的逐页渲染图生成，PPTX-only 输出时保存为 `PPTX/<task-slug>/final/<task-slug>-companion.html`，方便浏览器打开或简单分享。它不是编辑源，也不是 HTML deck 引擎的替代品；如果 PPTX 内容被修改，应从修改后的 PPTX 或重新渲染的逐页预览图再生成一次 HTML companion。`output_format="both"` 时，`final/<task-slug>.html` 是 Reveal.js Deck，不再单独生成 companion。
+最终 `.pptx` 的只读分享版。它由最终版本的逐页渲染图生成，PPTX-only 输出时保存为 `Decks/<task-slug>/final/<task-slug>-companion.html`，方便浏览器打开或简单分享。它不是编辑源，也不是 HTML deck 引擎的替代品；如果 PPTX 内容被修改，应从修改后的 PPTX 或重新渲染的逐页预览图再生成一次 HTML companion。`output_format="both"` 时，`final/<task-slug>.html` 是 Reveal.js Deck，不再单独生成 companion。
 
 ### AI Image Gates
 
 `image_policy` 保持现有 intake 权限枚举：`none`、`abstract-only`、`cover-section`、`ask-before-use`、`custom`。执行层另由 Image Style Gate 写入 `image_generation_mode`：`none`、`global-background`、`cover-section-auto`、`post-v1-slot-review`、`hybrid`。
 
-新 brief 必须先经过 `serve-wait --open-page image-style --for images-style`；旧 brief 如果没有 `image_generation_mode`，`guard` 会跳过图片门禁以保持兼容。pre-v1 生图必须写 `image-plan.json` 和 `image-assets.json`，其中 `final_status: "success"` 只能在输出图片文件存在且非空后写入；失败按 retry-2-then-stop 处理，不能静默降级成 CSS 渐变或 SVG 占位。`post-v1-slot-review` 和 `hybrid` 在 v1 preview artifact 就绪后，再通过 `serve-wait --open-page image-placement --for images-placement` 写 `image-placement-request.json`，然后生成 v2。
+新 brief 必须先经过 `serve-wait --open-page image-style --for images-style`；旧 brief 如果没有 `image_generation_mode`，`guard` 会跳过图片门禁以保持兼容。pre-v1 生图必须写 `image-plan.json` 和 `image-assets.json`，其中 `final_status: "success"` 只能在输出图片文件存在且非空后写入；失败不能静默降级成 CSS 渐变或 SVG 占位。交互式默认流程是运行 `generate_images.py show` 把 prompt 展示给用户，用户用任意工具生成图片后，通过 `generate_images.py place --source <path> --target-id <id>` 或 `--sources '{...}'` 复制并注册图片；`--api stub/dall-e-3/flux/hf` 仅作为显式自动化或测试后端。`post-v1-slot-review` 和 `hybrid` 在 v1 preview artifact 就绪后，再通过 `serve-wait --open-page image-placement --for images-placement` 写 `image-placement-request.json`，然后生成 v2。
+
+### HTML Theme & Motion
+
+Image Style Gate 完成后，`brief-confirmed.json` 的 `html_config` 对象包含以下字段（仅 `html-revealjs` 和 `both` 格式有效；PPTX 路径忽略这些字段）：
+
+| 字段 | 说明 |
+|---|---|
+| `theme_key` | 选定的 HTML 主题（如 `aurora`、`blueprint`、`academic-paper`）；用户可在 Image Style Gate 手动选，否则由 Visual Direction 候选自动推断 |
+| `motion_level` | 动效强度：`subtle`（仅 fade/rise-in）、`expressive`（加 zoom-pop/counter-up）、`cinematic`（封面/章节/结束页可用 spotlight/kenburns，CSS-only） |
+| `motion_profile` | 风格家族：`pitch`、`tech`、`editorial`、`product`、`presenter` |
+| `layout_families` | 推荐布局序列（来自 html-layout-catalog.md），如 `["cover-hero","architecture-map","flow-diagram","code-terminal","timeline"]` |
+| `transition` | Reveal.js 页面切换效果（`fade`/`slide`/`zoom`/`convex`）|
+| `effects_runtime` | 固定为 `css-only`；Canvas/WebGL 为未来能力 |
+
+生成 HTML 时必须遵守：
+- 用 CSS `:root` 变量实现主题 token（`--deck-bg`、`--deck-ink`、`--deck-muted`、`--deck-accent`、`--deck-accent-2`、`--deck-line`）
+- 所有文字/图表/表格放在 `.slide-safe`（left:54px; top:70px; width:1172px; height:590px）
+- AI 背景图用 `.bleed`（position:absolute; inset:0）
+- 加载 Reveal.js Notes plugin；每页有 `<aside class="notes">`
+- 数据幻灯片使用 Chart.js 4.x，直接数据标签，不用图例
+
+pre-v1 图片默认使用 `skills/deck-builder/scripts/generate_images.py show` 在对话中展示 prompt，然后用 `place --source/--target-id` 或 `place --sources` 注册用户提供的任意路径图片。自动后端保留给显式选择和测试使用。
 
 ### PPTX Editability
 
-最终 `.pptx` 是主要可编辑交付物。小改不需要重新生成整套 deck：文字替换、元素左右移动、颜色微调、替换图片、添加少量图片或图表，都应优先作为 PowerPoint 手工编辑或 Codex `Presentations` targeted-edit 处理。为了保留可回退历史，agent 修改现有 PPTX 时应复制成新版本，例如 `PPTX/<task-slug>/v2/final.pptx`，再重新生成 HTML companion。
+最终 `.pptx` 是主要可编辑交付物。小改不需要重新生成整套 deck：文字替换、元素左右移动、颜色微调、替换图片、添加少量图片或图表，都应优先作为 PowerPoint 手工编辑或 Codex `Presentations` targeted-edit 处理。为了保留可回退历史，agent 修改现有 PPTX 时应复制成新版本，例如 `Decks/<task-slug>/v2/final.pptx`，再重新生成 HTML companion。
 
 如果某个元素被做成了截图或整页图片，它只能整体移动/裁剪，不能编辑内部文字、连接线或数据。需要可细编辑时，应要求 agent 把该页重建为原生文本框、形状、连接器、表格或图表。
 
@@ -230,9 +259,9 @@ Render QA
     ├─ HTML: browser screenshot + text-overflow check
     └─ PPTX: contact sheet + no-overlap check（现有流程）
     ↓
-PPTX/<task-slug>/final/<task-slug>.html          ← HTML Deck 主输出（如适用）
-PPTX/<task-slug>/final/<task-slug>.pptx          ← PPTX 主输出（如适用）
-PPTX/<task-slug>/final/<task-slug>-companion.html ← PPTX-only 只读 companion
+Decks/<task-slug>/final/<task-slug>.html          ← HTML Deck 主输出（如适用）
+Decks/<task-slug>/final/<task-slug>.pptx          ← PPTX 主输出（如适用）
+Decks/<task-slug>/final/<task-slug>-companion.html ← PPTX-only 只读 companion
 ```
 
 ### macOS PowerPoint 文件授权弹窗
@@ -256,9 +285,9 @@ Reveal.js 5.1.0 HTML generation spec
     ↓
 browser QA / screenshot / text-overflow check
     ↓
-PPTX/<task-slug>/vN/final.html
+Decks/<task-slug>/vN/final.html
     ↓
-PPTX/<task-slug>/final/<task-slug>.html
+Decks/<task-slug>/final/<task-slug>.html
 ```
 
 ## 当前研究记录
