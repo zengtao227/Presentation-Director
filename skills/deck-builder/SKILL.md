@@ -192,17 +192,21 @@ HTML decks must implement the same contract in CSS:
 
 ```css
 .reveal .slides section {
-  /* DO NOT set position/width/height — Reveal.js controls these.
-     Adding position:relative or width/height overrides Reveal.js absolute
-     positioning and causes all slides to stack in document flow (staircase bug). */
+  /* ONLY overflow:hidden. DO NOT set position/width/height.
+     Reveal.js sets position:absolute on sections — that makes each section a
+     containing block. .bleed and .slide-safe rely on this. Adding
+     position:relative here overrides Reveal.js and causes the staircase bug
+     (all slides stack in document flow). Adding only padding instead of
+     .slide-safe removes the hard height boundary, allowing content overflow. */
   overflow: hidden;
 }
 .slide-safe {
-  position: absolute;
+  position: absolute;   /* positioned within the Reveal.js section */
   left: 54px;
   top: 70px;
   width: 1172px;
   height: 590px;
+  overflow: hidden;     /* hard boundary — content beyond 590px is clipped */
 }
 .slide-safe img,
 .slide-safe video,
@@ -216,6 +220,12 @@ HTML decks must implement the same contract in CSS:
   inset: 0;
 }
 ```
+
+**Why `.slide-safe` and NOT `padding` on section:**  
+`padding` on section has no height limit — content taller than the slide simply overflows. `.slide-safe` with `height:590px; overflow:hidden` is the only reliable way to enforce the safe-area boundary.
+
+**Why the earlier `.slide-safe` test produced a blank page:**  
+That attempt also set `position:relative; width:1280px; height:720px` on sections, which overrode Reveal.js's `position:absolute` on slides. With `overflow:hidden` only on section, Reveal.js retains control and `.slide-safe` works correctly.
 
 All regular slide content goes inside `.slide-safe`; only backgrounds and explicitly intentional bleed elements may sit outside it.
 

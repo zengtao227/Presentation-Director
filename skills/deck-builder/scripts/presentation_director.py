@@ -3987,7 +3987,6 @@ def render_preview_review(task_dir: Path) -> str:
         <p>{html.escape(t(ui_language, "preview_action_style_desc"))}</p>
       </label>
     </div>
-    <textarea name="notes" placeholder="{html.escape(t(ui_language, "preview_notes_placeholder"))}"></textarea>
   </section>
   <div class="actions">
     <button type="submit">{html.escape(t(ui_language, "save_preview_review"))}</button>
