@@ -68,12 +68,18 @@ Codex 交互式全新 PPTX 请求必须打开确认页并自动等待用户在 H
 
 ### Research Strategy Gate
 
-当用户只给主题、没有给可直接使用的资料包时，不要马上开始 PPTX 生成。Presentation Director 应先让用户选择研究资料策略：
+当用户只给主题、没有给可直接使用的资料包时，不要马上开始 PPTX 生成。Presentation Director 应先让用户选择资料获取策略：
 
-- `Hybrid`: 外部 Deep Research 资料包加 Codex 定点核验。适合医学、药物研发、政策、产业研究、技术趋势等资料密集主题，默认推荐。
-- `Codex web deep research`: 由 Codex 深入联网检索、筛选和核验资料，质量高但更耗时和耗 token。
-- `External Deep Research packet`: 用户先用 Gemini Deep Research、Perplexity Deep Research 等生成研究报告和来源列表，再交给 Codex 做二次筛选、结构化、关键事实核验和 PPTX 规划。
-- `Provided materials only`: 严格只用用户提供资料，缺失信息必须标注。
+| 策略 | 描述 | 适用场景 |
+|------|------|--------|
+| **联网研究** | 使用任何联网研究工具（用户自选：Claude、Gemini、Perplexity、Kimi、豆包等）进行深度研究、验证和内容结构化 | 医学、产业、政策、技术趋势等资料密集主题；用户想让 AI 自动查证信息 |
+| **混合策略** | 用户先用任何 Deep Research 工具生成研究报告和来源列表，再由 Agent 做二次筛选、结构化、事实核验和演示规划 | 用户对资料有基本了解但需要深化；想保留对关键信息的控制权 |
+| **仅用提供资料** | 严格只用用户直接提供的材料（文本、文件、链接）；缺失信息必须标注；不进行任何外部查证 | 教学场景（教材内容）；专有信息；用户明确要求离线工作 |
+
+**工具选择原则：**
+- 用户可自由选择任何联网研究工具或 AI 助手（无论是云端还是本地）
+- Agent 的职责是：接收用户的资料来源，进行结构化、筛选、核验和演示规划
+- 不强制指定具体工具，尊重用户的工具生态和偏好
 
 研究策略和 `output_format` 必须写入 `brief-confirmed.json`，并在 handoff prompt 中作为内容边界的一部分。
 

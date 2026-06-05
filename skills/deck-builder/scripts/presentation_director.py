@@ -341,7 +341,7 @@ ADDITIONAL_UI_COPY: dict[str, dict[str, str]] = {
         "next_visual": "下一步：视觉候选",
         "visual_gate": "视觉方向门禁",
         "visual_title": "选择第一版视觉方向",
-        "visual_intro": "这些候选会根据主题、PPT 类型和听众动态生成，借鉴 design-lock 和 ui-ux-pro-max 规律，确定配色、字体和版式方向。",
+        "visual_intro": "这些候选会根据主题、演示文稿类型和听众动态生成，借鉴 design-lock 和 ui-ux-pro-max 规律，确定配色、字体和版式方向。",
         "visual_intro_html": "这些候选决定 Reveal.js HTML 演示的视觉主题、过渡动画和动效密度。选好方向后直接写出可在浏览器演示的 HTML 文件，无需 Codex Presentations 插件。每个候选已预先关联最适合的 HTML 主题和动效档位。",
         "current_topic": "当前主题",
         "visual_notes": "视觉补充要求",
@@ -369,6 +369,8 @@ ADDITIONAL_UI_COPY: dict[str, dict[str, str]] = {
         "final_notes_placeholder": "最终选择理由或仍需注意的问题。",
         "confirm_final_version": "确认最终版本",
         "continue_editing": "继续修改",
+        "revise_from_selected": "以选中版本为基础继续修改",
+        "revision_base_notice": "本次修改以 {version} 为基础 — 新版本将在此版本上进行调整，不会回到 v1",
         "choose_version": "选择 {version}",
         "no_contact_sheet": "没有 contact sheet。",
         "no_versions": "还没有可比较版本。请先生成 v1。",
@@ -472,6 +474,8 @@ ADDITIONAL_UI_COPY: dict[str, dict[str, str]] = {
         "final_notes_placeholder": "Reason for the final choice or remaining issues to watch.",
         "confirm_final_version": "Confirm final version",
         "continue_editing": "Continue editing",
+        "revise_from_selected": "Continue editing from selected version",
+        "revision_base_notice": "Revising based on {version} — the new version will build on this, not revert to v1",
         "choose_version": "Choose {version}",
         "no_contact_sheet": "No contact sheet found.",
         "no_versions": "No comparable versions yet. Generate v1 first.",
@@ -575,6 +579,8 @@ ADDITIONAL_UI_COPY: dict[str, dict[str, str]] = {
         "final_notes_placeholder": "Begründung der finalen Auswahl oder verbleibende Punkte.",
         "confirm_final_version": "Finale Version bestätigen",
         "continue_editing": "Weiter bearbeiten",
+        "revise_from_selected": "Gewählte Version als Basis weiterbearbeiten",
+        "revision_base_notice": "Bearbeitung auf Basis von {version} — neue Version baut darauf auf, kehrt nicht zu v1 zurück",
         "choose_version": "{version} wählen",
         "no_contact_sheet": "Kein Contact Sheet gefunden.",
         "no_versions": "Es gibt noch keine vergleichbaren Versionen. Erzeugen Sie zuerst v1.",
@@ -793,7 +799,7 @@ for language, copy_items in WORKFLOW_UI_COPY.items():
     UI_COPY.setdefault(language, {}).update(copy_items)
 QUESTION_TITLE_L10N: dict[str, dict[str, str]] = {
     "en": {
-        "deck_type": "PPT Type",
+        "deck_type": "Presentation Type",
         "output_format": "Output Format",
         "research_strategy": "Research Strategy",
         "audience": "Audience",
@@ -807,7 +813,7 @@ QUESTION_TITLE_L10N: dict[str, dict[str, str]] = {
         "reference_deck": "Reference Deck",
     },
     "de": {
-        "deck_type": "PPT-Typ",
+        "deck_type": "Präsentationstyp",
         "output_format": "Ausgabeformat",
         "research_strategy": "Recherche-Strategie",
         "audience": "Zielgruppe",
@@ -821,7 +827,7 @@ QUESTION_TITLE_L10N: dict[str, dict[str, str]] = {
         "reference_deck": "Referenzdeck",
     },
     "fr": {
-        "deck_type": "Type de PPT",
+        "deck_type": "Type de présentation",
         "output_format": "Format de sortie",
         "research_strategy": "Stratégie de recherche",
         "audience": "Public",
@@ -835,7 +841,7 @@ QUESTION_TITLE_L10N: dict[str, dict[str, str]] = {
         "reference_deck": "Deck de référence",
     },
     "it": {
-        "deck_type": "Tipo di PPT",
+        "deck_type": "Tipo di presentazione",
         "output_format": "Formato di output",
         "research_strategy": "Strategia di ricerca",
         "audience": "Pubblico",
@@ -849,7 +855,7 @@ QUESTION_TITLE_L10N: dict[str, dict[str, str]] = {
         "reference_deck": "Deck di riferimento",
     },
     "es": {
-        "deck_type": "Tipo de PPT",
+        "deck_type": "Tipo de presentación",
         "output_format": "Formato de salida",
         "research_strategy": "Estrategia de investigación",
         "audience": "Audiencia",
@@ -879,10 +885,9 @@ CHOICE_LABEL_L10N: dict[str, dict[str, dict[str, str]]] = {
             "both": "HTML + PPTX (Both)",
         },
         "research_strategy": {
-            "hybrid-deep-research": "Hybrid: external Deep Research + Codex verification",
-            "codex-web-deep": "Codex deep web research",
-            "external-deep-research": "Gemini / Perplexity Deep Research packet",
             "provided-materials": "Use only the materials I provide",
+            "codex-web-deep": "Let the AI search online",
+            "external-deep-research": "I will provide a research packet",
             "custom": "Custom",
         },
         "audience": {
@@ -905,7 +910,6 @@ CHOICE_LABEL_L10N: dict[str, dict[str, dict[str, str]]] = {
             "provided-only": "Strictly use my provided materials",
             "web-with-sources": "May supplement from the web with cited sources",
             "existing-doc": "Use an existing PPT / document as the content base",
-            "reference-quality": "Use a reference deck as the quality and style bar",
             "custom": "Custom",
         },
         "content_language": {
@@ -947,11 +951,8 @@ CHOICE_LABEL_L10N: dict[str, dict[str, dict[str, str]]] = {
             "custom": "Custom",
         },
         "reference_deck": {
-            "none": "No reference; generate from content",
-            "quality-only": "Reference exists, but only as a quality bar",
-            "visual-style": "Reference exists; get close to its visual style",
-            "existing-ppt": "Existing PPT needs to be revised",
-            "custom": "Custom",
+            "none": "No reference",
+            "has-reference": "Has reference file",
         },
     },
     "de": {
@@ -969,10 +970,9 @@ CHOICE_LABEL_L10N: dict[str, dict[str, dict[str, str]]] = {
             "both": "HTML + PPTX (Beide)",
         },
         "research_strategy": {
-            "hybrid-deep-research": "Hybrid: externe Deep Research + Codex-Prüfung",
-            "codex-web-deep": "Codex Deep-Web-Recherche",
-            "external-deep-research": "Gemini / Perplexity Deep-Research-Paket",
             "provided-materials": "Nur bereitgestellte Materialien verwenden",
+            "codex-web-deep": "KI online recherchieren lassen",
+            "external-deep-research": "Ich stelle ein Recherche-Paket bereit",
             "custom": "Benutzerdefiniert",
         },
         "audience": {
@@ -995,7 +995,6 @@ CHOICE_LABEL_L10N: dict[str, dict[str, dict[str, str]]] = {
             "provided-only": "Ausschließlich bereitgestellte Materialien verwenden",
             "web-with-sources": "Web-Ergänzungen mit Quellenangaben erlaubt",
             "existing-doc": "Bestehendes PPT / Dokument als Inhaltsbasis nutzen",
-            "reference-quality": "Referenzdeck als Qualitäts- und Stilmaßstab nutzen",
             "custom": "Benutzerdefiniert",
         },
         "content_language": {
@@ -1037,21 +1036,18 @@ CHOICE_LABEL_L10N: dict[str, dict[str, dict[str, str]]] = {
             "custom": "Benutzerdefiniert",
         },
         "reference_deck": {
-            "none": "Keine Referenz; aus dem Inhalt generieren",
-            "quality-only": "Referenz vorhanden, nur als Qualitätsmaßstab",
-            "visual-style": "Referenz vorhanden; visuellen Stil annähern",
-            "existing-ppt": "Bestehendes PPT soll überarbeitet werden",
-            "custom": "Benutzerdefiniert",
+            "none": "Keine Referenz",
+            "has-reference": "Referenzdatei vorhanden",
         },
     },
 }
 QUESTION_PROMPT_L10N: dict[str, dict[str, str]] = {
     "en": {
-        "deck_type": "What kind of PPT are you creating?",
+        "deck_type": "What kind of presentation are you creating?",
         "output_format": "Which presentation output format should be generated?",
         "research_strategy": "If the material is incomplete, how should research material be gathered first?",
-        "audience": "Who is the main audience for this PPT?",
-        "goal": "What is the main goal of this PPT?",
+        "audience": "Who is the main audience for this presentation?",
+        "goal": "What is the main goal of this presentation?",
         "source_boundary": "How should source material be used?",
         "content_language": "What language should the slide body use?",
         "output_constraints": "What are the slide count and presentation duration constraints?",
@@ -1061,11 +1057,11 @@ QUESTION_PROMPT_L10N: dict[str, dict[str, str]] = {
         "reference_deck": "Do you have a reference deck or style sample?",
     },
     "de": {
-        "deck_type": "Welche Art von PPT soll erstellt werden?",
+        "deck_type": "Welche Art von Präsentation soll erstellt werden?",
         "output_format": "Welches Präsentationsformat soll erzeugt werden?",
         "research_strategy": "Wenn das Material unvollständig ist, wie sollen zuerst Recherchematerialien beschafft werden?",
-        "audience": "Für wen ist diese PPT hauptsächlich gedacht?",
-        "goal": "Was ist das Hauptziel dieser PPT?",
+        "audience": "Für wen ist diese Präsentation hauptsächlich gedacht?",
+        "goal": "Was ist das Hauptziel dieser Präsentation?",
         "source_boundary": "Wie soll das Quellenmaterial verwendet werden?",
         "content_language": "Welche Sprache soll der Folientext verwenden?",
         "output_constraints": "Welche Vorgaben gibt es für Folienzahl und Vortragsdauer?",
@@ -1261,8 +1257,8 @@ CONTEXT_LAYOUT_MAP: dict[str, list[str]] = {
 INTAKE_QUESTIONS: tuple[Question, ...] = (
     Question(
         key="deck_type",
-        title="PPT 类型",
-        prompt="你要做哪类 PPT?",
+        title="演示文稿类型",
+        prompt="你要做哪类演示文稿?",
         default="engineering-platform",
         choices=(
             Choice("project-report", "项目汇报", "说明进展、结果、风险和下一步。"),
@@ -1300,19 +1296,18 @@ INTAKE_QUESTIONS: tuple[Question, ...] = (
         key="research_strategy",
         title="资料研究策略",
         prompt="如果资料不完整，先怎么获得研究材料?",
-        default="hybrid-deep-research",
+        default="provided-materials",
         choices=(
-            Choice("hybrid-deep-research", "Hybrid：外部 Deep Research + Codex 定点核验", "适合医学、产业、政策、技术趋势等资料密集主题。"),
-            Choice("codex-web-deep", "Codex 深度联网研究", "由 Codex 查找、筛选、核验资料；更耗时和 token。"),
-            Choice("external-deep-research", "Gemini / Perplexity Deep Research 资料包", "先用外部 Deep Research 做广覆盖，再把资料包交给 Codex 结构化。"),
-            Choice("provided-materials", "只用我提供的资料", "不主动联网，缺失信息必须标注。"),
+            Choice("provided-materials", "只用我提供的资料", "严格按我给的材料生成，不联网补充，缺失内容直接标注。"),
+            Choice("codex-web-deep", "让 AI 联网查找", "由 Agent 主动联网搜索、筛选、核验资料后再生成。"),
+            Choice("external-deep-research", "我来提供研究资料包", "我自己用任意工具（Gemini、Kimi、Perplexity、豆包等）做研究，把报告交给 Agent 整理生成。"),
             Choice("custom", "自定义", "我有自己的研究资料策略。"),
         ),
     ),
     Question(
         key="audience",
         title="听众",
-        prompt="这份 PPT 主要给谁看?",
+        prompt="这份演示文稿主要给谁看?",
         default="technical-leaders",
         choices=(
             Choice("executives", "高层 / 老板 / 决策者", "更重结论、风险和决策请求。"),
@@ -1326,7 +1321,7 @@ INTAKE_QUESTIONS: tuple[Question, ...] = (
     Question(
         key="goal",
         title="目标",
-        prompt="这份 PPT 的主要目标是什么?",
+        prompt="这份演示文稿的主要目标是什么?",
         default="explain-value",
         choices=(
             Choice("understand-topic", "让对方快速理解一个主题", "强调清晰解释和结构化。"),
@@ -1345,15 +1340,14 @@ INTAKE_QUESTIONS: tuple[Question, ...] = (
         choices=(
             Choice("provided-only", "严格只用我提供的材料", "缺失信息必须标注，不联网补全。"),
             Choice("web-with-sources", "可以联网补充，但必须标注来源", "适合需要最新资料或外部事实。"),
-            Choice("existing-doc", "以已有 PPT / 文档为内容基础", "继承已有内容结构并改进表达。"),
-            Choice("reference-quality", "以参考 deck 作为质量和风格标杆", "参考是质量 bar，不盲目复制。"),
+            Choice("existing-doc", "以已有演示文稿 / 文档为内容基础", "继承已有内容结构并改进表达。"),
             Choice("custom", "自定义", "我有自己的资料使用规则。"),
         ),
     ),
     Question(
         key="content_language",
         title="内容语言",
-        prompt="PPT 正文使用什么语言?",
+        prompt="演示文稿正文使用什么语言?",
         default="zh",
         choices=(
             Choice("zh", "中文", "使用中文正文和中文标题。"),
@@ -1424,11 +1418,8 @@ INTAKE_QUESTIONS: tuple[Question, ...] = (
         prompt="是否有参考 deck 或风格样张?",
         default="none",
         choices=(
-            Choice("none", "没有参考，按内容生成", "由 AI 根据内容和视觉候选自主设计。"),
-            Choice("quality-only", "有参考，但只作为质量标杆", "beat reference, do not clone。"),
-            Choice("visual-style", "有参考，需要接近其视觉风格", "继承风格但不盲目复制。"),
-            Choice("existing-ppt", "有已有 PPT，需要在它基础上改", "作为 source/template。"),
-            Choice("custom", "自定义", "我有自己的参考使用规则。"),
+            Choice("none", "没有参考", "由 AI 根据内容和视觉候选自主设计。"),
+            Choice("has-reference", "有参考文件", "请在启动时通过 --source 参数提供参考文件的路径或 URL，AI 会以它作为内容和风格的参照基础。"),
         ),
     ),
 )
@@ -1905,9 +1896,9 @@ def default_intake_value(question: Question, sources: list[str], ui_language: st
         return "provided-only" if sources else "web-with-sources"
     if question.key == "research_strategy":
         if not sources:
-            return "hybrid-deep-research"
+            return "codex-web-deep"
         source_text: str = " ".join(sources).lower()
-        if any(token in source_text for token in ("gemini", "perplexity", "deep-research", "deep research")):
+        if any(token in source_text for token in ("gemini", "perplexity", "deep-research", "deep research", "kimi", "doubao")):
             return "external-deep-research"
         return "provided-materials"
     return question.default
@@ -2691,6 +2682,29 @@ def html_page(title: str, body: str, ui_language: str = "zh") -> str:
       border-radius: 8px;
       background: #fff;
     }}
+    .info-banner {{
+      background: #eef6ff;
+      border: 1.5px solid #93c5fd;
+      border-left: 4px solid #3b82f6;
+      border-radius: 0 8px 8px 0;
+      padding: 10px 14px;
+      font-size: .9em;
+      color: #1e40af;
+      margin-bottom: 14px;
+    }}
+    .preview-wrap {{ position: relative; }}
+    .fullscreen-btn {{
+      display: inline-block;
+      margin-top: 8px;
+      padding: 6px 14px;
+      background: var(--accent, #7c3aed);
+      color: #fff;
+      border-radius: 6px;
+      font-size: .82em;
+      font-weight: 600;
+      text-decoration: none;
+    }}
+    .fullscreen-btn:hover {{ opacity: .85; }}
     code {{ background: #eee7da; padding: 2px 5px; border-radius: 4px; }}
     table {{ width: 100%; border-collapse: collapse; background: var(--panel); }}
     th, td {{ border: 1px solid var(--line); padding: 10px; text-align: left; vertical-align: top; }}
@@ -3340,6 +3354,10 @@ def finalize_selected_version(task_dir: Path, selected_version: str, notes: str 
         payload["share_html_error"] = share_html_error
     write_json(task_dir / "final-selection.json", payload)
     touch_status(task_dir, "final-selection")
+    # Clean up revision-base.json — workflow complete, no stale base for future sessions.
+    revision_base_path: Path = task_dir / "revision-base.json"
+    if revision_base_path.exists():
+        revision_base_path.unlink()
     return payload
 
 
@@ -3823,7 +3841,10 @@ def render_image_placement(task_dir: Path) -> str:
             preview_html = (
                 f'<p>{html.escape(t(ui_language, "preview_artifact"))}: '
                 f'<code>{html.escape(str(html_path))}</code></p>'
+                f'<div class="preview-wrap">'
                 f'<iframe class="html-preview" src="/static/v1/final.html"></iframe>'
+                f'<a class="fullscreen-btn" href="/static/v1/final.html" target="_blank">⛶ 全屏浏览</a>'
+                f'</div>'
             )
     else:
         contact_sheet: Path = task_dir / "v1" / "contact-sheet.png"
@@ -4064,7 +4085,18 @@ def render_style_review(task_dir: Path) -> str:
     ui_language: str = ui_language_for_task(task_dir)
     brief: JsonDict = read_json(task_dir / "brief-confirmed.json")
     output_format: str = output_format_from_brief(brief, "pptx") if brief else "pptx"
-    version_name: str = latest_review_version(task_dir)
+    # If the user came from compare via "revise from selected", use that version as base.
+    revision_base: JsonDict = read_json(task_dir / "revision-base.json")
+    if revision_base and revision_base.get("base_version"):
+        version_name: str = revision_base["base_version"]
+        base_notice: str = (
+            f'<div class="info-banner">'
+            f'{html.escape(t(ui_language, "revision_base_notice").format(version=version_name.upper()))}'
+            f'</div>'
+        )
+    else:
+        version_name = latest_review_version(task_dir)
+        base_notice = ""
     version_dir: Path = task_dir / version_name
     qa_summary: Path = version_dir / "qa-summary.md"
     image_html, artifact_path = render_version_preview(task_dir, version_name, output_format, ui_language)
@@ -4078,6 +4110,7 @@ def render_style_review(task_dir: Path) -> str:
     ]
     body: str = f"""<div class="topline">{html.escape(t(ui_language, "style_review"))}</div>
 <h1>{html.escape(t(ui_language, "style_title"))}</h1>
+{base_notice}
 <p>{html.escape(t(ui_language, "style_intro").format(version_name=version_name))}</p>
 <section class="section">
   <h2>{html.escape(t(ui_language, "current_version"))}</h2>
@@ -4167,7 +4200,10 @@ def render_compare(task_dir: Path) -> str:
         html_path: Path = version_dir / "final.html"
         if output_format == "html-revealjs":
             image_html: str = (
+                f'<div class="preview-wrap">'
                 f'<iframe class="html-preview" src="/static/{version}/final.html"></iframe>'
+                f'<a class="fullscreen-btn" href="/static/{version}/final.html" target="_blank">⛶ 全屏浏览</a>'
+                f'</div>'
                 if html_path.exists()
                 else f"<p class='risk'>{html.escape(t(ui_language, 'missing_preview_artifact'))}</p>"
             )
@@ -4200,8 +4236,8 @@ def render_compare(task_dir: Path) -> str:
     <textarea name="notes" placeholder="{html.escape(t(ui_language, "final_notes_placeholder"))}"></textarea>
   </section>
   <div class="actions">
-    <button type="submit">{html.escape(t(ui_language, "confirm_final_version"))}</button>
-    <a class="button secondary" href="/style-review">{html.escape(t(ui_language, "continue_editing"))}</a>
+    <button type="submit" name="action" value="finalize">{html.escape(t(ui_language, "confirm_final_version"))}</button>
+    <button type="submit" name="action" value="revise" class="secondary">{html.escape(t(ui_language, "revise_from_selected"))}</button>
   </div>
 </form>"""
     return html_page(t(ui_language, "compare_title"), body, ui_language)
@@ -4762,8 +4798,18 @@ class DirectorHandler(BaseHTTPRequestHandler):
                 self.redirect("/revision-saved")
         elif parsed.path == "/api/final-selection":
             selected_version: str = first_form_value(form, "selected_version", "v1")
-            finalize_selected_version(self.task_dir, selected_version, first_form_value(form, "notes", ""))
-            self.redirect("/final-selected")
+            notes: str = first_form_value(form, "notes", "")
+            action: str = first_form_value(form, "action", "finalize")
+            if action == "revise":
+                write_json(self.task_dir / "revision-base.json", {
+                    "base_version": selected_version,
+                    "notes": notes,
+                    "created_at": datetime.now().isoformat(timespec="seconds"),
+                })
+                self.redirect("/style-review")
+            else:
+                finalize_selected_version(self.task_dir, selected_version, notes)
+                self.redirect("/final-selected")
         else:
             self.send_error(HTTPStatus.NOT_FOUND)
 
@@ -5034,6 +5080,29 @@ def command_serve_wait(args: argparse.Namespace) -> None:
                 print(f"Ready: {target}")
                 if getattr(args, "then_guard", False):
                     _run_guard_after_wait(task_dir)
+                    # After GUARD_PASSED, stay alive and wait for generation output,
+                    # then auto-open preview-review so the user never needs a second command.
+                    v1_html: Path = task_dir / "v1" / "final.html"
+                    v1_pptx: Path = task_dir / "v1" / "final.pptx"
+                    print("\nWaiting for generated output (v1/final.html or v1/final.pptx)…")
+                    while True:
+                        if v1_html.exists() or v1_pptx.exists():
+                            print("Generation output detected — rendering review pages.")
+                            render_all_pages(task_dir)
+                            preview_target: Path = status_dir(task_dir) / STATUS_FILES["preview-review"]
+                            if preview_target.exists():
+                                preview_target.unlink()
+                            open_director_page(args.host, args.port, "preview-review")
+                            print("Waiting for preview-review decision…")
+                            while not preview_target.exists():
+                                if args.timeout > 0 and time.time() - started > args.timeout:
+                                    raise SystemExit("Timed out waiting for preview-review")
+                                time.sleep(args.interval)
+                            print(f"Ready: {preview_target}")
+                            return
+                        if args.timeout > 0 and time.time() - started > args.timeout:
+                            raise SystemExit("Timed out waiting for generated output")
+                        time.sleep(args.interval)
                 return
             if args.timeout > 0 and time.time() - started > args.timeout:
                 raise SystemExit(f"Timed out waiting for {target}")

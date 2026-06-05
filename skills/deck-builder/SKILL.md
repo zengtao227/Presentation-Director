@@ -17,19 +17,24 @@ This skill does NOT generate slides directly. It routes to the correct generatio
 
 ## Request Boundary Check
 
+> **DEFAULT RULE — when in doubt, use Presentation Director.** Any request involving a presentation, slide deck, PPT/PPTX, or "把这些内容做成演示文稿/HTML" goes through the Director pipeline (intake → research strategy → visual inspiration → brief confirmation → image gate → generation → preview-review → style-review). This explicitly includes **beautifying an existing PPTX, converting a PPTX to an HTML deck, restyling, or porting slides to a new format.** Do NOT hand-write an HTML deck or call a generator directly just because a source PPTX already exists — an existing PPTX is *source material*, and the user still needs the confirmation gates and the preview/revision loop. The only requests that skip the pipeline are the narrow "Handle directly" rows below.
+
 Before starting this pipeline, verify the request actually needs a new deck:
 
 | Request Type | Action |
 |-------------|--------|
-| New PPTX from source material in Codex | **Run Presentation Director before Presentations** |
-| New deck from source material outside Codex | **Proceed with deck.md-centered pipeline** |
+| New PPTX/HTML from source material in Codex | **Run Presentation Director before Presentations** |
+| New deck from source material outside Codex | **Run Presentation Director, then deck.md-centered pipeline** |
+| **Beautify / restyle / reformat an existing PPTX** | **Run Presentation Director — PPTX is source material** |
+| **Convert an existing PPTX to an HTML deck** | **Run Presentation Director — PPTX is source material** |
+| New deck from an existing deck as a template/base | **Run Presentation Director (source_boundary = existing-doc)** |
 | Slide plan review or deck.md revision | **Proceed with this pipeline** |
 | Single-slide text fix in existing deck | Handle directly — skip this pipeline |
 | QA pass on an existing generated deck | Handle directly — skip this pipeline |
 | Quick Marp / reveal.js preview | Handle directly — skip this pipeline |
-| Format-only change (color, font size) | Handle directly — skip this pipeline |
+| Format-only change (color, font size) on an already-Director-generated deck | Handle directly — skip this pipeline |
 
-If in doubt: is this a net-new presentation from substantive source material? If yes, use this pipeline. In Codex, start with Presentation Director. Outside Codex, use the deck.md-centered path.
+If in doubt: does this produce or transform a presentation the user will show to an audience? If yes, use Presentation Director. A pre-existing PPTX does not exempt the request — it is source material, not a reason to skip the gates. In Codex, start with Presentation Director. Outside Codex, also start with Presentation Director, then continue with the deck.md-centered path.
 
 ---
 
@@ -38,6 +43,7 @@ If in doubt: is this a net-new presentation from substantive source material? If
 **Use this skill when:**
 - Generating a new deck from an article, book, knowledge document, or engineering project materials
 - The user asks Codex to create a new PPTX / PowerPoint / presentation from source material
+- **The user gives an existing PPTX and asks to beautify it, restyle it, or convert it to an HTML deck** — the PPTX is source material; run the full pipeline
 - The request implies slide planning, deck.md authoring, or design system selection
 - The user asks for a professional, editable, or high-quality presentation
 - The user mentions "Presentation Director", "slide planner", "deck.md", "design lock", or "visual contract"
@@ -45,8 +51,10 @@ If in doubt: is this a net-new presentation from substantive source material? If
 **Do NOT trigger when:**
 - Fixing a typo or rewriting a single slide in an existing deck
 - Creating a quick Marp or reveal.js preview file
-- The user only asks to change formatting in an already-generated deck
+- The user only asks to change one formatting value (e.g. a single color/font size) in a deck this pipeline already generated
 - No new deck planning is required
+
+A pre-existing PPTX is NOT a reason to skip this skill. "Make this PPTX prettier" and "turn this PPTX into HTML" are full pipeline requests: the user still needs format/language confirmation, visual direction, and the preview → revision loop.
 
 ---
 
@@ -184,9 +192,9 @@ HTML decks must implement the same contract in CSS:
 
 ```css
 .reveal .slides section {
-  position: relative;
-  width: 1280px;
-  height: 720px;
+  /* DO NOT set position/width/height — Reveal.js controls these.
+     Adding position:relative or width/height overrides Reveal.js absolute
+     positioning and causes all slides to stack in document flow (staircase bug). */
   overflow: hidden;
 }
 .slide-safe {
@@ -650,6 +658,10 @@ Use `<aside class="notes">` inside each `<section>`. Press `S` to open presenter
 - [ ] `?print-pdf` renders all slides without clipping.
 - [ ] File is self-contained except pinned Reveal.js CDN links; no broken local paths.
 - [ ] CSS overflow safeguards are present in `<style>` (`.slide-body { overflow: hidden; … }`).
+- [ ] **Title position is a design decision, not a layout fix** — title alignment (left / center) and vertical position are chosen during brief confirmation and must stay consistent across all slides. When fixing a head-heavy layout, do NOT change the title's position or the section's `padding-top` as the solution; that moves every title and breaks visual consistency.
+- [ ] **No head-heavy layout** — content fills at least 60% of the vertical space below the title. The correct fix is to increase internal spacing of content elements (card `padding`, grid `gap`, `line-height`, element `margin`). Never "fix" empty bottom space by shifting the title down, using `center: true`, or floating content to the middle of the slide.
+- [ ] **Word-break rules present** — `word-break: break-word; hyphens: none; overflow-wrap: break-word;` on `.reveal` to prevent mid-word splits in mixed Chinese/English text.
+- [ ] **Tool references are regional** — never hard-code a single AI product name. Always provide both: 🇨🇳 China options (Kimi / DeepSeek / 通义千问 / 文心一言) and 🌐 international options (Claude / GPT-4o / Gemini), or use the neutral term "AI 助手".
 
 ### Codex Mode — Presentation Director First
 
