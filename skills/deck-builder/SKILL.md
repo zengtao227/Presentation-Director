@@ -310,31 +310,46 @@ Static estimates are not enough — font loading, line wrapping, and language-sp
 
 ```html
 <script>
-// Overflow QA — runs after Reveal.js is ready and fonts are loaded.
+// Overflow QA — checks both scrollHeight (≤590) and scrollWidth (≤1172).
 // Auto-scales slides that overflow by ≤14% (scale ≥ 0.86).
 // Marks slides that overflow by >14% as QA_FAIL (red outline).
-document.fonts.ready.then(() => {
-  Reveal.on('ready', () => {
-    const SAFE_H = 590, MIN_SCALE = 0.86;
-    document.querySelectorAll('.slide-safe').forEach((safe, idx) => {
-      const prev = safe.style.overflow;
-      safe.style.overflow = 'visible';
-      const sh = safe.scrollHeight;
-      safe.style.overflow = prev || 'hidden';
-      if (sh <= SAFE_H) return;
-      const scale = SAFE_H / sh;
-      if (scale < MIN_SCALE) {
-        console.error(`[QA_FAIL] Slide ${idx+1}: scrollHeight=${sh}px, scale=${scale.toFixed(2)} < 0.86 — must split or reduce content`);
-        safe.style.outline = '3px solid rgba(255,50,50,0.8)';
-      } else {
-        const wrap = document.createElement('div');
-        wrap.style.cssText = `transform:scale(${scale});transform-origin:top left;width:${(100/scale).toFixed(2)}%;`;
-        while (safe.firstChild) wrap.appendChild(safe.firstChild);
-        safe.appendChild(wrap);
-        console.info(`[QA_FIT] Slide ${idx+1}: scrollHeight=${sh}px → scaled to ${(scale*100).toFixed(1)}%`);
-      }
-    });
+// Runs after Reveal ready + fonts loaded; window.load fallback ensures
+// the check runs even if Reveal.ready fired before this script executed.
+function runOverflowQA() {
+  const SAFE_H = 590, SAFE_W = 1172, MIN_SCALE = 0.86;
+  document.querySelectorAll('.slide-safe').forEach((safe, idx) => {
+    const prev = safe.style.overflow;
+    safe.style.overflow = 'visible';
+    const sh = safe.scrollHeight;
+    const sw = safe.scrollWidth;
+    safe.style.overflow = prev || 'hidden';
+    if (sh <= SAFE_H && sw <= SAFE_W) return;
+    const scale = Math.min(SAFE_H / sh, SAFE_W / sw, 1);
+    if (scale < MIN_SCALE) {
+      console.error(`[QA_FAIL] Slide ${idx+1}: scroll=${sw}x${sh}px, scale=${scale.toFixed(2)} < 0.86 — must split or reduce content`);
+      safe.style.outline = '3px solid rgba(255,50,50,0.8)';
+    } else {
+      const wrap = document.createElement('div');
+      wrap.style.cssText = `transform:scale(${scale});transform-origin:top left;width:${(100/scale).toFixed(2)}%;`;
+      while (safe.firstChild) wrap.appendChild(safe.firstChild);
+      safe.appendChild(wrap);
+      console.info(`[QA_FIT] Slide ${idx+1}: scroll=${sw}x${sh}px → scaled to ${(scale*100).toFixed(1)}%`);
+    }
   });
+}
+Reveal.on('ready', () => {
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(runOverflowQA);
+  } else {
+    requestAnimationFrame(runOverflowQA);
+  }
+});
+window.addEventListener('load', () => {
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(runOverflowQA);
+  } else {
+    runOverflowQA();
+  }
 });
 </script>
 ```
