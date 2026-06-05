@@ -226,6 +226,13 @@ HTML decks must implement the same contract in CSS:
 **Why `.slide-safe` and NOT `padding` on section:**  
 `padding` on section has no height limit — content taller than the slide simply overflows. `.slide-safe` with `height:590px; overflow:hidden` is the only reliable way to enforce the safe-area boundary.
 
+**Content density rule — never pack more than fits in 590px:**  
+Reveal.js base font size is ~40–42px; em units scale from this. If a slide has more than 3–4 list items, 5+ steps, or a table with 7+ rows, the content will overflow and be clipped. Rules:
+- Max 4 steps per slide — split into two slides if you need 5+
+- Max 5 bullet points per list
+- Max 6 table rows (use a summary card for the rest)
+- When in doubt, split the slide rather than shrinking fonts below legibility
+
 **Why the earlier `.slide-safe` test produced a blank page:**  
 That attempt also set `position:relative; width:1280px; height:720px` on sections, which overrode Reveal.js's `position:absolute` on slides. With `overflow:hidden` only on section, Reveal.js retains control and `.slide-safe` works correctly.
 
