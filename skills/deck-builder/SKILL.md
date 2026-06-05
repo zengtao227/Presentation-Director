@@ -260,6 +260,21 @@ Recommended sizes: `20px`–`34px` for icons, `16px`–`22px` for body copy.
 
 `stagger` is allowed only on horizontal grids (e.g. `g3`, `g2`) where items animate side-by-side.
 
+**Extension — stagger is also forbidden on multi-column containers:**  
+When `stagger` is applied to a two-column or multi-column container (`.cmp`, `.tc`, `.g2`, etc.), the second column div receives `animation-delay:.08s` and starts at `translateY(18px)` while the first column is already at its final position. This causes the column headers and content to appear at different vertical baselines — visually broken even after animation completes (if viewed mid-animation or in a screenshot).
+
+```html
+<!-- ❌ WRONG — cmp, tc, g2 containers must NOT use stagger -->
+<div class="cmp stagger">
+<div class="tc stagger">
+
+<!-- ✅ CORRECT — animate the whole container as one unit -->
+<div class="cmp fade-up">
+<div class="tc fade-up">
+```
+
+**Rule summary:** `stagger` only on single-column horizontal grids. Everything else → `fade-up` on the container, or `rise-in` on individual elements explicitly.
+
 ### Rule 3 — Height budget (pre-flight estimate only, not final arbiter)
 
 Available content height = 590px − slide-h (~75px) = **~515px**.
