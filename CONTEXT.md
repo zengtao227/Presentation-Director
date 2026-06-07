@@ -62,7 +62,7 @@ Codex 环境下创建全新演示文稿前的交互增强层。它不直接生�
 
 Director 的沟通界面语言和 PPT 正文语言是两个不同概念：`ui_language` 默认根据当前对话文本自动检测，用于 intake、visual-inspiration、confirm、style-review、compare 等 HTML gate 页面和按钮文案；`content_language` 用于控制 PPT 正文、标题和讲稿语言。运行 `init` 时应传入最近用户请求作为 `--conversation-text`，让自动打开的 HTML 页面跟随用户对话语言。
 
-Director 交互页应自动打开，不要让用户复制本地 URL、粘贴 JSON、或回到聊天里回复“已确认”。交互式流程应优先使用 `serve-wait --for confirmed`：用户点“下一步”后进入 `visual-inspiration`，再进入确认页；点击确认后写入状态文件，agent 自动继续生成。批处理或后台运行可显式传 `--no-open`，但仍应通过状态文件恢复，而不是通过聊天确认。
+Director 交互页应自动打开，不要让用户复制本地 URL、粘贴 JSON、或回到聊天里回复“已确认”。交互式流程应优先使用 `serve-wait --for confirmed --then-guard`：用户点“下一步”后进入 `visual-inspiration`，再进入确认页；点击确认后写入 `confirmed.ready`，guard 通过后写入 `guard-passed.ready`，agent 以 `guard-passed.ready` 作为开始生成的权威信号。批处理或后台运行可显式传 `--no-open`，但仍应通过状态文件恢复，而不是通过聊天确认。
 
 Codex 交互式全新 PPTX 请求必须打开确认页并自动等待用户在 HTML 中点击确认；agent 不得要求用户复制/粘贴、不得要求用户回聊天里回复“已确认”，也不得自己 POST `/api/confirm`、直接写入 `brief-confirmed.json` 或 `confirmed.ready` 来代替用户确认。只有用户明确说“跳过确认/直接生成/不用等我确认”时，才允许后台确认。`style-review` 和 `compare` 也应使用 HTML 点击 + 状态文件恢复；可用 `presentation_director.py open-page` 或 `render --open-page ...` 打开页面。
 

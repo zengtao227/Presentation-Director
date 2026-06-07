@@ -107,15 +107,15 @@ export HF_TOKEN=hf_your_token_here
          ▼
 ┌─────────────────┐
 │  2. serve-wait  │  启动本地服务器
-│  --for confirmed│  等待用户点击「确认」
-│                 │  写入 confirmed.ready
+│  --then-guard   │  等待用户点击「确认」
+│                 │  guard 通过后写入 guard-passed.ready
 └────────┬────────┘
          │ 用户完成 Visual Inspiration 选择 + 点击确认
          ▼
 ┌─────────────────┐
 │  3. guard       │  验证 brief-confirmed.json
 │                 │  检查 output_format、topic 等必填项
-│                 │  返回码 0=通过 / 2=失败
+│                 │  通过后给出生成信号
 └────────┬────────┘
          │ guard 通过
          ▼
@@ -154,10 +154,11 @@ image_policy   image_policy
 | Intake + Visual | `/` (intake) | — | 不等，用户填完进入确认 |
 | Visual Inspiration | `/visual-inspiration` | — | 候选选择写入 brief |
 | Brief 确认 | `/confirm` | `confirmed.ready` | `brief-confirmed.json` |
+| Guard 通过 | `serve-wait --then-guard` | `guard-passed.ready` | `GUARD_PASSED` + generation prompt |
 | 图片风格 + HTML 主题 | `/image-style` | `images-style.ready` | `html_theme_key`、`image_generation_mode` |
 | 修订选择 | `/compare` | `images-style.ready` | 用户选择 v1/v2 继续 |
 
-**重要**：agent 不能替用户点击确认。只有用户在浏览器点击后，状态文件才会写入，agent 才能继续。
+**重要**：agent 不能替用户点击确认。只有用户在浏览器点击后，`confirmed.ready` 才会写入；只有 guard 通过并写入 `guard-passed.ready` 后，agent 才能开始生成。
 
 ### 典型命令序列（HTML 输出）
 
@@ -172,13 +173,11 @@ $PD --base-dir "$BASE" init \
   --topic "量化策略年终回顾" \
   --conversation-text "帮我做一个 PPT"
 
-# Step 2: 等待用户在浏览器确认 intake
+# Step 2: 等待用户在浏览器确认，并自动运行 guard
 $PD --base-dir "$BASE" serve-wait \
   --task "$TASK" \
-  --for confirmed
-
-# Step 3: Guard 验证
-$PD --base-dir "$BASE" guard --task "$TASK"
+  --for confirmed \
+  --then-guard
 
 # Step 4: （如需 AI 图片）等待图片风格确认
 $PD --base-dir "$BASE" serve-wait \
@@ -239,6 +238,7 @@ python3 presentation_director.py --base-dir . init \
 python3 presentation_director.py --base-dir . serve-wait \
   --task "my-deck" \
   --for confirmed \
+  --then-guard \
   --timeout 600
 
 # 等待图片风格门禁确认
@@ -250,6 +250,7 @@ python3 presentation_director.py --base-dir . serve-wait \
 | `--for` 值 | 等待文件 | 触发时机 |
 |------------|----------|----------|
 | `confirmed` | `confirmed.ready` | 用户点击 Brief 确认页的「确认」 |
+| `guard-passed` | `guard-passed.ready` | `serve-wait --then-guard` 验证通过，可以开始生成 |
 | `images-style` | `images-style.ready` | 用户点击图片风格门禁的「保存」 |
 
 ---
@@ -282,6 +283,8 @@ guard 检查内容：
 - `confirmed.ready` 存在（用户点击确认）
 - 当 `image_generation_mode` 为 pre-v1 时，`image-plan.json` 中所有 active 目标已 `final_status: success`
 - 图片 prompt 与 plan 中的 `prompt_draft` 匹配（若已生成）
+
+交互式自动流程应优先使用 `serve-wait --for confirmed --then-guard`。该命令在 guard 通过后写入 `status/guard-passed.ready` 并 flush `GUARD_PASSED`；跨 AI 工具应把这个文件视为“开始生成”的权威信号。
 
 ---
 
@@ -680,8 +683,10 @@ python3 presentation_director.py --base-dir . init \
 ```
 PPTX/<task-slug>/
 ├── brief-confirmed.json      # 用户确认的 brief（勿手动编辑）
-├── confirmed.ready            # 用户点击确认后生成
-├── images-style.ready         # 用户完成图片风格门禁后生成
+├── status/
+│   ├── confirmed.ready        # 用户点击确认后生成
+│   ├── guard-passed.ready     # guard 通过后生成；agent 开始生成的权威信号
+│   └── images-style.ready     # 用户完成图片风格门禁后生成
 ├── image-plan.json            # AI 图片生成计划
 ├── image-assets.json          # AI 图片注册记录
 ├── image-prompts.md           # prompt-only 导出（可选）

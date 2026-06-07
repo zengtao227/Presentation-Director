@@ -484,7 +484,7 @@ Decks/<task-slug>/final/<task-slug>-companion.html  # PPTX-only
 
 For this Codex path, do not pre-lock `design-locks/`, palette, or per-slide layout before v1 unless the user explicitly asks. The visual inspiration gate should select a direction, not a rigid template. The goal is to lock intent, source boundaries, research strategy, and visual target, then give Presentations room to produce a stronger first draft.
 
-In interactive Codex sessions, the confirmation gate is a real user-action gate: the agent must not POST `/api/confirm`, write `brief-confirmed.json`, or touch `confirmed.ready` on the user's behalf. Use the local Director server, open the confirm page, wait for `confirmed.ready`, and continue only after the user clicks confirm. The only exception is an explicit user instruction to skip confirmation or generate directly.
+In interactive Codex sessions, the confirmation gate is a real user-action gate: the agent must not POST `/api/confirm`, write `brief-confirmed.json`, or touch `confirmed.ready` on the user's behalf. Use the local Director server, open the confirm page, wait for the user's click, then let `serve-wait --then-guard` run the generation guard. Start generation only after `status/guard-passed.ready` exists or `GUARD_PASSED` is visible in flushed output. The only exception is an explicit user instruction to skip confirmation or generate directly.
 
 ### Claude / Offline / HTML Path
 
@@ -852,20 +852,33 @@ python3 scripts/presentation_director.py init \
 
 Use `--ui-language auto` by default. The Director HTML gates (`intake`, `visual-inspiration`, `confirm`, `image-style`, `image-placement`, `style-review`, and `compare`) should follow the user's current conversation language, while `content_language` controls the language of the generated slide content.
 
-3. Start the local UI server and wait in the same command. In Claude Code, use `run_in_background=True` on the Bash tool so you are notified automatically when `serve-wait` exits (i.e. when `confirmed.ready` is written):
+3. Start the local UI server and wait in the same command. In Claude Code, use `run_in_background=True` on the Bash tool. Across Claude Code, Codex, Antigravity, and other agents, treat `status/guard-passed.ready` as the authoritative "start generation" signal; process exit is only a convenience notification:
 
 ```bash
 python3 scripts/presentation_director.py serve-wait \
   --task "<short task slug>" \
-  --for confirmed
-# Run this with run_in_background=True in Claude Code so the agent is notified on completion.
+  --for confirmed --then-guard
+# Run this with run_in_background=True in Claude Code.
+# The process exits after guard passes and writes status/guard-passed.ready.
+# Do NOT use process exit as a proxy for "confirmed"; use guard-passed.ready.
 ```
+
+**Fixed protocol — "简报确认后自动开始生成" (Bug fix: confirmed -> auto-generate deadlock):**
+
+The old behavior of `--then-guard` kept the server alive waiting for v1 output, which deadlocked
+Claude Code (process waited for Claude Code to write v1; Claude Code waited for process exit).
+
+**New behavior:** `--then-guard` exits immediately after:
+1. Writing `status/guard-passed.ready` (the authoritative "start generation" signal)
+2. Flushing `GUARD_PASSED` + generation prompt to stdout
+
+After generation, open preview-review as a **separate step** (see step 8 below).
 
 **Bug-prevention notes (Bug 1 & Bug 3):**
 - `serve-wait` opens the intake page in the browser automatically. Do NOT run an extra `open` command or `open-page` after starting `serve-wait` — this causes a duplicate tab.
 - Do NOT start `serve-wait` with a shell `&` suffix. Use the Bash tool's `run_in_background` parameter instead; that way Claude Code receives a completion notification and can continue automatically without polling.
 
-4. Do not ask the user to copy a URL, paste JSON, or come back to chat to say "confirmed". The intake page opens automatically. The user submits intake choices, reviews visual inspiration, reviews the confirmation page, and clicks confirm. `serve-wait` then exits and Claude Code is notified. If the page does not open, use:
+4. Do not ask the user to copy a URL, paste JSON, or come back to chat to say "confirmed". The intake page opens automatically. The user submits intake choices, reviews visual inspiration, reviews the confirmation page, and clicks confirm. `serve-wait` runs the guard and exits — Claude Code is notified. If the page does not open, use:
 
 ```bash
 python3 scripts/presentation_director.py open-page --task "<short task slug>" --page intake

@@ -79,6 +79,7 @@ ASK_BEFORE_USE_PRE_V1_MODES: set[str] = {
 MAX_IMAGE_ATTEMPTS: int = 3
 STATUS_FILES: dict[str, str] = {
     "confirmed": "confirmed.ready",
+    "guard-passed": "guard-passed.ready",
     "images-style": "images-style.ready",
     "images-placement": "images-placement.ready",
     "preview-review": "preview-reviewed.ready",
@@ -142,7 +143,7 @@ UI_COPY: dict[str, dict[str, str]] = {
         "no_risks": "未发现明显风险。",
         "no_sources": "未记录资料来源。可以在下面粘贴本地路径、网页 URL 或 Google Drive 地址。",
         "confirmed_title": "Brief confirmed",
-        "confirmed_message": "确认已收到。你不需要回到聊天里回复；agent 会检测 confirmed.ready 并自动继续生成。",
+        "confirmed_message": "确认已收到。你不需要回到聊天里回复；agent 会在 guard 通过后检测 guard-passed.ready 并自动开始生成。",
         "invalid_token": "Missing or invalid confirmation token. Open the confirmation page and submit the form.",
         "default": "default",
         "user_selected": "user-selected",
@@ -176,7 +177,7 @@ UI_COPY: dict[str, dict[str, str]] = {
         "no_risks": "No obvious risks detected.",
         "no_sources": "No source material has been recorded. Add local paths, web URLs, or Google Drive links before generation.",
         "confirmed_title": "Brief confirmed",
-        "confirmed_message": "Confirmed. You do not need to reply in chat; the agent will detect confirmed.ready and continue automatically.",
+        "confirmed_message": "Confirmed. You do not need to reply in chat; the agent will detect guard-passed.ready after the guard check and start generation automatically.",
         "invalid_token": "Missing or invalid confirmation token. Open the confirmation page and submit the form.",
         "default": "default",
         "user_selected": "user-selected",
@@ -210,7 +211,7 @@ UI_COPY: dict[str, dict[str, str]] = {
         "no_risks": "Keine offensichtlichen Risiken erkannt.",
         "no_sources": "Es wurden keine Quellen erfasst. Fügen Sie vor der Generierung lokale Pfade, Web-URLs oder Google-Drive-Links hinzu.",
         "confirmed_title": "Briefing bestätigt",
-        "confirmed_message": "Bestätigt. Sie müssen nicht im Chat antworten; der Agent erkennt confirmed.ready und fährt automatisch fort.",
+        "confirmed_message": "Bestätigt. Sie müssen nicht im Chat antworten; der Agent erkennt guard-passed.ready nach dem Guard-Check und startet die Generierung automatisch.",
         "invalid_token": "Fehlendes oder ungültiges Bestätigungstoken. Öffnen Sie die Bestätigungsseite und senden Sie das Formular ab.",
         "default": "Standard",
         "user_selected": "vom Benutzer gewählt",
@@ -244,7 +245,7 @@ UI_COPY: dict[str, dict[str, str]] = {
         "no_risks": "Aucun risque évident détecté.",
         "no_sources": "Aucune source n'a été enregistrée. Ajoutez des chemins locaux, des URL web ou des liens Google Drive avant la génération.",
         "confirmed_title": "Brief confirmé",
-        "confirmed_message": "Confirmé. Vous n'avez pas besoin de répondre dans le chat; l'agent détectera confirmed.ready et continuera automatiquement.",
+        "confirmed_message": "Confirmé. Vous n'avez pas besoin de répondre dans le chat; l'agent détectera guard-passed.ready après la vérification et démarrera la génération automatiquement.",
         "invalid_token": "Jeton de confirmation manquant ou invalide. Ouvrez la page de confirmation et envoyez le formulaire.",
         "default": "par défaut",
         "user_selected": "choisi par l'utilisateur",
@@ -278,7 +279,7 @@ UI_COPY: dict[str, dict[str, str]] = {
         "no_risks": "Nessun rischio evidente rilevato.",
         "no_sources": "Nessuna fonte registrata. Aggiungi percorsi locali, URL web o link Google Drive prima della generazione.",
         "confirmed_title": "Brief confermato",
-        "confirmed_message": "Confermato. Non serve rispondere in chat; l'agente rileverà confirmed.ready e continuerà automaticamente.",
+        "confirmed_message": "Confermato. Non serve rispondere in chat; l'agente rileverà guard-passed.ready dopo il controllo e avvierà la generazione automaticamente.",
         "invalid_token": "Token di conferma mancante o non valido. Apri la pagina di conferma e invia il modulo.",
         "default": "predefinito",
         "user_selected": "scelto dall'utente",
@@ -312,7 +313,7 @@ UI_COPY: dict[str, dict[str, str]] = {
         "no_risks": "No se detectaron riesgos evidentes.",
         "no_sources": "No se registraron fuentes. Añade rutas locales, URL web o enlaces de Google Drive antes de generar.",
         "confirmed_title": "Brief confirmado",
-        "confirmed_message": "Confirmado. No necesitas responder en el chat; el agente detectará confirmed.ready y continuará automáticamente.",
+        "confirmed_message": "Confirmado. No necesitas responder en el chat; el agente detectará guard-passed.ready tras la verificación e iniciará la generación automáticamente.",
         "invalid_token": "Token de confirmación ausente o no válido. Abre la página de confirmación y envía el formulario.",
         "default": "predeterminado",
         "user_selected": "seleccionado por el usuario",
@@ -4349,11 +4350,11 @@ def initial_prompt(task_dir: Path) -> str:
 Rules:
 - Before generating, run the required Director gates:
 {image_style_gate_instruction}- Run serve-wait with --then-guard so guard executes automatically once the user completes the last browser step.
-  Use Bash run_in_background=True so you are notified when the full pipeline finishes — do NOT poll or sleep:
+  Use Bash run_in_background=True in Claude Code. In any AI tool, treat status/guard-passed.ready as the authoritative start-generation signal:
   python3 "{script_path}" --base-dir "{task_dir.parent.parent}" serve-wait --task "{task_dir.name}" --for confirmed --then-guard
-  The command exits with code 0 and prints GUARD_PASSED + the generation prompt on success,
+  The command exits after guard passes, writes status/guard-passed.ready, and prints GUARD_PASSED + the generation prompt on success,
   or exits with code 2 and prints GUARD_FAILED + error details on failure.
-  Only proceed to generation after receiving GUARD_PASSED.
+  Only proceed to generation after status/guard-passed.ready exists or GUARD_PASSED is visible in flushed output.
   If guard fails mid-flow (e.g. stale brief), re-run serve-wait to get a fresh user click:
   python3 "{script_path}" --base-dir "{task_dir.parent.parent}" serve-wait --task "{task_dir.name}" --for confirmed --then-guard
 - Audience, goal, output_format, research strategy, source boundary, content language, logo policy, image policy, selected visual direction, and output constraints are locked.
@@ -4964,6 +4965,10 @@ def command_init(args: argparse.Namespace) -> None:
     print("Run intake → confirmation → guard pipeline (use run_in_background=True in Bash tool):")
     print(f"  python3 {script_rel} --base-dir . serve-wait --task {task_slug} --for confirmed --then-guard")
     print("The command exits with GUARD_PASSED + generation prompt on success, GUARD_FAILED on failure.")
+    print("")
+    print("Protocol: treat status/guard-passed.ready as the authoritative start-generation signal.")
+    print("   It is written and flushed the moment guard passes. The process exits immediately")
+    print("   after that signal. Generate v1 next, then run a separate preview-review wait step.")
 
 
 def command_render(args: argparse.Namespace) -> None:
@@ -5037,7 +5042,12 @@ def command_serve_wait(args: argparse.Namespace) -> None:
     filename: str | None = STATUS_FILES.get(args.for_status)
     if filename is None:
         raise SystemExit(f"Unknown status: {args.for_status}")
+    if getattr(args, "then_guard", False) and args.for_status == "guard-passed":
+        raise SystemExit("--then-guard must wait for the user gate, not for guard-passed itself.")
     target: Path = status_dir(task_dir) / filename
+    if getattr(args, "then_guard", False):
+        stale_guard_signal: Path = status_dir(task_dir) / STATUS_FILES["guard-passed"]
+        stale_guard_signal.unlink(missing_ok=True)
     if target.exists() and not args.allow_existing:
         target.unlink()
 
@@ -5079,29 +5089,13 @@ def command_serve_wait(args: argparse.Namespace) -> None:
                 print(f"Ready: {target}")
                 if getattr(args, "then_guard", False):
                     _run_guard_after_wait(task_dir)
-                    # After GUARD_PASSED, stay alive and wait for generation output,
-                    # then auto-open preview-review so the user never needs a second command.
-                    v1_html: Path = task_dir / "v1" / "final.html"
-                    v1_pptx: Path = task_dir / "v1" / "final.pptx"
-                    print("\nWaiting for generated output (v1/final.html or v1/final.pptx)…")
-                    while True:
-                        if v1_html.exists() or v1_pptx.exists():
-                            print("Generation output detected — rendering review pages.")
-                            render_all_pages(task_dir)
-                            preview_target: Path = status_dir(task_dir) / STATUS_FILES["preview-review"]
-                            if preview_target.exists():
-                                preview_target.unlink()
-                            open_director_page(args.host, args.port, "preview-review")
-                            print("Waiting for preview-review decision…")
-                            while not preview_target.exists():
-                                if args.timeout > 0 and time.time() - started > args.timeout:
-                                    raise SystemExit("Timed out waiting for preview-review")
-                                time.sleep(args.interval)
-                            print(f"Ready: {preview_target}")
-                            return
-                        if args.timeout > 0 and time.time() - started > args.timeout:
-                            raise SystemExit("Timed out waiting for generated output")
-                        time.sleep(args.interval)
+                    # Exit immediately after writing guard-passed.ready and flushing output.
+                    # The agent watches status/guard-passed.ready to know when to start
+                    # generation — it must NOT wait for this process to exit, because
+                    # staying alive here would deadlock: process waits for v1, agent
+                    # waits for process exit.
+                    # After generation, run a separate serve-wait --for preview-review step.
+                    return
                 return
             if args.timeout > 0 and time.time() - started > args.timeout:
                 raise SystemExit(f"Timed out waiting for {target}")
@@ -5136,12 +5130,18 @@ def _run_guard_after_wait(task_dir: Path) -> None:
         )
         raise SystemExit(2)
 
+    # Avoid process-lifecycle coupling; external agents use this fresh file signal.
+    guard_passed_file: Path = touch_status(task_dir, "guard-passed")
+
     print(f"GUARD_PASSED: {task_dir}")
+    print(f"GUARD_PASSED_SIGNAL: {guard_passed_file}")
+    sys.stdout.flush()
     print("\n── Generation prompt ────────────────────────────────────")
     try:
         print(initial_prompt(task_dir))
     except Exception as exc:  # prompt generation is best-effort
         print(f"(Could not render generation prompt: {exc})")
+    sys.stdout.flush()
 
 
 def command_wait(args: argparse.Namespace) -> None:
@@ -5295,8 +5295,7 @@ def build_parser() -> argparse.ArgumentParser:
             "After the status file is detected, automatically run the generation guard. "
             "Prints GUARD_PASSED and the generation prompt on success; "
             "prints GUARD_FAILED with error details and exits with code 2 on failure. "
-            "Use with Bash run_in_background=True so the agent is notified when the full "
-            "intake → confirmation → guard pipeline completes."
+            "Writes status/guard-passed.ready as the authoritative start-generation signal."
         ),
     )
     serve_wait_parser.set_defaults(func=command_serve_wait)

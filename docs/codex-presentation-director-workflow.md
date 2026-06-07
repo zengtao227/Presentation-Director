@@ -304,15 +304,16 @@ Buttons:
 - `返回修改`
 - `确认并开始生成`
 
-Only after the user clicks `确认并开始生成` should the agent call the Presentations capability. If the plugin is not visible in the Codex UI, the agent must resolve the bundled runtime before deciding that Presentations is unavailable.
+Only after the user clicks `确认并开始生成` and the generation guard writes `status/guard-passed.ready` should the agent call the Presentations capability. If the plugin is not visible in the Codex UI, the agent must resolve the bundled runtime before deciding that Presentations is unavailable.
 
-In an interactive Codex session, the agent must not call `POST /api/confirm`, write `brief-confirmed.json`, or touch `confirmed.ready` on behalf of the user unless the user explicitly says to skip confirmation or generate directly.
+In an interactive Codex session, the agent must not call `POST /api/confirm`, write `brief-confirmed.json`, or touch `confirmed.ready` on behalf of the user unless the user explicitly says to skip confirmation or generate directly. The confirmation click writes `confirmed.ready`; `serve-wait --then-guard` then validates the task and writes `guard-passed.ready`, which is the cross-agent start-generation signal.
 
 Output:
 
 ```text
 PPTX/<task-slug>/brief-confirmed.json
 PPTX/<task-slug>/status/confirmed.ready
+PPTX/<task-slug>/status/guard-passed.ready
 ```
 
 ### Step 4 - Generate First PPTX Draft
@@ -936,6 +937,7 @@ File signals:
 
 ```text
 PPTX/<task-slug>/status/confirmed.ready
+PPTX/<task-slug>/status/guard-passed.ready
 PPTX/<task-slug>/status/revision.ready
 PPTX/<task-slug>/status/final-selected.ready
 ```
@@ -943,8 +945,10 @@ PPTX/<task-slug>/status/final-selected.ready
 The agent waits for these signals and continues automatically. In interactive Codex sessions, prefer:
 
 ```bash
-python3 scripts/presentation_director.py serve-wait --task "<task-slug>" --for confirmed
+python3 scripts/presentation_director.py serve-wait --task "<task-slug>" --for confirmed --then-guard
 ```
+
+Start generation only after `status/guard-passed.ready` exists or `GUARD_PASSED` is visible in flushed output.
 
 The user should only click in the HTML UI. Do not ask the user to copy/paste anything or return to chat to say "confirmed".
 
@@ -979,6 +983,7 @@ PPTX/<task-slug>/
   final-report.md
   status/
     confirmed.ready
+    guard-passed.ready
     revision.ready
     final-selected.ready
   v1/
