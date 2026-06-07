@@ -113,18 +113,23 @@ class HtmlStructuralWarningsTest(unittest.TestCase):
             '<div class="cards stagger"></div>'
         )
 
-    def test_stagger_ok_still_blocks_non_decorative_multicol_and_vertical(self) -> None:
-        self.assertHasWarning('<style>.cols, .layout { display:flex; }</style><div class="layout stagger stagger-ok"></div>')
-        self.assertHasWarning(
-            '<style>.layout { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); }</style>'
-            '<div class="layout stagger stagger-ok"></div>'
-        )
-        self.assertHasWarning(
-            '<style>.layout { display:grid; grid-template-columns:1fr 1fr; }</style>'
-            '<div class="layout stagger stagger-ok"></div>'
-        )
-        self.assertHasWarning('<style>.steps { display:flex; flex-direction:column; }</style><div class="steps stagger stagger-ok"></div>')
+    def test_stagger_ok_blocks_forbidden_names_and_vertical_stacks(self) -> None:
+        # Explicitly forbidden content container names still blocked even with stagger-ok
+        self.assertHasWarning('<div class="cols stagger stagger-ok"></div>')
+        self.assertHasWarning('<div class="cmp stagger stagger-ok"></div>')
+        self.assertHasWarning('<div class="steps stagger stagger-ok"></div>')
+        self.assertHasWarning('<div class="timeline stagger stagger-ok"></div>')
+        # Vertical stacks blocked regardless of name
+        self.assertHasWarning('<style>.layout { display:flex; flex-direction:column; }</style><div class="layout stagger stagger-ok"></div>')
         self.assertHasWarning('<ul class="stagger stagger-ok"><li>A</li><li>B</li></ul>')
+
+    def test_stagger_ok_generic_horizontal_row_passes(self) -> None:
+        # Any non-forbidden, non-vertical container passes with stagger-ok (no magic class name required)
+        self.assertNoWarning('<style>.icon-row { display:flex; }</style><div class="icon-row stagger stagger-ok"></div>')
+        self.assertNoWarning(
+            '<style>.layout { display:grid; grid-template-columns:repeat(3,1fr); }</style>'
+            '<div class="layout stagger stagger-ok"></div>'
+        )
 
     def test_decorative_stagger_ok_card_row_passes(self) -> None:
         self.assertNoWarning('<style>.feature-cards { display:flex; flex-direction:row; }</style><div class="feature-cards stagger stagger-ok"></div>')

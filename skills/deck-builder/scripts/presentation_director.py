@@ -2220,23 +2220,6 @@ def classes_from_selector(selector: str) -> set[str]:
     return set(re.findall(r"\.([A-Za-z_][\w-]*)", selector))
 
 
-def is_multicol_grid(css_body: str) -> bool:
-    match = re.search(r"grid-template-columns\s*:\s*([^;]+)", css_body, re.IGNORECASE)
-    if not match:
-        return False
-    value: str = re.sub(r"\s+", "", match.group(1).lower())
-    return (
-        "repeat(auto-fit," in value
-        or "repeat(auto-fill," in value
-        or len(re.findall(r"minmax\(", value)) >= 2
-        or len(re.findall(r"\d*\.?\d+fr", value)) >= 2
-        or bool(re.search(r"repeat\([2-9]", value))
-    )
-
-
-def is_decorative_stagger_candidate(classes: set[str]) -> bool:
-    decorative_tokens: tuple[str, ...] = ("card", "tile", "metric", "kpi", "stat")
-    return any(any(token in cls for token in decorative_tokens) for cls in classes)
 
 
 def html_structural_warnings(html_path: Path) -> list[str]:
@@ -2271,7 +2254,6 @@ def html_structural_warnings(html_path: Path) -> list[str]:
     # accidentally applying delayed translateY to lists, timelines, or compare grids.
     _CLASS_PAT: str = r"""class\s*=\s*(?:"([^"]*?)"|'([^']*?)')"""
     _STYLE_PAT: str = r"""style\s*=\s*(?:"([^"]*?)"|'([^']*?)')"""
-    multi_col_classes: set[str] = set()
     vert_stack_classes: set[str] = set()
     for selectors, body in css_rules:
         selector_classes: set[str] = set()
@@ -2279,14 +2261,11 @@ def html_structural_warnings(html_path: Path) -> list[str]:
             selector_classes |= classes_from_selector(selector)
         if not selector_classes:
             continue
-        is_grid_mc: bool = is_multicol_grid(body)
-        is_flex: bool = bool(re.search(r"\bdisplay\s*:\s*flex\b", body))
-        is_flex_col: bool = bool(re.search(r"flex-direction\s*:\s*column", body))
-        if is_grid_mc or (is_flex and not is_flex_col):
-            multi_col_classes |= selector_classes
-        if is_flex_col:
+        if re.search(r"flex-direction\s*:\s*column", body):
             vert_stack_classes |= selector_classes
 
+    # Names that are always forbidden regardless of stagger-ok: content-bearing layout containers
+    # whose items are not uniform parallel decorative children.
     forbidden_stagger_classes: set[str] = {
         "cmp",
         "compare",
@@ -2300,8 +2279,8 @@ def html_structural_warnings(html_path: Path) -> list[str]:
         "timeline",
     }
     stagger_unapproved_count: int = 0
-    stagger_mc_count: int = 0   # multi-column violations
-    stagger_vs_count: int = 0   # vertical-stack violations
+    stagger_forbidden_count: int = 0  # forbidden-name violations
+    stagger_vs_count: int = 0         # vertical-stack violations
     for elem_m in re.finditer(r"<(\w+)(?:\s[^>]*)?>", text):
         tag_name: str = elem_m.group(1).lower()
         full_tag: str = elem_m.group(0)
@@ -2321,38 +2300,32 @@ def html_structural_warnings(html_path: Path) -> list[str]:
         if sm:
             inline_style = sm.group(1) if sm.group(1) is not None else sm.group(2)
         inline_flex_col: bool = bool(re.search(r"flex-direction\s*:\s*column", inline_style))
-        inline_vc: bool = inline_flex_col
-        is_multicol_layout: bool = bool(classes & multi_col_classes)
         is_forbidden_content_container: bool = bool(classes & forbidden_stagger_classes)
-        if is_forbidden_content_container or (
-            is_multicol_layout and not is_decorative_stagger_candidate(classes)
-        ):
-            stagger_mc_count += 1
-        # Vertical stacks: explicit flex-column class, or bare ul/ol elements.
-        elif inline_vc or bool(classes & vert_stack_classes) or tag_name in {"ul", "ol"}:
+        if is_forbidden_content_container:
+            stagger_forbidden_count += 1
+        # Vertical stacks: explicit flex-column class, inline flex-column, or bare ul/ol.
+        elif inline_flex_col or bool(classes & vert_stack_classes) or tag_name in {"ul", "ol"}:
             stagger_vs_count += 1
 
     if stagger_unapproved_count:
         warnings.append(
             f"STRUCTURAL FAIL: `.stagger` on {stagger_unapproved_count} unapproved container(s) — "
-            "`.stagger` is forbidden on content-bearing containers by default. "
+            "`.stagger` is forbidden by default. "
             "Use `.fade-up` on the container or `.rise-in` on child elements. "
-            "Only decorative, single-row, uniform horizontal card grids may use "
-            "`.stagger stagger-ok`."
+            "For a horizontal row of uniform parallel items, mark with `.stagger.stagger-ok`."
         )
-    if stagger_mc_count:
+    if stagger_forbidden_count:
         warnings.append(
-            f"STRUCTURAL FAIL: `.stagger-ok` on {stagger_mc_count} forbidden multi-content container(s) — "
-            "`.stagger-ok` is only for decorative, single-row, uniform horizontal card grids. "
-            "Forbidden on: comparison layouts, default flex rows used as content columns, "
-            "and multi-content grids. "
+            f"STRUCTURAL FAIL: `.stagger-ok` on {stagger_forbidden_count} forbidden container(s) — "
+            "`.stagger-ok` is not allowed on these named content containers: "
+            "cols, cmp, compare, comparison, flow, flow-list, pipeline, steps, tc, timeline. "
             "Fix: use .fade-up on the container or .rise-in on individual child elements."
         )
     if stagger_vs_count:
         warnings.append(
             f"STRUCTURAL FAIL: `.stagger-ok` on {stagger_vs_count} vertical stack(s) — "
             "each item starts translateY(18px), producing a staircase diagonal during animation. "
-            "Forbidden on: ul, ol, flex-direction:column stacks, steps, timeline, flow-list. "
+            "Forbidden on: ul, ol, flex-direction:column stacks. "
             "Fix: use .fade-up on the container or .rise-in on each child element."
         )
 
@@ -4665,18 +4638,14 @@ Rules:
     .stagger.stagger-ok>*:nth-child(4){{ animation-delay:.24s; }}
     @media(prefers-reduced-motion:reduce){{*{{animation:none!important}}}}
   Stagger rule — DEFAULT FORBIDDEN:
-    .stagger is forbidden on content-bearing containers by default.
-    ALLOWED only when all are true: decorative animation, one horizontal row, uniform parallel card/tile/metric children,
-    and the container is marked with BOTH classes: .stagger and .stagger-ok.
-    FORBIDDEN — do NOT add .stagger or .stagger-ok to any of these:
-      ✗ vertical stacks: flex-direction:column, ul, ol, steps, timeline, flow-list
+    .stagger is forbidden by default.
+    ALLOWED for a horizontal row of uniform parallel items. Mark the container with BOTH classes:
+    .stagger and .stagger-ok. The guard allows .stagger.stagger-ok on any container EXCEPT:
+      ✗ vertical stacks: flex-direction:column, ul, ol
         (each item starts 18px below final Y — produces staircase diagonal during animation)
-      ✗ two-column comparison/layout containers (.cols, .cmp, multi-content grids)
-        (right column is 18px lower than left mid-animation — breaks visual baseline)
-      ✗ multi-row grids: grid-template-columns with 2+ columns and multiple rows of content
-      ✗ display:flex containers without explicit flex-direction (default is row, but if content
-        is multi-section rather than uniform cards, use .fade-up instead)
-    Default for all normal content containers: .fade-up on the wrapper, or .rise-in on each child explicitly.
+      ✗ explicitly forbidden content containers: .cols, .cmp, .compare, .comparison,
+        .flow, .flow-list, .pipeline, .steps, .tc, .timeline
+    Default for all other containers: .fade-up on the wrapper, or .rise-in on each child explicitly.
 - Chart data: use Chart.js 4.x CDN (https://cdn.jsdelivr.net/npm/chart.js) and chartjs-plugin-datalabels for bar/line/pie slides. Use direct data labels instead of legends.
 - layout_families from html_config: {layout_families_json}. Do not repeat the same layout family 3 slides in a row.
 - Every slide needs one primary proof object: chart, diagram, table, quote, image, or code artifact.

@@ -258,21 +258,30 @@ Recommended sizes: `20px`–`34px` for icons, `16px`–`22px` for body copy.
 <div class="steps fade-up">
 ```
 
-`.stagger` is forbidden on content-bearing containers by default. It is allowed only for decorative, single-row, uniform horizontal card grids. If such usage is intentional, mark the container with both `.stagger` and `.stagger-ok`; without `.stagger-ok`, the guard fails.
+`.stagger` is forbidden by default. It is allowed for any horizontal row of uniform parallel items. If such usage is intentional, mark the container with both `.stagger` and `.stagger-ok`; without `.stagger-ok`, the guard fails.
+
+The guard blocks `.stagger.stagger-ok` on:
+- **Vertical stacks**: `ul`, `ol`, `flex-direction:column` containers
+- **Explicitly forbidden names**: `.cols`, `.cmp`, `.compare`, `.comparison`, `.flow`, `.flow-list`, `.pipeline`, `.steps`, `.tc`, `.timeline`
+
+No specific class name is required — any container not in the forbidden list and not a vertical stack passes with `.stagger.stagger-ok`.
 
 ```html
-<!-- ❌ WRONG — comparison/content containers must NOT use stagger -->
+<!-- ❌ WRONG — no stagger-ok marker -->
 <div class="cmp stagger">
+
+<!-- ❌ WRONG — .cols is in the forbidden-names list -->
 <div class="cols stagger stagger-ok">
 
 <!-- ✅ CORRECT — animate the whole container as one unit -->
 <div class="cmp fade-up">
 
-<!-- ✅ CORRECT — explicit decorative exception -->
+<!-- ✅ CORRECT — stagger-ok on a non-forbidden horizontal row -->
 <div class="feature-cards stagger stagger-ok">
+<div class="icon-row stagger stagger-ok">
 ```
 
-**Rule summary:** default to `fade-up` on the container or `rise-in` on individual elements. Use `.stagger stagger-ok` only for decorative, single-row, uniform horizontal card/tile/metric grids.
+**Rule summary:** default to `fade-up` on the container or `rise-in` on individual elements. Use `.stagger.stagger-ok` for a horizontal row of uniform parallel items (any class name, as long as it is not in the forbidden list).
 
 ### Rule 3 — Height budget (pre-flight estimate only, not final arbiter)
 
