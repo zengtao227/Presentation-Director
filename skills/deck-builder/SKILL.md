@@ -404,7 +404,7 @@ Inside `.slide-safe` use normal flow or flex/grid layout. Do NOT use `position:a
 | `top:50%; transform:translateY(-50%)` on elements outside `.slide-safe` | Centres against the 720px section, not the 590px safe zone |
 | `display:flex` or `display:grid` on the `<section>` element to position content | Replaces the absolute-position model; content escapes the safe zone |
 | Arbitrary `left` / `top` / `right` / `bottom` on section children that bypass `.slide-safe` | Same as first row |
-| **`.stagger` on multi-column grid or flex-row containers** | Staggers each cell independently — produces broken diagonal entrance on side-by-side cards. Use `.rise-in` on individual child elements instead. **The guard now auto-fails on this pattern.** |
+| **`.stagger` on vertical stacks or multi-column layouts** | `.stagger` is only safe on single-row horizontal card grids (identical cards side-by-side). Forbidden on: vertical stacks (ul/ol/steps/timeline, flex-direction:column), multi-column comparison layouts, multi-row grids, and display:flex without explicit column direction. Use `.fade-up` on the container or `.rise-in` on each child instead. **The guard auto-fails on this pattern.** |
 | Treating the cover slide as exempt ("it's decorative") | The cover is **not** exempt; title, subtitle, kicker, and badge all go inside `.slide-safe` |
 
 For a two-column cover layout, put both columns inside `.slide-safe` and use `display:flex; flex-direction:row` there:</p>
@@ -824,7 +824,7 @@ Use `<aside class="notes">` inside each `<section>`. Press `S` to open presenter
 - [ ] File is self-contained except pinned Reveal.js CDN links; no broken local paths.
 - [ ] CSS overflow safeguards are present in `<style>` (`.slide-body { overflow: hidden; … }`).
 - [ ] **Section CSS has NO `position` property** — the section rule must be `width:1280px; height:720px; overflow:hidden; box-sizing:border-box` only. The generation guard (`validate_generation_guard`) auto-fails if `section { position:... }` is detected.
-- [ ] **`.stagger` not used on multi-column containers** — `.stagger` is only safe on single-column (block-flow or `flex-direction:column`) containers. The generation guard auto-fails if `.stagger` is detected on a grid (2+ columns) or flex-row element.
+- [ ] **`.stagger` only on single-row horizontal card grids** — `.stagger` is only safe on a single row of identical cards side-by-side. Forbidden on: vertical stacks (ul/ol/steps/timeline, flex-column), multi-column comparison layouts, multi-row grids, and flex containers without explicit `flex-direction:column`. The generation guard auto-fails on these patterns.
 - [ ] **Title position is a design decision, not a layout fix** — title alignment (left / center) and vertical position are chosen during brief confirmation and must stay consistent across all slides. When fixing a head-heavy layout, do NOT change the title's position or the section's `padding-top` as the solution; that moves every title and breaks visual consistency.
 - [ ] **No head-heavy layout** — content fills at least 60% of the vertical space below the title. The correct fix is to increase internal spacing of content elements (card `padding`, grid `gap`, `line-height`, element `margin`). Never "fix" empty bottom space by shifting the title down, using `center: true`, or floating content to the middle of the slide.
 - [ ] **Word-break rules present** — `word-break: break-word; hyphens: none; overflow-wrap: break-word;` on `.reveal` to prevent mid-word splits in mixed Chinese/English text.

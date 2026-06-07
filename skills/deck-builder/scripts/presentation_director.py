@@ -1778,6 +1778,15 @@ def validate_generation_guard(task_dir: Path) -> list[str]:
     raw_image_mode: Any = brief.get("image_generation_mode")
     image_policy: str = image_policy_from_brief(brief)
 
+    # HTML QA must run for every output format, unconditionally — not gated behind image checks.
+    # image_policy=none tasks have raw_image_mode=None and hit the early return below,
+    # so placing QA here is the only location that runs for all briefs when v1 exists.
+    v1_html: Path = task_dir / "v1" / "final.html"
+    for fw in html_small_font_warnings(v1_html):
+        errors.append(f"HTML font-size QA: {fw}")
+    for sw in html_structural_warnings(v1_html):
+        errors.append(f"HTML structural QA: {sw}")
+
     # When image_policy requires a decision and no mode has been set, the
     # Image Style Gate was never completed — block generation.
     if raw_image_mode is None:
@@ -1873,17 +1882,6 @@ def validate_generation_guard(task_dir: Path) -> list[str]:
                 last_error = str(last_attempt.get("error", ""))
         suffix: str = f": {last_error}" if last_error else ""
         errors.append(f"Image asset {target_id} failed after retry policy{suffix}")
-
-    # Font-size QA: warn if a previously-generated HTML deck has unreadably small text.
-    v1_html: Path = task_dir / "v1" / "final.html"
-    font_warnings: list[str] = html_small_font_warnings(v1_html)
-    for fw in font_warnings:
-        errors.append(f"HTML font-size QA: {fw}")
-
-    # Structural QA: block delivery if the HTML has layout bugs that cause the staircase pattern.
-    structural_warnings: list[str] = html_structural_warnings(v1_html)
-    for sw in structural_warnings:
-        errors.append(f"HTML structural QA: {sw}")
 
     return errors
 
@@ -2225,7 +2223,8 @@ def html_structural_warnings(html_path: Path) -> list[str]:
         )
 
     # Check 2: .stagger must not appear on multi-column containers.
-    # Step A: collect CSS class names that have multi-column grid or flex-row layout.
+    # Step A: collect CSS class names with multi-column grid or flex-row (explicit or default) layout.
+    # display:flex without flex-direction:column defaults to row and must be treated as multi-column.
     multi_col_classes: set[str] = set()
     for style_block in _re.findall(r"<style[^>]*>(.*?)</style>", text, _re.DOTALL | _re.IGNORECASE):
         for rule_m in _re.finditer(r"\.([\w-]+)[^{,]*\{([^}]*)\}", style_block):
@@ -2233,26 +2232,38 @@ def html_structural_warnings(html_path: Path) -> list[str]:
             is_grid_mc: bool = bool(
                 _re.search(r"grid-template-columns\s*:[^;]*(?:repeat\s*\(\s*[2-9]|\d+\s*fr\s+\d+\s*fr)", body)
             )
-            is_flex_row: bool = bool(_re.search(r"flex-direction\s*:\s*row\b", body))
+            is_flex: bool = bool(_re.search(r"\bdisplay\s*:\s*flex\b", body))
+            is_flex_col: bool = bool(_re.search(r"flex-direction\s*:\s*column", body))
+            # flex without explicit column direction defaults to row → multi-column
+            is_flex_row: bool = is_flex and not is_flex_col
             if is_grid_mc or is_flex_row:
                 multi_col_classes.add(rule_m.group(1))
 
-    # Step B: find HTML elements that carry both .stagger and a multi-column class.
+    # Step B: find HTML elements carrying both .stagger and a multi-column class.
+    # Support both single-quoted and double-quoted class attributes.
+    _CLASS_PAT: str = r"""class\s*=\s*(?:"([^"]*?)"|'([^']*?)')"""
+    _STYLE_PAT: str = r"""style\s*=\s*(?:"([^"]*?)"|'([^']*?)')"""
     stagger_violations: int = 0
-    for elem_m in _re.finditer(r"<\w+\s[^>]*\bclass=\"([^\"]*)\"\s*[^>]*>", text):
-        classes: set[str] = set(elem_m.group(1).split())
+    for elem_m in _re.finditer(r"<\w+(?:\s[^>]*)?>", text):
+        full_tag: str = elem_m.group(0)
+        cm = _re.search(_CLASS_PAT, full_tag)
+        if not cm:
+            continue
+        class_val: str = cm.group(1) if cm.group(1) is not None else cm.group(2)
+        classes: set[str] = set(class_val.split())
         if "stagger" not in classes:
             continue
-        full_tag: str = elem_m.group(0)
         # Check inline style for multi-column markers.
         inline_style: str = ""
-        sm = _re.search(r'\bstyle="([^"]*)"', full_tag)
+        sm = _re.search(_STYLE_PAT, full_tag)
         if sm:
-            inline_style = sm.group(1)
-        inline_mc: bool = bool(
+            inline_style = sm.group(1) if sm.group(1) is not None else sm.group(2)
+        inline_grid_mc: bool = bool(
             _re.search(r"grid-template-columns\s*:[^;]*(?:repeat\s*\(\s*[2-9]|\d+\s*fr\s+\d+\s*fr)", inline_style)
-            or _re.search(r"flex-direction\s*:\s*row\b", inline_style)
         )
+        inline_flex: bool = bool(_re.search(r"\bdisplay\s*:\s*flex\b", inline_style))
+        inline_flex_col: bool = bool(_re.search(r"flex-direction\s*:\s*column", inline_style))
+        inline_mc: bool = inline_grid_mc or (inline_flex and not inline_flex_col)
         class_mc: bool = bool(classes & multi_col_classes)
         if inline_mc or class_mc:
             stagger_violations += 1
@@ -2260,9 +2271,10 @@ def html_structural_warnings(html_path: Path) -> list[str]:
     if stagger_violations:
         warnings.append(
             f"STRUCTURAL FAIL: `.stagger` on {stagger_violations} multi-column container(s) — "
-            "`.stagger` is only safe on single-column containers (block-flow or flex-direction:column). "
-            "Fix: remove .stagger from any grid (2+ columns) or flex-row container; "
-            "use .rise-in on individual child elements instead."
+            "`.stagger` is only safe on single-row horizontal card grids (identical cards side-by-side). "
+            "Forbidden on: vertical stacks, flex-direction:column, display:flex (default row), "
+            "multi-column grids (grid-template-columns 2+), multi-content comparison layouts. "
+            "Fix: use .fade-up on the container or .rise-in on individual child elements."
         )
 
     return warnings
@@ -4407,6 +4419,11 @@ def initial_prompt(task_dir: Path) -> str:
     preview_review_instruction: str = f"""After generation:
 - Regenerate Director pages so the review page can see the new artifacts:
   python3 "{script_path}" --base-dir "{task_dir.parent.parent}" render --task "{task_dir.name}"
+- Run the generation guard to verify the HTML before opening preview-review:
+  python3 "{script_path}" --base-dir "{task_dir.parent.parent}" guard --task "{task_dir.name}"
+  If the guard fails (exit code 2), read the printed errors, fix all reported HTML issues
+  (section position override, stagger on multi-column containers, etc.), and re-run guard.
+  Only proceed to preview-review after guard exits with code 0.
 - Open the v1 Preview Gate before any style review. Do not jump directly to Style Review:
   python3 "{script_path}" --base-dir "{task_dir.parent.parent}" serve-wait --task "{task_dir.name}" --open-page preview-review --for preview-review
 - Read {task_dir / "preview-review.json"}.
@@ -4527,15 +4544,18 @@ Rules:
     .stagger>*:nth-child(3){{ animation-delay:.16s; }}
     .stagger>*:nth-child(4){{ animation-delay:.24s; }}
     @media(prefers-reduced-motion:reduce){{*{{animation:none!important}}}}
-  Stagger rule — SINGLE-COLUMN CONTAINERS ONLY:
-    .stagger is ONLY safe where all direct children animate in a single column.
-    ALLOWED: block-flow lists, flex-direction:column stacks.
+  Stagger rule — SINGLE-ROW HORIZONTAL CARD GRIDS ONLY:
+    .stagger is ONLY safe on a single row of identical cards animating side-by-side (e.g. 2-3 feature cards).
+    ALLOWED: single-row flex-row card grids where all children are uniform and visually parallel.
     FORBIDDEN — do NOT add .stagger to any of these:
-      ✗ grid-template-columns with 2+ columns (1fr 1fr, repeat(2,1fr), repeat(3,1fr), etc.)
-      ✗ flex-direction:row containers (cols, pipeline, steps, cat-grid, stat-row, side-by-side)
-      ✗ any <ul>/<ol> styled as multi-column
-    Reason: on multi-column containers .stagger staggers each cell independently — broken visually.
-    Alternative for multi-column cards: add .rise-in to each child element, not .stagger to the wrapper.
+      ✗ vertical stacks: flex-direction:column, ul, ol, steps, timeline, flow-list
+        (each item starts 18px below final Y — produces staircase diagonal during animation)
+      ✗ two-column comparison/layout containers (.cols, .cmp, multi-content grids)
+        (right column is 18px lower than left mid-animation — breaks visual baseline)
+      ✗ multi-row grids: grid-template-columns with 2+ columns and multiple rows of content
+      ✗ display:flex containers without explicit flex-direction (default is row, but if content
+        is multi-section rather than uniform cards, use .fade-up instead)
+    Default for all forbidden containers: .fade-up on the wrapper, or .rise-in on each child explicitly.
 - Chart data: use Chart.js 4.x CDN (https://cdn.jsdelivr.net/npm/chart.js) and chartjs-plugin-datalabels for bar/line/pie slides. Use direct data labels instead of legends.
 - layout_families from html_config: {layout_families_json}. Do not repeat the same layout family 3 slides in a row.
 - Every slide needs one primary proof object: chart, diagram, table, quote, image, or code artifact.
