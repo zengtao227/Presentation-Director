@@ -399,10 +399,12 @@ Inside `.slide-safe` use normal flow or flex/grid layout. Do NOT use `position:a
 
 | Pattern | Why it breaks |
 |---------|---------------|
+| **`position` on `.reveal .slides section`** | Reveal.js sets `position:absolute` on sections internally — any override switches all slides to document flow and produces the staircase bug (Slide 2 below Slide 1, etc.). **The guard now auto-fails on this pattern.** |
 | `position:absolute` on direct children of `<section>` (other than `.bleed` / `.slide-safe`) | Bypasses safe-area coordinates entirely |
 | `top:50%; transform:translateY(-50%)` on elements outside `.slide-safe` | Centres against the 720px section, not the 590px safe zone |
 | `display:flex` or `display:grid` on the `<section>` element to position content | Replaces the absolute-position model; content escapes the safe zone |
 | Arbitrary `left` / `top` / `right` / `bottom` on section children that bypass `.slide-safe` | Same as first row |
+| **`.stagger` on multi-column grid or flex-row containers** | Staggers each cell independently — produces broken diagonal entrance on side-by-side cards. Use `.rise-in` on individual child elements instead. **The guard now auto-fails on this pattern.** |
 | Treating the cover slide as exempt ("it's decorative") | The cover is **not** exempt; title, subtitle, kicker, and badge all go inside `.slide-safe` |
 
 For a two-column cover layout, put both columns inside `.slide-safe` and use `display:flex; flex-direction:row` there:</p>
@@ -821,6 +823,8 @@ Use `<aside class="notes">` inside each `<section>`. Press `S` to open presenter
 - [ ] `?print-pdf` renders all slides without clipping.
 - [ ] File is self-contained except pinned Reveal.js CDN links; no broken local paths.
 - [ ] CSS overflow safeguards are present in `<style>` (`.slide-body { overflow: hidden; … }`).
+- [ ] **Section CSS has NO `position` property** — the section rule must be `width:1280px; height:720px; overflow:hidden; box-sizing:border-box` only. The generation guard (`validate_generation_guard`) auto-fails if `section { position:... }` is detected.
+- [ ] **`.stagger` not used on multi-column containers** — `.stagger` is only safe on single-column (block-flow or `flex-direction:column`) containers. The generation guard auto-fails if `.stagger` is detected on a grid (2+ columns) or flex-row element.
 - [ ] **Title position is a design decision, not a layout fix** — title alignment (left / center) and vertical position are chosen during brief confirmation and must stay consistent across all slides. When fixing a head-heavy layout, do NOT change the title's position or the section's `padding-top` as the solution; that moves every title and breaks visual consistency.
 - [ ] **No head-heavy layout** — content fills at least 60% of the vertical space below the title. The correct fix is to increase internal spacing of content elements (card `padding`, grid `gap`, `line-height`, element `margin`). Never "fix" empty bottom space by shifting the title down, using `center: true`, or floating content to the middle of the slide.
 - [ ] **Word-break rules present** — `word-break: break-word; hyphens: none; overflow-wrap: break-word;` on `.reveal` to prevent mid-word splits in mixed Chinese/English text.
@@ -1156,6 +1160,12 @@ python3 scripts/presentation_director.py --base-dir "." guard --task "<task-slug
 If that guard fails, open the Director confirmation page through `serve-wait` and continue automatically after the user clicks in the HTML UI. Do not ask the user to reply in chat. Do not generate PPTX/HTML by treating a conversational "continue" as a substitute for the confirmation gate unless the user explicitly asks to skip the gate or generate directly.
 
 For new confirmed briefs with `image_generation_mode`, the guard also enforces Image Style Gate completion and, once a v1 preview artifact exists, Image Placement Gate completion for `post-v1-slot-review` and `hybrid`. Older briefs without `image_generation_mode` skip image gates for compatibility.
+
+The guard also runs **structural HTML QA** on `v1/final.html` and auto-fails on two patterns that recurrently cause the staircase layout bug:
+1. `section { position:... }` in CSS — Reveal.js manages section positioning; any override breaks slide stacking.
+2. `.stagger` on multi-column grid or flex-row containers — only safe on single-column containers.
+
+If the guard fails due to structural QA, fix the HTML and re-run the guard before opening preview-review.
 
 ### macOS PowerPoint File Access Dialogs
 

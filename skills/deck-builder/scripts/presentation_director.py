@@ -1880,6 +1880,11 @@ def validate_generation_guard(task_dir: Path) -> list[str]:
     for fw in font_warnings:
         errors.append(f"HTML font-size QA: {fw}")
 
+    # Structural QA: block delivery if the HTML has layout bugs that cause the staircase pattern.
+    structural_warnings: list[str] = html_structural_warnings(v1_html)
+    for sw in structural_warnings:
+        errors.append(f"HTML structural QA: {sw}")
+
     return errors
 
 
@@ -2194,6 +2199,72 @@ def html_small_font_warnings(html_path: Path, min_em: float = 0.72) -> list[str]
                     f"font-size:{value_str}{unit} ({px:.1f}px) is below the {min_em}em "
                     f"({min_px:.1f}px) minimum — increase to avoid unreadable text."
                 )
+    return warnings
+
+
+def html_structural_warnings(html_path: Path) -> list[str]:
+    """Scan a Reveal.js HTML file for structural bugs that produce the staircase layout pattern.
+
+    Returns FAIL strings for: section position override, .stagger on multi-column containers.
+    These bugs recur because LLMs default to position:relative on section and stagger on grids.
+    """
+    import re as _re
+    if not html_path.exists():
+        return []
+    text: str = html_path.read_text(encoding="utf-8", errors="replace")
+    warnings: list[str] = []
+
+    # Check 1: section CSS rule must not set position.
+    # Reveal.js sets position:absolute on sections internally; any override breaks slide stacking.
+    if _re.search(r"\bsection\s*\{[^}]*\bposition\s*:", text, _re.DOTALL):
+        warnings.append(
+            "STRUCTURAL FAIL: `section { position:... }` found in CSS — "
+            "Reveal.js manages section positioning as position:absolute; "
+            "any override stacks all slides in document flow (staircase bug). "
+            "Fix: remove position from the section CSS rule entirely."
+        )
+
+    # Check 2: .stagger must not appear on multi-column containers.
+    # Step A: collect CSS class names that have multi-column grid or flex-row layout.
+    multi_col_classes: set[str] = set()
+    for style_block in _re.findall(r"<style[^>]*>(.*?)</style>", text, _re.DOTALL | _re.IGNORECASE):
+        for rule_m in _re.finditer(r"\.([\w-]+)[^{,]*\{([^}]*)\}", style_block):
+            body: str = rule_m.group(2)
+            is_grid_mc: bool = bool(
+                _re.search(r"grid-template-columns\s*:[^;]*(?:repeat\s*\(\s*[2-9]|\d+\s*fr\s+\d+\s*fr)", body)
+            )
+            is_flex_row: bool = bool(_re.search(r"flex-direction\s*:\s*row\b", body))
+            if is_grid_mc or is_flex_row:
+                multi_col_classes.add(rule_m.group(1))
+
+    # Step B: find HTML elements that carry both .stagger and a multi-column class.
+    stagger_violations: int = 0
+    for elem_m in _re.finditer(r"<\w+\s[^>]*\bclass=\"([^\"]*)\"\s*[^>]*>", text):
+        classes: set[str] = set(elem_m.group(1).split())
+        if "stagger" not in classes:
+            continue
+        full_tag: str = elem_m.group(0)
+        # Check inline style for multi-column markers.
+        inline_style: str = ""
+        sm = _re.search(r'\bstyle="([^"]*)"', full_tag)
+        if sm:
+            inline_style = sm.group(1)
+        inline_mc: bool = bool(
+            _re.search(r"grid-template-columns\s*:[^;]*(?:repeat\s*\(\s*[2-9]|\d+\s*fr\s+\d+\s*fr)", inline_style)
+            or _re.search(r"flex-direction\s*:\s*row\b", inline_style)
+        )
+        class_mc: bool = bool(classes & multi_col_classes)
+        if inline_mc or class_mc:
+            stagger_violations += 1
+
+    if stagger_violations:
+        warnings.append(
+            f"STRUCTURAL FAIL: `.stagger` on {stagger_violations} multi-column container(s) — "
+            "`.stagger` is only safe on single-column containers (block-flow or flex-direction:column). "
+            "Fix: remove .stagger from any grid (2+ columns) or flex-row container; "
+            "use .rise-in on individual child elements instead."
+        )
+
     return warnings
 
 
@@ -4415,6 +4486,15 @@ Rules:
 - Safe-area contract — NO EXCEPTIONS, including cover and section-divider slides:
   .slide-safe {{ position:absolute; left:54px; top:70px; width:1172px; height:590px; overflow:hidden; }}
   .bleed {{ position:absolute; inset:0; }}
+  Section CSS rule — write EXACTLY this, nothing else:
+    .reveal .slides section {{ width:1280px; height:720px; overflow:hidden; box-sizing:border-box; }}
+  NEVER add position to .reveal .slides section. Reveal.js sets position:absolute on every
+  section element internally before your CSS runs. Adding position:relative (or any position
+  value) overrides that and switches all slides from Reveal.js's absolute-position stack into
+  normal document flow — producing the staircase bug where slide 2 renders below slide 1,
+  slide 3 below slide 2, etc. The .bleed and .slide-safe children are already positioned
+  absolutely relative to the Reveal.js-managed section; they do NOT need a user-added
+  position:relative on the parent.
   REQUIRED structure for every slide type (cover, section, content, end):
     <section>
       <div class="bleed ..."><!-- background gradient / image ONLY --></div>
@@ -4425,6 +4505,7 @@ Rules:
   Inside .slide-safe use normal flow or flex/grid layout. Do NOT use position:absolute on
   content elements inside .slide-safe unless stacking layers within those 1172×590 bounds.
   FORBIDDEN patterns — these silently push content outside the visible area:
+    ✗ position on .reveal .slides section — causes ALL slides to stack in document flow (staircase bug)
     ✗ position:absolute on direct children of <section> (other than .bleed and .slide-safe)
     ✗ top:50%; transform:translateY(-50%) on any element outside .slide-safe
     ✗ display:flex or display:grid on the <section> element itself to position content
@@ -4446,6 +4527,15 @@ Rules:
     .stagger>*:nth-child(3){{ animation-delay:.16s; }}
     .stagger>*:nth-child(4){{ animation-delay:.24s; }}
     @media(prefers-reduced-motion:reduce){{*{{animation:none!important}}}}
+  Stagger rule — SINGLE-COLUMN CONTAINERS ONLY:
+    .stagger is ONLY safe where all direct children animate in a single column.
+    ALLOWED: block-flow lists, flex-direction:column stacks.
+    FORBIDDEN — do NOT add .stagger to any of these:
+      ✗ grid-template-columns with 2+ columns (1fr 1fr, repeat(2,1fr), repeat(3,1fr), etc.)
+      ✗ flex-direction:row containers (cols, pipeline, steps, cat-grid, stat-row, side-by-side)
+      ✗ any <ul>/<ol> styled as multi-column
+    Reason: on multi-column containers .stagger staggers each cell independently — broken visually.
+    Alternative for multi-column cards: add .rise-in to each child element, not .stagger to the wrapper.
 - Chart data: use Chart.js 4.x CDN (https://cdn.jsdelivr.net/npm/chart.js) and chartjs-plugin-datalabels for bar/line/pie slides. Use direct data labels instead of legends.
 - layout_families from html_config: {layout_families_json}. Do not repeat the same layout family 3 slides in a row.
 - Every slide needs one primary proof object: chart, diagram, table, quote, image, or code artifact.
