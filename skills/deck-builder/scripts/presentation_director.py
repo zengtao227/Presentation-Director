@@ -1778,14 +1778,10 @@ def validate_generation_guard(task_dir: Path) -> list[str]:
     raw_image_mode: Any = brief.get("image_generation_mode")
     image_policy: str = image_policy_from_brief(brief)
 
-    # HTML QA must run for every output format, unconditionally — not gated behind image checks.
-    # image_policy=none tasks have raw_image_mode=None and hit the early return below,
-    # so placing QA here is the only location that runs for all briefs when v1 exists.
-    v1_html: Path = task_dir / "v1" / "final.html"
-    for fw in html_small_font_warnings(v1_html):
-        errors.append(f"HTML font-size QA: {fw}")
-    for sw in html_structural_warnings(v1_html):
-        errors.append(f"HTML structural QA: {sw}")
+    # HTML QA must run before the legacy image-mode early return below.
+    # image_policy=none tasks often have raw_image_mode=None.
+    for gate_error in preview_review_gate_errors(task_dir):
+        errors.append(gate_error)
 
     # When image_policy requires a decision and no mode has been set, the
     # Image Style Gate was never completed — block generation.
@@ -2200,91 +2196,161 @@ def html_small_font_warnings(html_path: Path, min_em: float = 0.72) -> list[str]
     return warnings
 
 
+def iter_css_rules(text: str) -> list[tuple[list[str], str]]:
+    rules: list[tuple[list[str], str]] = []
+    for style_block in re.findall(r"<style[^>]*>(.*?)</style>", text, re.DOTALL | re.IGNORECASE):
+        clean_block: str = re.sub(r"/\*.*?\*/", "", style_block, flags=re.DOTALL)
+        for match in re.finditer(r"([^{}]+)\{([^{}]*)\}", clean_block, re.DOTALL):
+            selectors: list[str] = [
+                selector.strip()
+                for selector in match.group(1).split(",")
+                if selector.strip()
+            ]
+            body: str = match.group(2)
+            if selectors:
+                rules.append((selectors, body))
+    return rules
+
+
+def selector_targets_reveal_section(selector: str) -> bool:
+    return bool(re.search(r"(^|[\s>+~])section(?:[.#:\[]|$)", selector))
+
+
+def classes_from_selector(selector: str) -> set[str]:
+    return set(re.findall(r"\.([A-Za-z_][\w-]*)", selector))
+
+
+def is_multicol_grid(css_body: str) -> bool:
+    match = re.search(r"grid-template-columns\s*:\s*([^;]+)", css_body, re.IGNORECASE)
+    if not match:
+        return False
+    value: str = re.sub(r"\s+", "", match.group(1).lower())
+    return (
+        "repeat(auto-fit," in value
+        or "repeat(auto-fill," in value
+        or len(re.findall(r"minmax\(", value)) >= 2
+        or len(re.findall(r"\d*\.?\d+fr", value)) >= 2
+        or bool(re.search(r"repeat\([2-9]", value))
+    )
+
+
+def is_decorative_stagger_candidate(classes: set[str]) -> bool:
+    decorative_tokens: tuple[str, ...] = ("card", "tile", "metric", "kpi", "stat")
+    return any(any(token in cls for token in decorative_tokens) for cls in classes)
+
+
 def html_structural_warnings(html_path: Path) -> list[str]:
     """Scan a Reveal.js HTML file for structural bugs that produce the staircase layout pattern.
 
-    Returns FAIL strings for: section position override, .stagger on multi-column containers.
+    Returns FAIL strings for: section position override and unapproved `.stagger`.
     These bugs recur because LLMs default to position:relative on section and stagger on grids.
     """
-    import re as _re
     if not html_path.exists():
         return []
     text: str = html_path.read_text(encoding="utf-8", errors="replace")
     warnings: list[str] = []
+    css_rules: list[tuple[list[str], str]] = iter_css_rules(text)
 
     # Check 1: section CSS rule must not set position.
-    # Use negative lookbehind for [.#\w-] so `.section { position:... }` is not a false positive.
-    # Only matches bare element selectors like `section {` or `.reveal .slides section {`.
-    if _re.search(r"(?<![.#\w-])section\s*\{[^}]*\bposition\s*:", text, _re.DOTALL):
-        warnings.append(
-            "STRUCTURAL FAIL: `section { position:... }` found in CSS — "
-            "Reveal.js manages section positioning as position:absolute; "
-            "any override stacks all slides in document flow (staircase bug). "
-            "Fix: remove position from the section CSS rule entirely."
-        )
+    for selectors, body in css_rules:
+        if not re.search(r"\bposition\s*:", body):
+            continue
+        bad_selectors: list[str] = [
+            selector for selector in selectors if selector_targets_reveal_section(selector)
+        ]
+        if bad_selectors:
+            shown: str = ", ".join(bad_selectors[:3])
+            warnings.append(
+                "STRUCTURAL FAIL: Reveal.js section selector sets `position:` "
+                f"({shown}) — Reveal.js manages section positioning as position:absolute; "
+                "remove position from section CSS entirely."
+            )
+            break
 
-    # Check 2: .stagger must not appear on forbidden containers (multi-column OR vertical stacks).
-    # Step A: classify CSS class names by layout type.
+    # Check 2: .stagger is opt-in only. The exception marker keeps agents from
+    # accidentally applying delayed translateY to lists, timelines, or compare grids.
     _CLASS_PAT: str = r"""class\s*=\s*(?:"([^"]*?)"|'([^']*?)')"""
     _STYLE_PAT: str = r"""style\s*=\s*(?:"([^"]*?)"|'([^']*?)')"""
-    multi_col_classes: set[str] = set()   # flex-row or grid 2+ cols → forbidden for stagger
-    vert_stack_classes: set[str] = set()  # flex-direction:column → forbidden for stagger
-    for style_block in _re.findall(r"<style[^>]*>(.*?)</style>", text, _re.DOTALL | _re.IGNORECASE):
-        for rule_m in _re.finditer(r"\.([\w-]+)[^{,]*\{([^}]*)\}", style_block):
-            cls: str = rule_m.group(1)
-            body: str = rule_m.group(2)
-            is_grid_mc: bool = bool(
-                _re.search(r"grid-template-columns\s*:[^;]*(?:repeat\s*\(\s*[2-9]|\d+\s*fr\s+\d+\s*fr)", body)
-            )
-            is_flex: bool = bool(_re.search(r"\bdisplay\s*:\s*flex\b", body))
-            is_flex_col: bool = bool(_re.search(r"flex-direction\s*:\s*column", body))
-            if is_grid_mc or (is_flex and not is_flex_col):
-                multi_col_classes.add(cls)
-            if is_flex_col:
-                vert_stack_classes.add(cls)
+    multi_col_classes: set[str] = set()
+    vert_stack_classes: set[str] = set()
+    for selectors, body in css_rules:
+        selector_classes: set[str] = set()
+        for selector in selectors:
+            selector_classes |= classes_from_selector(selector)
+        if not selector_classes:
+            continue
+        is_grid_mc: bool = is_multicol_grid(body)
+        is_flex: bool = bool(re.search(r"\bdisplay\s*:\s*flex\b", body))
+        is_flex_col: bool = bool(re.search(r"flex-direction\s*:\s*column", body))
+        if is_grid_mc or (is_flex and not is_flex_col):
+            multi_col_classes |= selector_classes
+        if is_flex_col:
+            vert_stack_classes |= selector_classes
 
-    # Step B: find HTML elements carrying .stagger on a forbidden container.
+    forbidden_stagger_classes: set[str] = {
+        "cmp",
+        "compare",
+        "comparison",
+        "cols",
+        "flow",
+        "flow-list",
+        "pipeline",
+        "steps",
+        "tc",
+        "timeline",
+    }
+    stagger_unapproved_count: int = 0
     stagger_mc_count: int = 0   # multi-column violations
     stagger_vs_count: int = 0   # vertical-stack violations
-    for elem_m in _re.finditer(r"<(\w+)(?:\s[^>]*)?>", text):
+    for elem_m in re.finditer(r"<(\w+)(?:\s[^>]*)?>", text):
         tag_name: str = elem_m.group(1).lower()
         full_tag: str = elem_m.group(0)
-        cm = _re.search(_CLASS_PAT, full_tag)
+        cm = re.search(_CLASS_PAT, full_tag)
         if not cm:
             continue
         class_val: str = cm.group(1) if cm.group(1) is not None else cm.group(2)
         classes: set[str] = set(class_val.split())
         if "stagger" not in classes:
             continue
+        if "stagger-ok" not in classes:
+            stagger_unapproved_count += 1
+            continue
         # Extract inline style (single or double quoted).
         inline_style: str = ""
-        sm = _re.search(_STYLE_PAT, full_tag)
+        sm = re.search(_STYLE_PAT, full_tag)
         if sm:
             inline_style = sm.group(1) if sm.group(1) is not None else sm.group(2)
-        inline_grid_mc: bool = bool(
-            _re.search(r"grid-template-columns\s*:[^;]*(?:repeat\s*\(\s*[2-9]|\d+\s*fr\s+\d+\s*fr)", inline_style)
-        )
-        inline_flex: bool = bool(_re.search(r"\bdisplay\s*:\s*flex\b", inline_style))
-        inline_flex_col: bool = bool(_re.search(r"flex-direction\s*:\s*column", inline_style))
-        inline_mc: bool = inline_grid_mc or (inline_flex and not inline_flex_col)
+        inline_flex_col: bool = bool(re.search(r"flex-direction\s*:\s*column", inline_style))
         inline_vc: bool = inline_flex_col
-        if inline_mc or bool(classes & multi_col_classes):
+        is_multicol_layout: bool = bool(classes & multi_col_classes)
+        is_forbidden_content_container: bool = bool(classes & forbidden_stagger_classes)
+        if is_forbidden_content_container or (
+            is_multicol_layout and not is_decorative_stagger_candidate(classes)
+        ):
             stagger_mc_count += 1
         # Vertical stacks: explicit flex-column class, or bare ul/ol elements.
         elif inline_vc or bool(classes & vert_stack_classes) or tag_name in {"ul", "ol"}:
             stagger_vs_count += 1
 
+    if stagger_unapproved_count:
+        warnings.append(
+            f"STRUCTURAL FAIL: `.stagger` on {stagger_unapproved_count} unapproved container(s) — "
+            "`.stagger` is forbidden on content-bearing containers by default. "
+            "Use `.fade-up` on the container or `.rise-in` on child elements. "
+            "Only decorative, single-row, uniform horizontal card grids may use "
+            "`.stagger stagger-ok`."
+        )
     if stagger_mc_count:
         warnings.append(
-            f"STRUCTURAL FAIL: `.stagger` on {stagger_mc_count} multi-column container(s) — "
-            "`.stagger` is only safe on single-row horizontal card grids (identical cards side-by-side). "
-            "Forbidden on: display:flex (default row), multi-column grids (grid-template-columns 2+), "
-            "multi-content comparison layouts. "
+            f"STRUCTURAL FAIL: `.stagger-ok` on {stagger_mc_count} forbidden multi-content container(s) — "
+            "`.stagger-ok` is only for decorative, single-row, uniform horizontal card grids. "
+            "Forbidden on: comparison layouts, default flex rows used as content columns, "
+            "and multi-content grids. "
             "Fix: use .fade-up on the container or .rise-in on individual child elements."
         )
     if stagger_vs_count:
         warnings.append(
-            f"STRUCTURAL FAIL: `.stagger` on {stagger_vs_count} vertical stack(s) — "
+            f"STRUCTURAL FAIL: `.stagger-ok` on {stagger_vs_count} vertical stack(s) — "
             "each item starts translateY(18px), producing a staircase diagonal during animation. "
             "Forbidden on: ul, ol, flex-direction:column stacks, steps, timeline, flow-list. "
             "Fix: use .fade-up on the container or .rise-in on each child element."
@@ -2326,7 +2392,48 @@ def preview_artifact_paths(task_dir: Path, output_format: str, version_name: str
         if screenshot_dir.exists():
             paths.extend(sorted(screenshot_dir.glob("*.png"), key=natural_sort_key))
         return paths
+    if output_format == "both":
+        paths = [version_dir / "final.pptx", version_dir / "contact-sheet.png", version_dir / "final.html"]
+        screenshot_dir = version_dir / "screenshots"
+        if screenshot_dir.exists():
+            paths.extend(sorted(screenshot_dir.glob("*.png"), key=natural_sort_key))
+        return paths
     return [version_dir / "final.pptx", version_dir / "contact-sheet.png"]
+
+
+def preview_review_gate_errors(task_dir: Path) -> list[str]:
+    errors: list[str] = []
+    brief: JsonDict = read_json(task_dir / "brief-confirmed.json")
+    output_format: str = output_format_from_brief(brief, "html-revealjs")
+    for path in preview_artifact_paths(task_dir, output_format, "v1"):
+        if path.name != "final.html":
+            continue
+        for fw in html_small_font_warnings(path):
+            errors.append(f"HTML font-size QA: {fw}")
+        for sw in html_structural_warnings(path):
+            errors.append(f"HTML structural QA: {sw}")
+    return errors
+
+
+def ensure_preview_review_gate_passed(task_dir: Path) -> None:
+    errors: list[str] = preview_review_gate_errors(task_dir)
+    if not errors:
+        return
+    print("Preview-review gate failed:", file=sys.stderr)
+    for error in errors:
+        print(f"- {error}", file=sys.stderr)
+    print(
+        "Fix the HTML issues above, then verify with:\n"
+        f"  python3 {__file__} --base-dir {task_dir.parent.parent} guard --task {task_dir.name}",
+        file=sys.stderr,
+    )
+    raise SystemExit(2)
+
+
+def open_director_page_checked(task_dir: Path, host: str, port: int, page: str) -> str:
+    if page == "preview-review":
+        ensure_preview_review_gate_passed(task_dir)
+    return open_director_page(host, port, page)
 
 
 def selected_version_html_path(task_dir: Path, version_name: str) -> Path:
@@ -4435,7 +4542,7 @@ def initial_prompt(task_dir: Path) -> str:
 - Run the generation guard to verify the HTML before opening preview-review:
   python3 "{script_path}" --base-dir "{task_dir.parent.parent}" guard --task "{task_dir.name}"
   If the guard fails (exit code 2), read the printed errors, fix all reported HTML issues
-  (section position override, stagger on multi-column containers, etc.), and re-run guard.
+  (section position override, unapproved stagger containers, etc.), and re-run guard.
   Only proceed to preview-review after guard exits with code 0.
 - Open the v1 Preview Gate before any style review. Do not jump directly to Style Review:
   python3 "{script_path}" --base-dir "{task_dir.parent.parent}" serve-wait --task "{task_dir.name}" --open-page preview-review --for preview-review
@@ -4544,7 +4651,7 @@ Rules:
   The cover slide is NOT exempt. Put the title, subtitle, kicker, and badge content inside
   .slide-safe, then use flexbox row/column inside it for the two-column cover layout.
 - motion_level from html_config: "{motion_level}". Use animation vocabulary from the animation catalog:
-  subtle -> fade-up, rise-in, stagger-list only.
+  subtle -> fade-up and rise-in; use stagger only with explicit stagger-ok on decorative card rows.
   expressive -> adds zoom-pop, counter-up, path-draw, blur-in.
   cinematic -> adds spotlight, shimmer-sweep, kenburns for cover/section/end slides only.
   Implement as local @keyframes; do not link external animation CSS.
@@ -4552,15 +4659,16 @@ Rules:
     @keyframes rise-in {{from{{opacity:0;transform:translateY(18px)}}to{{opacity:1;transform:translateY(0)}}}}
     @keyframes fade-up {{from{{opacity:0;transform:translateY(12px)}}to{{opacity:1;transform:translateY(0)}}}}
     .rise-in {{ animation: rise-in .55s ease both; }}
-    .stagger>*{{ animation: rise-in .5s ease both; }}
-    .stagger>*:nth-child(2){{ animation-delay:.08s; }}
-    .stagger>*:nth-child(3){{ animation-delay:.16s; }}
-    .stagger>*:nth-child(4){{ animation-delay:.24s; }}
+    .stagger.stagger-ok>*{{ animation: rise-in .5s ease both; }}
+    .stagger.stagger-ok>*:nth-child(2){{ animation-delay:.08s; }}
+    .stagger.stagger-ok>*:nth-child(3){{ animation-delay:.16s; }}
+    .stagger.stagger-ok>*:nth-child(4){{ animation-delay:.24s; }}
     @media(prefers-reduced-motion:reduce){{*{{animation:none!important}}}}
-  Stagger rule — SINGLE-ROW HORIZONTAL CARD GRIDS ONLY:
-    .stagger is ONLY safe on a single row of identical cards animating side-by-side (e.g. 2-3 feature cards).
-    ALLOWED: single-row flex-row card grids where all children are uniform and visually parallel.
-    FORBIDDEN — do NOT add .stagger to any of these:
+  Stagger rule — DEFAULT FORBIDDEN:
+    .stagger is forbidden on content-bearing containers by default.
+    ALLOWED only when all are true: decorative animation, one horizontal row, uniform parallel card/tile/metric children,
+    and the container is marked with BOTH classes: .stagger and .stagger-ok.
+    FORBIDDEN — do NOT add .stagger or .stagger-ok to any of these:
       ✗ vertical stacks: flex-direction:column, ul, ol, steps, timeline, flow-list
         (each item starts 18px below final Y — produces staircase diagonal during animation)
       ✗ two-column comparison/layout containers (.cols, .cmp, multi-content grids)
@@ -4568,7 +4676,7 @@ Rules:
       ✗ multi-row grids: grid-template-columns with 2+ columns and multiple rows of content
       ✗ display:flex containers without explicit flex-direction (default is row, but if content
         is multi-section rather than uniform cards, use .fade-up instead)
-    Default for all forbidden containers: .fade-up on the wrapper, or .rise-in on each child explicitly.
+    Default for all normal content containers: .fade-up on the wrapper, or .rise-in on each child explicitly.
 - Chart data: use Chart.js 4.x CDN (https://cdn.jsdelivr.net/npm/chart.js) and chartjs-plugin-datalabels for bar/line/pie slides. Use direct data labels instead of legends.
 - layout_families from html_config: {layout_families_json}. Do not repeat the same layout family 3 slides in a row.
 - Every slide needs one primary proof object: chart, diagram, table, quote, image, or code artifact.
@@ -4801,6 +4909,18 @@ class DirectorHandler(BaseHTTPRequestHandler):
         elif path == "/image-placement":
             self.send_html(render_image_placement(self.task_dir))
         elif path == "/preview-review":
+            preview_errors: list[str] = preview_review_gate_errors(self.task_dir)
+            if preview_errors:
+                ui_language: str = ui_language_for_task(self.task_dir)
+                errors_html: str = "\n".join(f"- {error}" for error in preview_errors)
+                body: str = f"""<div class="topline">Preview-review gate</div>
+<h1>Preview-review gate failed</h1>
+<section class="section">
+  <p>Fix the HTML issues below, then re-run guard before opening preview-review.</p>
+  <pre>{html.escape(errors_html)}</pre>
+</section>"""
+                self.send_html(html_page("Preview-review gate failed", body, ui_language), HTTPStatus.CONFLICT)
+                return
             self.send_html(render_preview_review(self.task_dir))
         elif path == "/style-review":
             self.send_html(render_style_review(self.task_dir))
@@ -4941,9 +5061,9 @@ class DirectorHandler(BaseHTTPRequestHandler):
         body: bytes = self.rfile.read(length)
         return parse_qs(body.decode("utf-8"), keep_blank_values=True)
 
-    def send_html(self, content: str) -> None:
+    def send_html(self, content: str, status: HTTPStatus = HTTPStatus.OK) -> None:
         body: bytes = content.encode("utf-8")
-        self.send_response(HTTPStatus.OK)
+        self.send_response(status)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
@@ -5099,7 +5219,7 @@ def command_render(args: argparse.Namespace) -> None:
     render_all_pages(task_dir)
     print(f"Rendered pages in {task_dir}")
     if args.open_page:
-        open_director_page(args.host, args.port, args.open_page)
+        open_director_page_checked(task_dir, args.host, args.port, args.open_page)
 
 
 def open_director_page(host: str, port: int, page: str) -> str:
@@ -5132,9 +5252,9 @@ def command_serve(args: argparse.Namespace) -> None:
     print(f"v1 preview:         http://{args.host}:{args.port}/preview-review")
     print(f"Style review:       http://{args.host}:{args.port}/style-review")
     print(f"Compare:            http://{args.host}:{args.port}/compare")
-    if not args.no_open and args.open_page:
-        open_director_page(args.host, args.port, args.open_page)
     try:
+        if not args.no_open and args.open_page:
+            open_director_page_checked(task_dir, args.host, args.port, args.open_page)
         server.serve_forever()
     except KeyboardInterrupt:
         print("\nStopping server.")
@@ -5191,28 +5311,11 @@ def command_serve_wait(args: argparse.Namespace) -> None:
     print(f"Image placement:    http://{args.host}:{args.port}/image-placement")
     print(f"v1 preview:         http://{args.host}:{args.port}/preview-review")
     print(f"Waiting for:        {target}")
-    # Code-level gate: refuse to open preview-review if v1/final.html has structural bugs.
-    # This enforces QA even when an AI agent skips the explicit "run guard" instruction.
-    if not args.no_open and args.open_page == "preview-review":
-        v1_html: Path = task_dir / "v1" / "final.html"
-        struct_errors: list[str] = html_structural_warnings(v1_html)
-        if struct_errors:
-            print("STRUCTURAL QA FAILED — preview-review is blocked:", file=sys.stderr)
-            for se in struct_errors:
-                print(f"  {se}", file=sys.stderr)
-            print(
-                "Fix the HTML issues above, then verify with:\n"
-                f"  python3 {__file__} --base-dir {task_dir.parent.parent} guard --task {task_dir.name}",
-                file=sys.stderr,
-            )
-            raise SystemExit(2)
-
-    if not args.no_open and args.open_page:
-        open_director_page(args.host, args.port, args.open_page)
-
     chained_to_image_gate: bool = False
     started: float = time.time()
     try:
+        if not args.no_open and args.open_page:
+            open_director_page_checked(task_dir, args.host, args.port, args.open_page)
         while True:
             if target.exists():
                 # After brief confirmation, auto-chain to image style gate if needed
@@ -5340,8 +5443,8 @@ def command_image_asset(args: argparse.Namespace) -> None:
 
 
 def command_open_page(args: argparse.Namespace) -> None:
-    resolve_task_dir(args)
-    open_director_page(args.host, args.port, args.page)
+    task_dir: Path = resolve_task_dir(args)
+    open_director_page_checked(task_dir, args.host, args.port, args.page)
 
 
 def command_share_html(args: argparse.Namespace) -> None:

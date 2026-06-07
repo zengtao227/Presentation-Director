@@ -246,7 +246,7 @@ line-height: 1;
 Recommended sizes: `20px`–`34px` for icons, `16px`–`22px` for body copy.  
 `line-height` may use unitless values (e.g. `1.15`, `1.25`, `1.35`).
 
-### Rule 2 — No stagger animation on vertical stacks
+### Rule 2 — Stagger is opt-in only
 
 `stagger` applies staggered `translateY(18px)` delays. During animation, items render at different Y positions — vertical lists appear diagonal/staircase to viewers.
 
@@ -254,26 +254,25 @@ Recommended sizes: `20px`–`34px` for icons, `16px`–`22px` for body copy.
 <!-- ❌ WRONG — steps, timelines, flow cards -->
 <div class="steps stagger">
 
-<!-- ✅ CORRECT — single container animation; stagger only on horizontal card grids -->
+<!-- ✅ CORRECT — single container animation -->
 <div class="steps fade-up">
 ```
 
-`stagger` is allowed only on horizontal grids (e.g. `g3`, `g2`) where items animate side-by-side.
-
-**Extension — stagger is also forbidden on multi-column containers:**  
-When `stagger` is applied to a two-column or multi-column container (`.cmp`, `.tc`, `.g2`, etc.), the second column div receives `animation-delay:.08s` and starts at `translateY(18px)` while the first column is already at its final position. This causes the column headers and content to appear at different vertical baselines — visually broken even after animation completes (if viewed mid-animation or in a screenshot).
+`.stagger` is forbidden on content-bearing containers by default. It is allowed only for decorative, single-row, uniform horizontal card grids. If such usage is intentional, mark the container with both `.stagger` and `.stagger-ok`; without `.stagger-ok`, the guard fails.
 
 ```html
-<!-- ❌ WRONG — cmp, tc, g2 containers must NOT use stagger -->
+<!-- ❌ WRONG — comparison/content containers must NOT use stagger -->
 <div class="cmp stagger">
-<div class="tc stagger">
+<div class="cols stagger stagger-ok">
 
 <!-- ✅ CORRECT — animate the whole container as one unit -->
 <div class="cmp fade-up">
-<div class="tc fade-up">
+
+<!-- ✅ CORRECT — explicit decorative exception -->
+<div class="feature-cards stagger stagger-ok">
 ```
 
-**Rule summary:** `stagger` only on single-row horizontal card grids (identical cards side-by-side). Everything else → `fade-up` on the container, or `rise-in` on individual elements explicitly.
+**Rule summary:** default to `fade-up` on the container or `rise-in` on individual elements. Use `.stagger stagger-ok` only for decorative, single-row, uniform horizontal card/tile/metric grids.
 
 ### Rule 3 — Height budget (pre-flight estimate only, not final arbiter)
 
@@ -404,7 +403,7 @@ Inside `.slide-safe` use normal flow or flex/grid layout. Do NOT use `position:a
 | `top:50%; transform:translateY(-50%)` on elements outside `.slide-safe` | Centres against the 720px section, not the 590px safe zone |
 | `display:flex` or `display:grid` on the `<section>` element to position content | Replaces the absolute-position model; content escapes the safe zone |
 | Arbitrary `left` / `top` / `right` / `bottom` on section children that bypass `.slide-safe` | Same as first row |
-| **`.stagger` on vertical stacks or multi-column layouts** | `.stagger` is only safe on single-row horizontal card grids (identical cards side-by-side). Forbidden on: vertical stacks (ul/ol/steps/timeline, flex-direction:column), multi-column comparison layouts, multi-row grids, and display:flex without explicit column direction. Use `.fade-up` on the container or `.rise-in` on each child instead. **The guard auto-fails on this pattern.** |
+| **Unapproved `.stagger`** | `.stagger` is forbidden on content-bearing containers by default. It is allowed only for decorative, single-row, uniform horizontal card grids explicitly marked `.stagger-ok`. Forbidden on: vertical stacks (ul/ol/steps/timeline, flex-direction:column), comparison/content columns (`.cols`, `.cmp`, `.tc`), multi-row grids, and generic flex/grid containers. Use `.fade-up` on the container or `.rise-in` on each child instead. **The guard auto-fails on this pattern.** |
 | Treating the cover slide as exempt ("it's decorative") | The cover is **not** exempt; title, subtitle, kicker, and badge all go inside `.slide-safe` |
 
 For a two-column cover layout, put both columns inside `.slide-safe` and use `display:flex; flex-direction:row` there:</p>
@@ -824,7 +823,7 @@ Use `<aside class="notes">` inside each `<section>`. Press `S` to open presenter
 - [ ] File is self-contained except pinned Reveal.js CDN links; no broken local paths.
 - [ ] CSS overflow safeguards are present in `<style>` (`.slide-body { overflow: hidden; … }`).
 - [ ] **Section CSS has NO `position` property** — the section rule must be `width:1280px; height:720px; overflow:hidden; box-sizing:border-box` only. The generation guard (`validate_generation_guard`) auto-fails if `section { position:... }` is detected.
-- [ ] **`.stagger` only on single-row horizontal card grids** — `.stagger` is only safe on a single row of identical cards side-by-side. Forbidden on: vertical stacks (ul/ol/steps/timeline, flex-column), multi-column comparison layouts, multi-row grids, and flex containers without explicit `flex-direction:column`. The generation guard auto-fails on these patterns.
+- [ ] **`.stagger` is opt-in only** — `.stagger` is forbidden unless the container also has `.stagger-ok` and is a decorative, single-row, uniform horizontal card/tile/metric grid. Forbidden on vertical stacks, comparison/content columns, multi-row grids, and generic flex/grid containers. The generation guard auto-fails on these patterns.
 - [ ] **Title position is a design decision, not a layout fix** — title alignment (left / center) and vertical position are chosen during brief confirmation and must stay consistent across all slides. When fixing a head-heavy layout, do NOT change the title's position or the section's `padding-top` as the solution; that moves every title and breaks visual consistency.
 - [ ] **No head-heavy layout** — content fills at least 60% of the vertical space below the title. The correct fix is to increase internal spacing of content elements (card `padding`, grid `gap`, `line-height`, element `margin`). Never "fix" empty bottom space by shifting the title down, using `center: true`, or floating content to the middle of the slide.
 - [ ] **Word-break rules present** — `word-break: break-word; hyphens: none; overflow-wrap: break-word;` on `.reveal` to prevent mid-word splits in mixed Chinese/English text.
@@ -927,8 +926,21 @@ After the latest required version is generated, render Director pages and open t
 
 ```bash
 python3 scripts/presentation_director.py render --task "<short task slug>"
-python3 scripts/presentation_director.py serve --task "<short task slug>" --open-page preview-review
-python3 scripts/presentation_director.py wait --task "<short task slug>" --for revision
+python3 scripts/presentation_director.py guard --task "<short task slug>"
+python3 scripts/presentation_director.py serve-wait \
+  --task "<short task slug>" \
+  --open-page preview-review \
+  --for preview-review
+```
+
+If guard exits 2, do not open preview-review. Fix the HTML and re-run guard first.
+After preview-review is submitted, read `preview-review.json`. If `preview_action` is `style-review`, open the style review gate and then request the revision prompt:
+
+```bash
+python3 scripts/presentation_director.py serve-wait \
+  --task "<short task slug>" \
+  --open-page style-review \
+  --for revision
 python3 scripts/presentation_director.py prompt --task "<short task slug>" --kind revision
 ```
 
@@ -1163,7 +1175,7 @@ For new confirmed briefs with `image_generation_mode`, the guard also enforces I
 
 The guard also runs **structural HTML QA** on `v1/final.html` and auto-fails on two patterns that recurrently cause the staircase layout bug:
 1. `section { position:... }` in CSS — Reveal.js manages section positioning; any override breaks slide stacking.
-2. `.stagger` on multi-column grid or flex-row containers — only safe on single-column containers.
+2. Unapproved `.stagger` — `.stagger` is forbidden by default and allowed only as `.stagger stagger-ok` on decorative, single-row, uniform horizontal card/tile/metric grids.
 
 If the guard fails due to structural QA, fix the HTML and re-run the guard before opening preview-review.
 

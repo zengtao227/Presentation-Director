@@ -16,8 +16,8 @@ CSS-only motion guidance for native Reveal.js decks. The source library `lewislu
 
 | Level | Use When | Allowed Effects | Source |
 |-------|----------|-----------------|--------|
-| `subtle` | research, executive, source-heavy decks | fade (up/down/left/right), rise-in, light stagger, opacity-only reveals | repo: `fade-*`, `rise-in`, `stagger-list` |
-| `expressive` | product, teaching, technical demos | zoom-pop, path-draw, counter-up, gradient-flow, stagger-list, blur-in | repo: all named |
+| `subtle` | research, executive, source-heavy decks | fade (up/down/left/right), rise-in, optional `.stagger-ok` decorative card rows, opacity-only reveals | repo: `fade-*`, `rise-in`, guarded stagger |
+| `expressive` | product, teaching, technical demos | zoom-pop, path-draw, counter-up, gradient-flow, guarded `.stagger-ok` card rows, blur-in | repo: all named |
 | `cinematic` | cover, section divider, finale, short pitch | spotlight, shimmer-sweep, perspective-zoom, kenburns, neon-glow, ripple-reveal | repo: all named (CSS keyframes) |
 
 `cinematic` does not mean Canvas/WebGL. It is a stronger CSS-only profile and should be limited to pages where motion supports comprehension or pacing. Every effect named above corresponds to a verified CSS keyframe in the source repo (e.g. `kf-spot`, `kf-shimmer`, `kf-pzoom`, `kf-kenburns`, `kf-neon`, `kf-ripple`) — none requires canvas.
@@ -29,7 +29,7 @@ The source repo's `animations.css` defines exactly these 27 CSS-only animation n
 - Directional fades: `fade-up`, `fade-down`, `fade-left`, `fade-right`
 - Dramatic entries: `rise-in`, `drop-in`, `zoom-pop`, `blur-in`, `glitch-in`
 - Text effects: `typewriter`, `neon-glow`, `shimmer-sweep`, `gradient-flow`
-- Lists & numbers: `stagger-list`, `counter-up`
+- Lists & numbers: `counter-up`; use `.stagger-ok` only for decorative card rows, not lists
 - SVG / geometry: `path-draw`, `morph-shape`
 - 3D / perspective: `parallax-tilt`, `card-flip-3d`, `cube-rotate-3d`, `page-turn-3d`, `perspective-zoom`
 - Ambient / continuous: `marquee-scroll`, `kenburns`, `confetti-burst`, `spotlight`, `ripple-reveal`
@@ -46,9 +46,9 @@ The source repo also ships 20 **canvas FX** modules (`assets/animations/fx/*.js`
 |---------|--------------|
 | `presenter` | clean slide transitions, sparse element reveals, readable live delivery |
 | `academic` | mostly fade/rise, no distracting loops, citation-first |
-| `tech` | path-draw for diagrams, terminal cursor accents, measured stagger |
+| `tech` | path-draw for diagrams, terminal cursor accents, measured card-row stagger only when `.stagger-ok` is appropriate |
 | `pitch` | big-number counters, section punch, spotlight/zoom on key claims |
-| `product` | workflow step reveals, feature comparison stagger, gentle gradient movement |
+| `product` | workflow step reveals, card-row stagger only with `.stagger-ok`, gentle gradient movement |
 | `editorial` | page-turn feel, quote reveals, image/caption timing |
 
 ## Implementation Snippets
@@ -62,17 +62,18 @@ The source repo also ships 20 **canvas FX** modules (`assets/animations/fx/*.js`
   to { opacity: 1; transform: translateY(0); }
 }
 
-.reveal .slides section.present .stagger > * {
+.reveal .slides section.present .stagger.stagger-ok > * {
   animation: rise-in .5s ease both;
 }
-.reveal .slides section.present .stagger > *:nth-child(2) { animation-delay: .08s; }
-.reveal .slides section.present .stagger > *:nth-child(3) { animation-delay: .16s; }
-.reveal .slides section.present .stagger > *:nth-child(4) { animation-delay: .24s; }
+.reveal .slides section.present .stagger.stagger-ok > *:nth-child(2) { animation-delay: .08s; }
+.reveal .slides section.present .stagger.stagger-ok > *:nth-child(3) { animation-delay: .16s; }
+.reveal .slides section.present .stagger.stagger-ok > *:nth-child(4) { animation-delay: .24s; }
 ```
 
 ## Guardrails
 
 - Do not animate body paragraphs one word at a time.
+- Do not use bare `.stagger`; use `.stagger.stagger-ok` only on decorative, single-row, uniform horizontal card/tile/metric grids.
 - Do not run infinite loops on content slides.
 - Do not animate chart axes after labels are already visible; reveal chart and labels together or in meaningful groups.
 - Avoid motion that changes layout dimensions after render; use `transform` and `opacity`.

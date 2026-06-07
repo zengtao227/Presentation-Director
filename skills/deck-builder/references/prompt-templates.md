@@ -233,12 +233,12 @@ Internal catalogs (do NOT import as runtime dependencies):
   @keyframes rise-in { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
   @keyframes fade-up { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
   .rise-in { animation: rise-in .55s ease both; }
-  .stagger > * { animation: rise-in .5s ease both; }
-  .stagger > *:nth-child(2) { animation-delay:.08s; }
-  .stagger > *:nth-child(3) { animation-delay:.16s; }
-  .stagger > *:nth-child(4) { animation-delay:.24s; }
+  .stagger.stagger-ok > * { animation: rise-in .5s ease both; }
+  .stagger.stagger-ok > *:nth-child(2) { animation-delay:.08s; }
+  .stagger.stagger-ok > *:nth-child(3) { animation-delay:.16s; }
+  .stagger.stagger-ok > *:nth-child(4) { animation-delay:.24s; }
   @media(prefers-reduced-motion:reduce) { * { animation:none!important; } }
-  motion_level subtle → fade-up/rise-in/stagger only
+  motion_level subtle → fade-up/rise-in; stagger only with `.stagger-ok` on decorative card rows
   motion_level expressive → also zoom-pop, counter-up on KPI numbers
   motion_level cinematic → also spotlight/kenburns on cover and section slides only (no Canvas/WebGL)
 - Data slides: use Chart.js 4.x (https://cdn.jsdelivr.net/npm/chart.js) plus chartjs-plugin-datalabels, direct data labels, no legend
