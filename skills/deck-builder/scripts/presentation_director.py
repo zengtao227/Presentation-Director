@@ -2213,8 +2213,9 @@ def html_structural_warnings(html_path: Path) -> list[str]:
     warnings: list[str] = []
 
     # Check 1: section CSS rule must not set position.
-    # Reveal.js sets position:absolute on sections internally; any override breaks slide stacking.
-    if _re.search(r"\bsection\s*\{[^}]*\bposition\s*:", text, _re.DOTALL):
+    # Use negative lookbehind for [.#\w-] so `.section { position:... }` is not a false positive.
+    # Only matches bare element selectors like `section {` or `.reveal .slides section {`.
+    if _re.search(r"(?<![.#\w-])section\s*\{[^}]*\bposition\s*:", text, _re.DOTALL):
         warnings.append(
             "STRUCTURAL FAIL: `section { position:... }` found in CSS — "
             "Reveal.js manages section positioning as position:absolute; "
@@ -2222,29 +2223,31 @@ def html_structural_warnings(html_path: Path) -> list[str]:
             "Fix: remove position from the section CSS rule entirely."
         )
 
-    # Check 2: .stagger must not appear on multi-column containers.
-    # Step A: collect CSS class names with multi-column grid or flex-row (explicit or default) layout.
-    # display:flex without flex-direction:column defaults to row and must be treated as multi-column.
-    multi_col_classes: set[str] = set()
+    # Check 2: .stagger must not appear on forbidden containers (multi-column OR vertical stacks).
+    # Step A: classify CSS class names by layout type.
+    _CLASS_PAT: str = r"""class\s*=\s*(?:"([^"]*?)"|'([^']*?)')"""
+    _STYLE_PAT: str = r"""style\s*=\s*(?:"([^"]*?)"|'([^']*?)')"""
+    multi_col_classes: set[str] = set()   # flex-row or grid 2+ cols → forbidden for stagger
+    vert_stack_classes: set[str] = set()  # flex-direction:column → forbidden for stagger
     for style_block in _re.findall(r"<style[^>]*>(.*?)</style>", text, _re.DOTALL | _re.IGNORECASE):
         for rule_m in _re.finditer(r"\.([\w-]+)[^{,]*\{([^}]*)\}", style_block):
+            cls: str = rule_m.group(1)
             body: str = rule_m.group(2)
             is_grid_mc: bool = bool(
                 _re.search(r"grid-template-columns\s*:[^;]*(?:repeat\s*\(\s*[2-9]|\d+\s*fr\s+\d+\s*fr)", body)
             )
             is_flex: bool = bool(_re.search(r"\bdisplay\s*:\s*flex\b", body))
             is_flex_col: bool = bool(_re.search(r"flex-direction\s*:\s*column", body))
-            # flex without explicit column direction defaults to row → multi-column
-            is_flex_row: bool = is_flex and not is_flex_col
-            if is_grid_mc or is_flex_row:
-                multi_col_classes.add(rule_m.group(1))
+            if is_grid_mc or (is_flex and not is_flex_col):
+                multi_col_classes.add(cls)
+            if is_flex_col:
+                vert_stack_classes.add(cls)
 
-    # Step B: find HTML elements carrying both .stagger and a multi-column class.
-    # Support both single-quoted and double-quoted class attributes.
-    _CLASS_PAT: str = r"""class\s*=\s*(?:"([^"]*?)"|'([^']*?)')"""
-    _STYLE_PAT: str = r"""style\s*=\s*(?:"([^"]*?)"|'([^']*?)')"""
-    stagger_violations: int = 0
-    for elem_m in _re.finditer(r"<\w+(?:\s[^>]*)?>", text):
+    # Step B: find HTML elements carrying .stagger on a forbidden container.
+    stagger_mc_count: int = 0   # multi-column violations
+    stagger_vs_count: int = 0   # vertical-stack violations
+    for elem_m in _re.finditer(r"<(\w+)(?:\s[^>]*)?>", text):
+        tag_name: str = elem_m.group(1).lower()
         full_tag: str = elem_m.group(0)
         cm = _re.search(_CLASS_PAT, full_tag)
         if not cm:
@@ -2253,7 +2256,7 @@ def html_structural_warnings(html_path: Path) -> list[str]:
         classes: set[str] = set(class_val.split())
         if "stagger" not in classes:
             continue
-        # Check inline style for multi-column markers.
+        # Extract inline style (single or double quoted).
         inline_style: str = ""
         sm = _re.search(_STYLE_PAT, full_tag)
         if sm:
@@ -2264,17 +2267,27 @@ def html_structural_warnings(html_path: Path) -> list[str]:
         inline_flex: bool = bool(_re.search(r"\bdisplay\s*:\s*flex\b", inline_style))
         inline_flex_col: bool = bool(_re.search(r"flex-direction\s*:\s*column", inline_style))
         inline_mc: bool = inline_grid_mc or (inline_flex and not inline_flex_col)
-        class_mc: bool = bool(classes & multi_col_classes)
-        if inline_mc or class_mc:
-            stagger_violations += 1
+        inline_vc: bool = inline_flex_col
+        if inline_mc or bool(classes & multi_col_classes):
+            stagger_mc_count += 1
+        # Vertical stacks: explicit flex-column class, or bare ul/ol elements.
+        elif inline_vc or bool(classes & vert_stack_classes) or tag_name in {"ul", "ol"}:
+            stagger_vs_count += 1
 
-    if stagger_violations:
+    if stagger_mc_count:
         warnings.append(
-            f"STRUCTURAL FAIL: `.stagger` on {stagger_violations} multi-column container(s) — "
+            f"STRUCTURAL FAIL: `.stagger` on {stagger_mc_count} multi-column container(s) — "
             "`.stagger` is only safe on single-row horizontal card grids (identical cards side-by-side). "
-            "Forbidden on: vertical stacks, flex-direction:column, display:flex (default row), "
-            "multi-column grids (grid-template-columns 2+), multi-content comparison layouts. "
+            "Forbidden on: display:flex (default row), multi-column grids (grid-template-columns 2+), "
+            "multi-content comparison layouts. "
             "Fix: use .fade-up on the container or .rise-in on individual child elements."
+        )
+    if stagger_vs_count:
+        warnings.append(
+            f"STRUCTURAL FAIL: `.stagger` on {stagger_vs_count} vertical stack(s) — "
+            "each item starts translateY(18px), producing a staircase diagonal during animation. "
+            "Forbidden on: ul, ol, flex-direction:column stacks, steps, timeline, flow-list. "
+            "Fix: use .fade-up on the container or .rise-in on each child element."
         )
 
     return warnings
@@ -5178,6 +5191,22 @@ def command_serve_wait(args: argparse.Namespace) -> None:
     print(f"Image placement:    http://{args.host}:{args.port}/image-placement")
     print(f"v1 preview:         http://{args.host}:{args.port}/preview-review")
     print(f"Waiting for:        {target}")
+    # Code-level gate: refuse to open preview-review if v1/final.html has structural bugs.
+    # This enforces QA even when an AI agent skips the explicit "run guard" instruction.
+    if not args.no_open and args.open_page == "preview-review":
+        v1_html: Path = task_dir / "v1" / "final.html"
+        struct_errors: list[str] = html_structural_warnings(v1_html)
+        if struct_errors:
+            print("STRUCTURAL QA FAILED — preview-review is blocked:", file=sys.stderr)
+            for se in struct_errors:
+                print(f"  {se}", file=sys.stderr)
+            print(
+                "Fix the HTML issues above, then verify with:\n"
+                f"  python3 {__file__} --base-dir {task_dir.parent.parent} guard --task {task_dir.name}",
+                file=sys.stderr,
+            )
+            raise SystemExit(2)
+
     if not args.no_open and args.open_page:
         open_director_page(args.host, args.port, args.open_page)
 

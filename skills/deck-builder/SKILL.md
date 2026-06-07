@@ -273,7 +273,7 @@ When `stagger` is applied to a two-column or multi-column container (`.cmp`, `.t
 <div class="tc fade-up">
 ```
 
-**Rule summary:** `stagger` only on single-column horizontal grids. Everything else → `fade-up` on the container, or `rise-in` on individual elements explicitly.
+**Rule summary:** `stagger` only on single-row horizontal card grids (identical cards side-by-side). Everything else → `fade-up` on the container, or `rise-in` on individual elements explicitly.
 
 ### Rule 3 — Height budget (pre-flight estimate only, not final arbiter)
 
