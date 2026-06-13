@@ -38,9 +38,21 @@ JsonDict = dict[str, Any]
 
 DEFAULT_PORT: int = 8765
 DEFAULT_HOST: str = "127.0.0.1"
+MAX_FORM_BODY_BYTES: int = 1_000_000
 DECK_WORKSPACE_DIR: str = "Decks"
 LEGACY_DECK_WORKSPACE_DIR: str = "PPTX"
 IMAGE_EXTENSIONS: set[str] = {".png", ".jpg", ".jpeg", ".webp"}
+VERSION_DIR_RE: re.Pattern[str] = re.compile(r"^v[1-9][0-9]*$")
+DIRECTOR_TOKEN_FIELD: str = "director_token"
+STATIC_HTML_CSP: str = (
+    "default-src 'self' https: data: blob: 'unsafe-inline' 'unsafe-eval'; "
+    "connect-src 'none'; "
+    "form-action 'none'; "
+    "frame-src 'none'; "
+    "child-src 'none'; "
+    "object-src 'none'; "
+    "base-uri 'none'"
+)
 IMAGE_POLICY_VALUES: set[str] = {
     "none",
     "abstract-only",
@@ -1462,6 +1474,90 @@ def status_dir(task_dir: Path) -> Path:
     return task_dir / "status"
 
 
+def is_relative_to_path(path: Path, parent: Path) -> bool:
+    try:
+        path.relative_to(parent)
+        return True
+    except ValueError:
+        return False
+
+
+def resolve_contained_path(root: Path, candidate: Path) -> Path:
+    root_resolved: Path = root.resolve()
+    candidate_resolved: Path = candidate.resolve(strict=False)
+    if not is_relative_to_path(candidate_resolved, root_resolved):
+        raise ValueError(f"Path escapes task directory: {candidate}")
+    return candidate_resolved
+
+
+def validate_version_name(version_name: str) -> str:
+    normalized: str = version_name.strip()
+    if not VERSION_DIR_RE.fullmatch(normalized):
+        raise ValueError(f"Invalid version name: {version_name!r}")
+    return normalized
+
+
+def resolve_version_dir(task_dir: Path, version_name: str, *, must_exist: bool = False) -> Path:
+    normalized: str = validate_version_name(version_name)
+    version_dir: Path = resolve_contained_path(task_dir, task_dir / normalized)
+    if version_dir.parent != task_dir.resolve():
+        raise ValueError(f"Version must be a direct task child: {version_name!r}")
+    if must_exist and not version_dir.is_dir():
+        raise ValueError(f"Missing version directory: {version_dir}")
+    return version_dir
+
+
+def image_output_root(task_dir: Path) -> Path:
+    return task_dir / "assets" / "images"
+
+
+def resolve_image_output_path(task_dir: Path, output_path_value: str) -> Path:
+    raw_value: str = output_path_value.strip()
+    if not raw_value:
+        raise ValueError("Image output path is required.")
+    raw_path: Path = Path(raw_value).expanduser()
+    candidate: Path = raw_path if raw_path.is_absolute() else task_dir / raw_path
+    image_root: Path = image_output_root(task_dir).resolve()
+    resolved: Path = candidate.resolve(strict=False)
+    if not is_relative_to_path(resolved, image_root):
+        raise ValueError(f"Image output path must stay under {image_root}: {output_path_value}")
+    if resolved.suffix.lower() not in IMAGE_EXTENSIONS:
+        raise ValueError(f"Image output path must use an image extension: {output_path_value}")
+    return resolved
+
+
+def director_token_input(task_dir: Path) -> str:
+    token: str = ensure_confirm_token(task_dir)
+    return f'<input type="hidden" name="{DIRECTOR_TOKEN_FIELD}" value="{html.escape(token)}">'
+
+
+def director_url(host: str, port: int, path: str) -> str:
+    return f"http://{host}:{port}{path}"
+
+
+def director_server_host_port(server: ThreadingHTTPServer, requested_host: str) -> tuple[str, int]:
+    bound_host: str = str(server.server_address[0])
+    bound_port: int = int(server.server_address[1])
+    display_host: str = requested_host or bound_host
+    if display_host in {"0.0.0.0", "::", ""}:
+        display_host = "127.0.0.1"
+    return display_host, bound_port
+
+
+def print_director_urls(task_dir: Path, host: str, port: int, waiting_for: Path | None = None) -> None:
+    print(f"Serving Presentation Director for {task_dir}")
+    print(f"Intake:             {director_url(host, port, '/intake')}")
+    print(f"Visual inspiration: {director_url(host, port, '/visual-inspiration')}")
+    print(f"Confirm:            {director_url(host, port, '/confirm')}")
+    print(f"Image style:        {director_url(host, port, '/image-style')}")
+    print(f"Image placement:    {director_url(host, port, '/image-placement')}")
+    print(f"v1 preview:         {director_url(host, port, '/preview-review')}")
+    print(f"Style review:       {director_url(host, port, '/style-review')}")
+    print(f"Compare:            {director_url(host, port, '/compare')}")
+    if waiting_for is not None:
+        print(f"Waiting for:        {waiting_for}")
+
+
 def read_json(path: Path, default: JsonDict | None = None) -> JsonDict:
     if not path.exists():
         return {} if default is None else default
@@ -2349,16 +2445,25 @@ def failed_image_asset_messages(task_dir: Path) -> list[str]:
     return messages
 
 
-def v1_preview_exists(task_dir: Path, output_format: str) -> bool:
-    v1_dir: Path = task_dir / "v1"
+def required_preview_artifact_paths(task_dir: Path, output_format: str, version_name: str = "v1") -> list[Path]:
+    version_dir: Path = resolve_version_dir(task_dir, version_name, must_exist=False)
     if output_format == "html-revealjs":
-        html_path: Path = v1_dir / "final.html"
-        return html_path.exists() and html_path.stat().st_size > 0
-    return (v1_dir / "final.pptx").exists() and (v1_dir / "contact-sheet.png").exists()
+        return [version_dir / "final.html"]
+    if output_format == "both":
+        return [version_dir / "final.pptx", version_dir / "contact-sheet.png", version_dir / "final.html"]
+    return [version_dir / "final.pptx", version_dir / "contact-sheet.png"]
+
+
+def artifact_exists(path: Path) -> bool:
+    return path.exists() and path.is_file() and path.stat().st_size > 0
+
+
+def v1_preview_exists(task_dir: Path, output_format: str) -> bool:
+    return all(artifact_exists(path) for path in required_preview_artifact_paths(task_dir, output_format, "v1"))
 
 
 def preview_artifact_paths(task_dir: Path, output_format: str, version_name: str = "v1") -> list[Path]:
-    version_dir: Path = task_dir / version_name
+    version_dir: Path = resolve_version_dir(task_dir, version_name, must_exist=False)
     if output_format == "html-revealjs":
         paths: list[Path] = [version_dir / "final.html"]
         screenshot_dir: Path = version_dir / "screenshots"
@@ -2378,6 +2483,9 @@ def preview_review_gate_errors(task_dir: Path) -> list[str]:
     errors: list[str] = []
     brief: JsonDict = read_json(task_dir / "brief-confirmed.json")
     output_format: str = output_format_from_brief(brief, "html-revealjs")
+    for path in required_preview_artifact_paths(task_dir, output_format, "v1"):
+        if not artifact_exists(path):
+            errors.append(f"Missing or empty preview artifact: {path}")
     for path in preview_artifact_paths(task_dir, output_format, "v1"):
         if path.name != "final.html":
             continue
@@ -2410,7 +2518,7 @@ def open_director_page_checked(task_dir: Path, host: str, port: int, page: str) 
 
 
 def selected_version_html_path(task_dir: Path, version_name: str) -> Path:
-    return task_dir / version_name / "final.html"
+    return resolve_version_dir(task_dir, version_name, must_exist=True) / "final.html"
 
 
 def final_html_path_for_output(task_dir: Path, output_format: str, companion: bool = False) -> Path:
@@ -3270,9 +3378,7 @@ def record_image_asset_attempt(
         }
         assets.append(record)
 
-    output_path: Path = Path(output_path_value).expanduser()
-    if not output_path.is_absolute():
-        output_path = task_dir / output_path
+    output_path: Path = resolve_image_output_path(task_dir, output_path_value)
     validated_status: str = status_value
     size_bytes: int = 0
     validation_error: str = error_text
@@ -3479,7 +3585,8 @@ def write_share_html(
 def finalize_selected_version(task_dir: Path, selected_version: str, notes: str = "") -> JsonDict:
     brief: JsonDict = read_json(task_dir / "brief-confirmed.json")
     output_format: str = output_format_from_brief(brief, "pptx") if brief else "pptx"
-    selected_version_dir: Path = task_dir / selected_version
+    selected_version_dir: Path = resolve_version_dir(task_dir, selected_version, must_exist=True)
+    selected_version = selected_version_dir.name
     selected_pptx: Path = selected_version_dir / "final.pptx"
     final_dir: Path = task_dir / "final"
     final_pptx: Path = final_dir / f"{task_dir.name}.pptx"
@@ -3620,6 +3727,7 @@ def render_intake(task_dir: Path) -> str:
   </label>
 </section>
 <form method="post" action="/api/intake" id="intake-form">
+  {director_token_input(task_dir)}
   {''.join(question_section(question, selections.get(question.key, {}).get("value", ""), ui_language) for question in INTAKE_QUESTIONS)}
   <section class="section">
     <h2>{html.escape(t(ui_language, "extra_notes"))}</h2>
@@ -3660,6 +3768,7 @@ def render_visual_inspiration(task_dir: Path) -> str:
   <p><strong>{html.escape(topic)}</strong></p>
 </section>
 <form method="post" action="/api/visual-inspiration">
+  {director_token_input(task_dir)}
   <div class="candidate-grid">
     {''.join(candidate_cards)}
   </div>
@@ -3898,7 +4007,12 @@ def render_image_style(task_dir: Path, error_messages: list[str] | None = None) 
         target_id: str = str(target.get("id", ""))
         prompt_text: str = str(target.get("prompt_draft", ""))
         output_path_value: str = str(target.get("output_path", "")).strip()
-        target_output_path: str = str(task_dir / output_path_value) if output_path_value else ""
+        target_output_path: str = ""
+        if output_path_value:
+            try:
+                target_output_path = str(resolve_image_output_path(task_dir, output_path_value))
+            except ValueError as exc:
+                target_output_path = f"INVALID: {exc}"
         output_path_html: str = (
             f"""<p class="meta">{html.escape(t(ui_language, "image_output_path"))}: <code>{html.escape(target_output_path)}</code></p>"""
             if target_output_path
@@ -3975,6 +4089,7 @@ def render_image_style(task_dir: Path, error_messages: list[str] | None = None) 
   <p><strong>{html.escape(image_policy)}</strong></p>
 </section>
 <form method="post" action="/api/image-style">
+  {director_token_input(task_dir)}
   <section class="section">
     <h2>{html.escape(t(ui_language, "image_mode_label"))}</h2>
     <div class="grid">{''.join(mode_cards)}</div>
@@ -4092,6 +4207,7 @@ def render_image_placement(task_dir: Path) -> str:
 </section>
 {disabled_note}
 <form method="post" action="/api/image-placement">
+  {director_token_input(task_dir)}
   <section class="section">
     <h2>{html.escape(t(ui_language, "placement_rows"))}</h2>
     <p class="meta notice">{html.escape(t(ui_language, "image_placement_limit_notice"))}</p>
@@ -4110,7 +4226,7 @@ def render_image_placement(task_dir: Path) -> str:
 
 
 def render_version_preview(task_dir: Path, version_name: str, output_format: str, ui_language: str) -> tuple[str, Path]:
-    version_dir: Path = task_dir / version_name
+    version_dir: Path = resolve_version_dir(task_dir, version_name, must_exist=False)
     html_path: Path = version_dir / "final.html"
     pptx_path: Path = version_dir / "final.pptx"
     contact_sheet: Path = version_dir / "contact-sheet.png"
@@ -4149,6 +4265,7 @@ def render_preview_review(task_dir: Path) -> str:
   <pre>{html.escape(qa_text[:1800])}</pre>
 </section>
 <form method="post" action="/api/preview-review">
+  {director_token_input(task_dir)}
   <input type="hidden" name="base_version" value="{html.escape(version_name)}">
   <section class="section">
     <h2>{html.escape(t(ui_language, "preview_action_title"))}</h2>
@@ -4174,6 +4291,7 @@ def render_preview_review(task_dir: Path) -> str:
 
 def apply_preview_review(task_dir: Path, form: dict[str, list[str]]) -> JsonDict:
     base_version: str = first_form_value(form, "base_version", "v1").strip() or "v1"
+    base_version = resolve_version_dir(task_dir, base_version, must_exist=True).name
     preview_action: str = first_form_value(form, "preview_action", "keep-final").strip() or "keep-final"
     notes: str = first_form_value(form, "notes", "").strip()
     request: JsonDict = {
@@ -4264,16 +4382,20 @@ def render_style_review(task_dir: Path) -> str:
     # If the user came from compare via "revise from selected", use that version as base.
     revision_base: JsonDict = read_json(task_dir / "revision-base.json")
     if revision_base and revision_base.get("base_version"):
-        version_name: str = revision_base["base_version"]
-        base_notice: str = (
-            f'<div class="info-banner">'
-            f'{html.escape(t(ui_language, "revision_base_notice").format(version=version_name.upper()))}'
-            f'</div>'
-        )
+        try:
+            version_name: str = resolve_version_dir(task_dir, str(revision_base["base_version"]), must_exist=True).name
+            base_notice: str = (
+                f'<div class="info-banner">'
+                f'{html.escape(t(ui_language, "revision_base_notice").format(version=version_name.upper()))}'
+                f'</div>'
+            )
+        except ValueError:
+            version_name = latest_review_version(task_dir)
+            base_notice = ""
     else:
         version_name = latest_review_version(task_dir)
         base_notice = ""
-    version_dir: Path = task_dir / version_name
+    version_dir: Path = resolve_version_dir(task_dir, version_name, must_exist=True)
     qa_summary: Path = version_dir / "qa-summary.md"
     image_html, artifact_path = render_version_preview(task_dir, version_name, output_format, ui_language)
     qa_text: str = qa_summary.read_text(encoding="utf-8") if qa_summary.exists() else t(ui_language, "missing_qa_summary")
@@ -4295,6 +4417,7 @@ def render_style_review(task_dir: Path) -> str:
   <pre>{html.escape(qa_text[:2400])}</pre>
 </section>
 <form method="post" action="/api/revision">
+  {director_token_input(task_dir)}
   <input type="hidden" name="base_version" value="{html.escape(version_name)}">
   <section class="section">
     <h2>{html.escape(t(ui_language, "style_action_title"))}</h2>
@@ -4324,8 +4447,9 @@ def render_style_review(task_dir: Path) -> str:
     return html_page(t(ui_language, "style_title"), body, ui_language)
 
 
-def apply_revision_request(form: dict[str, list[str]]) -> JsonDict:
+def apply_revision_request(task_dir: Path, form: dict[str, list[str]]) -> JsonDict:
     base_version: str = first_form_value(form, "base_version", "v1").strip() or "v1"
+    base_version = resolve_version_dir(task_dir, base_version, must_exist=True).name
     revision_action: str = first_form_value(form, "revision_action", "keep-current").strip() or "keep-current"
     comparison_count_raw: str = first_form_value(form, "comparison_count", "1").strip() or "1"
     try:
@@ -4367,7 +4491,7 @@ def render_compare(task_dir: Path) -> str:
     output_format: str = output_format_from_brief(brief, "pptx") if brief else "pptx"
     version_cards: list[str] = []
     for version in ("v1", "v2", "v3"):
-        version_dir: Path = task_dir / version
+        version_dir: Path = resolve_version_dir(task_dir, version, must_exist=False)
         if not version_dir.exists():
             continue
         contact_sheet: Path = version_dir / "contact-sheet.png"
@@ -4406,6 +4530,7 @@ def render_compare(task_dir: Path) -> str:
     body: str = f"""<div class="topline">{html.escape(t(ui_language, "version_compare"))}</div>
 <h1>{html.escape(t(ui_language, "compare_title"))}</h1>
 <form method="post" action="/api/final-selection">
+  {director_token_input(task_dir)}
   {''.join(version_cards)}
   <section class="section">
     <h2>{html.escape(t(ui_language, "choose_after_action"))}</h2>
@@ -4739,7 +4864,11 @@ def revision_prompt(task_dir: Path) -> str:
         return "No revision request found. Complete style review first."
     brief: JsonDict = read_json(task_dir / "brief-confirmed.json")
     output_format: str = output_format_from_brief(brief, "pptx") if brief else "pptx"
-    base_version: str = str(request.get("base_version") or "v1")
+    try:
+        base_version: str = resolve_version_dir(task_dir, str(request.get("base_version") or "v1"), must_exist=True).name
+    except ValueError:
+        base_version = latest_review_version(task_dir)
+    request["base_version"] = base_version
     revision_action: str = str(request.get("revision_action", "keep-current"))
     revision_count: int = int(request.get("revision_count", 0) or 0)
     if revision_action == "switch-direction":
@@ -4854,6 +4983,50 @@ class DirectorHandler(BaseHTTPRequestHandler):
     def log_message(self, format_text: str, *args: Any) -> None:
         sys.stderr.write("[presentation-director] " + format_text % args + "\n")
 
+    def request_has_trusted_origin(self) -> bool:
+        origin: str = self.headers.get("Origin", "")
+        if not origin:
+            return True
+        parsed_origin = urlparse(origin)
+        host: str = self.headers.get("Host", "")
+        return bool(parsed_origin.scheme in {"http", "https"} and parsed_origin.netloc.lower() == host.lower())
+
+    def valid_director_post(self, path: str, form: dict[str, list[str]]) -> bool:
+        if not self.request_has_trusted_origin():
+            self.send_error(HTTPStatus.FORBIDDEN, "Untrusted request origin.")
+            return False
+        if path == "/api/confirm":
+            return True
+        token: str = first_form_value(form, DIRECTOR_TOKEN_FIELD, "")
+        if not valid_confirm_token(self.task_dir, token):
+            self.send_error(HTTPStatus.FORBIDDEN, "Missing or invalid workflow token.")
+            return False
+        return True
+
+    def static_path_allowed(self, relative: Path) -> bool:
+        parts: tuple[str, ...] = relative.parts
+        if not parts:
+            return False
+        if parts[0] == "assets" and len(parts) >= 3 and parts[1] == "images":
+            return relative.suffix.lower() in IMAGE_EXTENSIONS
+        if len(parts) >= 2 and VERSION_DIR_RE.fullmatch(parts[0]):
+            if len(parts) == 2 and parts[1] in {"final.html", "contact-sheet.png", "qa-summary.md"}:
+                return True
+            if len(parts) == 3 and parts[1] in {"slides", "screenshots"}:
+                return relative.suffix.lower() in IMAGE_EXTENSIONS
+        return False
+
+    def resolve_static_path(self, relative: Path) -> Path:
+        path: Path = resolve_contained_path(self.task_dir, self.task_dir / relative)
+        parts: tuple[str, ...] = relative.parts
+        if parts[0] == "assets":
+            root: Path = image_output_root(self.task_dir).resolve()
+        else:
+            root = resolve_version_dir(self.task_dir, parts[0], must_exist=True).resolve()
+        if not is_relative_to_path(path, root):
+            raise ValueError(f"Static path resolves outside allowed root: {relative}")
+        return path
+
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
         path: str = parsed.path
@@ -4920,7 +5093,12 @@ class DirectorHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
-        form: dict[str, list[str]] = self.read_form()
+        try:
+            form: dict[str, list[str]] = self.read_form()
+        except ValueError:
+            return
+        if parsed.path.startswith("/api/") and not self.valid_director_post(parsed.path, form):
+            return
         if parsed.path == "/api/intake":
             draft: JsonDict = read_json(self.task_dir / "brief-draft.json")
             brief: JsonDict = apply_intake_selection(draft, form)
@@ -4989,14 +5167,22 @@ class DirectorHandler(BaseHTTPRequestHandler):
             render_all_pages(self.task_dir)
             self.redirect("/image-placement-saved")
         elif parsed.path == "/api/preview-review":
-            request = apply_preview_review(self.task_dir, form)
+            try:
+                request = apply_preview_review(self.task_dir, form)
+            except ValueError as exc:
+                self.send_error(HTTPStatus.BAD_REQUEST, str(exc))
+                return
             render_all_pages(self.task_dir)
             if str(request.get("preview_action", "")) == "style-review":
                 self.redirect("/style-review")
             else:
                 self.redirect("/final-selected")
         elif parsed.path == "/api/revision":
-            request: JsonDict = apply_revision_request(form)
+            try:
+                request = apply_revision_request(self.task_dir, form)
+            except ValueError as exc:
+                self.send_error(HTTPStatus.BAD_REQUEST, str(exc))
+                return
             write_json(self.task_dir / "revision-request.json", request)
             touch_status(self.task_dir, "revision")
             render_all_pages(self.task_dir)
@@ -5012,6 +5198,11 @@ class DirectorHandler(BaseHTTPRequestHandler):
             selected_version: str = first_form_value(form, "selected_version", "v1")
             notes: str = first_form_value(form, "notes", "")
             action: str = first_form_value(form, "action", "finalize")
+            try:
+                selected_version = resolve_version_dir(self.task_dir, selected_version, must_exist=True).name
+            except ValueError as exc:
+                self.send_error(HTTPStatus.BAD_REQUEST, str(exc))
+                return
             if action == "revise":
                 write_json(self.task_dir / "revision-base.json", {
                     "base_version": selected_version,
@@ -5026,9 +5217,24 @@ class DirectorHandler(BaseHTTPRequestHandler):
             self.send_error(HTTPStatus.NOT_FOUND)
 
     def read_form(self) -> dict[str, list[str]]:
-        length: int = int(self.headers.get("Content-Length", "0"))
+        raw_length: str = self.headers.get("Content-Length", "0")
+        try:
+            length: int = int(raw_length)
+        except ValueError as exc:
+            self.send_error(HTTPStatus.BAD_REQUEST, "Invalid Content-Length.")
+            raise ValueError("invalid content length") from exc
+        if length < 0:
+            self.send_error(HTTPStatus.BAD_REQUEST, "Invalid Content-Length.")
+            raise ValueError("negative content length")
+        if length > MAX_FORM_BODY_BYTES:
+            self.send_error(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, "Form body is too large.")
+            raise ValueError("form body too large")
         body: bytes = self.rfile.read(length)
-        return parse_qs(body.decode("utf-8"), keep_blank_values=True)
+        try:
+            return parse_qs(body.decode("utf-8"), keep_blank_values=True)
+        except UnicodeDecodeError as exc:
+            self.send_error(HTTPStatus.BAD_REQUEST, "Form body must be UTF-8.")
+            raise ValueError("invalid form encoding") from exc
 
     def send_html(self, content: str, status: HTTPStatus = HTTPStatus.OK) -> None:
         body: bytes = content.encode("utf-8")
@@ -5040,10 +5246,14 @@ class DirectorHandler(BaseHTTPRequestHandler):
 
     def send_static(self, raw_path: str) -> None:
         relative: Path = Path(unquote(raw_path))
-        if relative.is_absolute() or ".." in relative.parts:
+        if relative.is_absolute() or ".." in relative.parts or not self.static_path_allowed(relative):
             self.send_error(HTTPStatus.BAD_REQUEST)
             return
-        path: Path = self.task_dir / relative
+        try:
+            path: Path = self.resolve_static_path(relative)
+        except ValueError:
+            self.send_error(HTTPStatus.BAD_REQUEST)
+            return
         if not path.exists() or not path.is_file():
             self.send_error(HTTPStatus.NOT_FOUND)
             return
@@ -5062,6 +5272,9 @@ class DirectorHandler(BaseHTTPRequestHandler):
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(data)))
+        self.send_header("X-Content-Type-Options", "nosniff")
+        if path.suffix.lower() == ".html":
+            self.send_header("Content-Security-Policy", STATIC_HTML_CSP)
         self.end_headers()
         self.wfile.write(data)
 
@@ -5195,7 +5408,7 @@ def open_director_page(host: str, port: int, page: str) -> str:
     path: str | None = PAGE_PATHS.get(page)
     if path is None:
         raise SystemExit(f"Unknown page: {page}")
-    url: str = f"http://{host}:{port}{path}"
+    url: str = director_url(host, port, path)
     webbrowser.open(url)
     print(f"Opened {url}")
     return url
@@ -5212,18 +5425,11 @@ def command_serve(args: argparse.Namespace) -> None:
         {"task_dir": task_dir},
     )
     server: ThreadingHTTPServer = ThreadingHTTPServer((args.host, args.port), handler_class)
-    print(f"Serving Presentation Director for {task_dir}")
-    print(f"Intake:             http://{args.host}:{args.port}/intake")
-    print(f"Visual inspiration: http://{args.host}:{args.port}/visual-inspiration")
-    print(f"Confirm:            http://{args.host}:{args.port}/confirm")
-    print(f"Image style:        http://{args.host}:{args.port}/image-style")
-    print(f"Image placement:    http://{args.host}:{args.port}/image-placement")
-    print(f"v1 preview:         http://{args.host}:{args.port}/preview-review")
-    print(f"Style review:       http://{args.host}:{args.port}/style-review")
-    print(f"Compare:            http://{args.host}:{args.port}/compare")
+    host, port = director_server_host_port(server, args.host)
+    print_director_urls(task_dir, host, port)
     try:
         if not args.no_open and args.open_page:
-            open_director_page_checked(task_dir, args.host, args.port, args.open_page)
+            open_director_page_checked(task_dir, host, port, args.open_page)
         server.serve_forever()
     except KeyboardInterrupt:
         print("\nStopping server.")
@@ -5271,20 +5477,14 @@ def command_serve_wait(args: argparse.Namespace) -> None:
     server: ThreadingHTTPServer = ThreadingHTTPServer((args.host, args.port), handler_class)
     thread = threading.Thread(target=server.serve_forever, kwargs={"poll_interval": 0.2}, daemon=True)
     thread.start()
+    host, port = director_server_host_port(server, args.host)
 
-    print(f"Serving Presentation Director for {task_dir}")
-    print(f"Intake:             http://{args.host}:{args.port}/intake")
-    print(f"Visual inspiration: http://{args.host}:{args.port}/visual-inspiration")
-    print(f"Confirm:            http://{args.host}:{args.port}/confirm")
-    print(f"Image style:        http://{args.host}:{args.port}/image-style")
-    print(f"Image placement:    http://{args.host}:{args.port}/image-placement")
-    print(f"v1 preview:         http://{args.host}:{args.port}/preview-review")
-    print(f"Waiting for:        {target}")
+    print_director_urls(task_dir, host, port, target)
     chained_to_image_gate: bool = False
     started: float = time.time()
     try:
         if not args.no_open and args.open_page:
-            open_director_page_checked(task_dir, args.host, args.port, args.open_page)
+            open_director_page_checked(task_dir, host, port, args.open_page)
         while True:
             if target.exists():
                 # After brief confirmation, auto-chain to image style gate if needed
@@ -5294,7 +5494,7 @@ def command_serve_wait(args: argparse.Namespace) -> None:
                         print("Brief confirmed. Image style gate needed — opening image-style page.")
                         target = image_style_target
                         chained_to_image_gate = True
-                        open_director_page(args.host, args.port, "image-style")
+                        open_director_page(host, port, "image-style")
                         time.sleep(args.interval)
                         continue
                 print(f"Ready: {target}")
@@ -5394,16 +5594,20 @@ def command_guard(args: argparse.Namespace) -> None:
 
 def command_image_asset(args: argparse.Namespace) -> None:
     task_dir: Path = resolve_task_dir(args)
-    record: JsonDict = record_image_asset_attempt(
-        task_dir=task_dir,
-        target_id=args.target_id,
-        prompt=args.prompt,
-        output_path_value=args.output_path,
-        status_value=args.status,
-        error_text=args.error,
-        asset_kind=args.asset_kind,
-        placement_type=args.placement_type,
-    )
+    try:
+        record: JsonDict = record_image_asset_attempt(
+            task_dir=task_dir,
+            target_id=args.target_id,
+            prompt=args.prompt,
+            output_path_value=args.output_path,
+            status_value=args.status,
+            error_text=args.error,
+            asset_kind=args.asset_kind,
+            placement_type=args.placement_type,
+        )
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        raise SystemExit(2) from exc
     print(
         "Image asset recorded: "
         f"{record.get('target_id', record.get('id', ''))} "
@@ -5531,7 +5735,7 @@ def build_parser() -> argparse.ArgumentParser:
     image_asset_parser.add_argument("--task", required=True, help="Task slug or title.")
     image_asset_parser.add_argument("--target-id", required=True, help="image-plan target id.")
     image_asset_parser.add_argument("--prompt", required=True, help="Prompt used for the attempt.")
-    image_asset_parser.add_argument("--output-path", required=True, help="Generated image path, absolute or relative to the task folder.")
+    image_asset_parser.add_argument("--output-path", required=True, help="Generated image path under task assets/images.")
     image_asset_parser.add_argument("--status", choices=("success", "stub-placeholder", "failed"), required=True, help="Attempt status before file validation. Use stub-placeholder for solid-colour test images.")
     image_asset_parser.add_argument("--error", default="", help="Failure reason, if any.")
     image_asset_parser.add_argument("--asset-kind", default="abstract-texture", help="Asset kind for the image asset record.")

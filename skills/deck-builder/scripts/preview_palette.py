@@ -25,6 +25,8 @@ import threading
 import webbrowser
 from pathlib import Path
 
+MAX_POST_BYTES = 64_000
+
 # ── Built-in palette library ────────────────────────────────────────────────
 # 50 curated palettes across 5 categories, sourced from ui-ux-pro-max colors.csv.
 # Categories describe mood/style (for browsing), not industry.
@@ -891,8 +893,10 @@ class _PaletteHandler(http.server.BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         if self.path == '/confirmed':
-            n = int(self.headers.get('Content-Length', 0))
-            body = self.rfile.read(n)
+            try:
+                body = self._read_body()
+            except ValueError:
+                return
             self.send_response(200)
             self.send_header('Content-Type', 'text/plain')
             self.end_headers()
@@ -905,6 +909,20 @@ class _PaletteHandler(http.server.BaseHTTPRequestHandler):
         else:
             self.send_response(404)
             self.end_headers()
+
+    def _read_body(self) -> bytes:
+        try:
+            n = int(self.headers.get('Content-Length', '0'))
+        except ValueError as exc:
+            self.send_error(400, 'Invalid Content-Length')
+            raise ValueError('invalid content length') from exc
+        if n < 0:
+            self.send_error(400, 'Invalid Content-Length')
+            raise ValueError('negative content length')
+        if n > MAX_POST_BYTES:
+            self.send_error(413, 'Request body too large')
+            raise ValueError('body too large')
+        return self.rfile.read(n)
 
     def log_message(self, *_args: object) -> None:
         pass

@@ -57,6 +57,7 @@ STUB_COLORS: dict[str, tuple[int, int, int]] = {
     "end": (5, 15, 40),
 }
 DEFAULT_STUB_COLOR: tuple[int, int, int] = (30, 50, 90)
+IMAGE_EXTENSIONS: set[str] = {".png", ".jpg", ".jpeg", ".webp"}
 NEGATIVE_PROMPT: str = (
     "text, letters, numbers, words, watermark, logo, brand, people, person, "
     "face, hand, body, border, frame, UI, interface, button, nsfw"
@@ -112,13 +113,34 @@ def target_id(target: dict) -> str:
     return str(target.get("id", "unknown"))
 
 
+def is_relative_to_path(path: Path, parent: Path) -> bool:
+    try:
+        path.relative_to(parent)
+        return True
+    except ValueError:
+        return False
+
+
+def image_output_root(task_dir: Path) -> Path:
+    return task_dir / "assets" / "images"
+
+
+def resolve_image_output_path(task_dir: Path, raw_path: str) -> Path:
+    path: Path = Path(raw_path).expanduser()
+    candidate: Path = path if path.is_absolute() else task_dir / path
+    image_root: Path = image_output_root(task_dir).resolve()
+    resolved: Path = candidate.resolve(strict=False)
+    if not is_relative_to_path(resolved, image_root):
+        raise ValueError(f"image output_path must stay under {image_root}: {raw_path}")
+    if resolved.suffix.lower() not in IMAGE_EXTENSIONS:
+        raise ValueError(f"image output_path must use an image extension: {raw_path}")
+    return resolved
+
+
 def target_output_path(task_dir: Path, target: dict) -> Path:
     target_name: str = target_id(target)
     raw_path: str = str(target.get("output_path", f"assets/images/{target_name}.png"))
-    path: Path = Path(raw_path).expanduser()
-    if path.is_absolute():
-        return path
-    return task_dir / path
+    return resolve_image_output_path(task_dir, raw_path)
 
 
 def target_by_id(targets: list[dict], requested_target_id: str) -> dict | None:
@@ -268,10 +290,13 @@ def conversation_prompt_lines(task_dir: Path, targets: list[dict]) -> list[str]:
     ]
     for index, target in enumerate(targets, start=1):
         current_target_id: str = target_id(target)
-        out_path: Path = target_output_path(task_dir, target)
         prompt: str = _base_prompt(target)
+        try:
+            output_label: str = str(target_output_path(task_dir, target))
+        except ValueError as exc:
+            output_label = f"INVALID OUTPUT PATH: {exc}"
         lines.extend([
-            f"{index}. [{current_target_id}] -> 保存到: {out_path}",
+            f"{index}. [{current_target_id}] -> 保存到: {output_label}",
             f"   提示词: {prompt}",
             "   推荐工具: Copilot / Ideogram / Firefly",
             "",
@@ -328,7 +353,11 @@ def copy_and_record_source(
         print(f"  ✗ [{requested_target_id}] source missing or empty: {source_path}")
         return False
 
-    out_path: Path = target_output_path(task_dir, target)
+    try:
+        out_path: Path = target_output_path(task_dir, target)
+    except ValueError as exc:
+        print(f"  ✗ [{requested_target_id}] invalid output path: {exc}")
+        return False
     out_path.parent.mkdir(parents=True, exist_ok=True)
     if source_path != out_path:
         shutil.copy2(source_path, out_path)
@@ -397,7 +426,12 @@ def place_manual(
     for target in targets:
         current_target_id: str = target_id(target)
         prompt: str = _base_prompt(target)
-        out_path: Path = target_output_path(task_dir, target)
+        try:
+            out_path: Path = target_output_path(task_dir, target)
+        except ValueError as exc:
+            print(f"  ✗ [{current_target_id}] invalid output path: {exc}")
+            missing += 1
+            continue
 
         if out_path.exists() and out_path.stat().st_size > 0:
             size_kb: int = out_path.stat().st_size // 1024
@@ -434,7 +468,12 @@ def generate_targets(task_dir: Path, api: str, director_script: Path) -> None:
     for target in targets:
         current_target_id: str = target_id(target)
         prompt: str = _base_prompt(target)
-        out_path: Path = target_output_path(task_dir, target)
+        try:
+            out_path: Path = target_output_path(task_dir, target)
+        except ValueError as exc:
+            print(f"  [{current_target_id}] invalid output path: {exc}", file=sys.stderr)
+            fail_count += 1
+            continue
 
         final_status = "failed"
 

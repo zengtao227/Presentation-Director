@@ -301,6 +301,28 @@ Budget rules:
 - Max 6 table rows
 - **This 515px estimate is a pre-flight check, not the final verdict. Browser scrollHeight is the final arbiter.**
 
+#### Split-layout specific constraints (confirmed by live testing)
+
+Split layouts (`grid-template-columns: 1.05fr .95fr`) give each column ~573px wide and consume the full slide height. The column's content must fit within the remaining height after the slide header (kicker + h2 + margins ≈ 99px), leaving **~491px per column**.
+
+| Screenshot class | Height | Safe to add below in split column |
+|-----------------|--------|----------------------------------|
+| `shot-wide` (420px) | 420px | kicker + h2 + 1-line caption only — nothing else |
+| `shot-mid` (370px) | 370px | max 1-line caption (≤20px); 2+ lines = overflow risk |
+| `shot-small` (310px) | 310px | caption + 1 short paragraph, safe |
+
+| Lower-padding class | Value | Risk in split column |
+|--------------------|-------|---------------------|
+| `lower-16` | 16px | safe |
+| `lower-28` | 28px | safe |
+| `lower-40` | 40px | risky with 3+ cards |
+| `lower-52` | 52px | **high risk** — avoid in split columns with cards |
+
+Split-column hard rules:
+- `shot-mid` + `lower-16` + caption (2-line wrapping text) = **overflow confirmed** (+19px in testing). Shorten to 1 line or use `shot-small`.
+- Three step cards with borders + `section-heading` + equation inside a split left column = **overflow confirmed** (+9px). Use full-width `flow3` layout instead.
+- When in doubt: prefer full-width layouts (`flow3`, `grid g3`) over split when the left column contains both a screenshot and a caption.
+
 ### Rule 4 — Two-column balance: right column must stretch
 
 When a right column has fewer items than the left, items stack at the top — visually unbalanced.
@@ -570,8 +592,8 @@ Claude Code and offline agents follow the same confirmation principle as Codex. 
 
 **Claude Design / designer-skills boundary:**
 - If Claude Code has `designer-skills` installed, treat those skills as optional design support, not as the PPT workflow owner.
-- Do not let `design-flow`, `frontend-design`, or `design-tokens` replace Presentation Director intake, slide planning, `deck.md`, brief confirmation, visual contract selection, generation routing, or render QA.
-- Use `design-brief`, `design-tokens`, or `design-review` only to refine Director HTML gates, HTML companions, or the task-level `Decks/<task-slug>/brief/visual-contract.md`.
+- Do not let any frontend or design-system skill replace Presentation Director intake, slide planning, `deck.md`, brief confirmation, visual contract selection, generation routing, or render QA.
+- Use optional design support only to refine Director HTML gates, HTML companions, or the task-level `Decks/<task-slug>/brief/visual-contract.md`.
 - When a task-level `visual-contract.md` exists, it overrides the global `design-locks/` choice for that deck.
 
 ---

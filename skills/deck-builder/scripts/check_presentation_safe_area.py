@@ -164,6 +164,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--tolerance", default=1.0, type=float, help="Pixel tolerance. Default 1.")
     parser.add_argument("--warn-only", action="store_true", help="Print issues but exit 0.")
+    parser.add_argument("--allow-empty", action="store_true", help="Exit 0 when no layout files are found.")
     return parser
 
 
@@ -180,6 +181,9 @@ def main(argv: Sequence[str]) -> int:
         print(f"[{issue.severity}] {issue.layout_path.name}: {issue.element_name}: {issue.message}")
 
     print(f"Checked {len(layout_paths)} layout file(s): {len(all_issues)} issue(s).")
+    if not layout_paths:
+        print(f"No layout files found for {args.layout}.", file=sys.stderr)
+        return 0 if args.warn_only or args.allow_empty else 1
     if all_issues and not args.warn_only:
         return 1
     return 0
