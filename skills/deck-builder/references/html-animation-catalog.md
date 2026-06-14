@@ -1,8 +1,8 @@
 # HTML Animation Catalog
 
-CSS-only motion guidance for native Reveal.js decks. The source library `lewislulu/html-ppt-skill` ships two distinct animation systems: 27 CSS animations (`assets/animations/animations.css`) and 20 canvas FX modules (`assets/animations/fx/*.js`). Presentation Director internalizes only the CSS motion patterns. Canvas FX remains future capability (see "Canvas FX — out of scope" below).
+CSS-only motion guidance for pakco-compatible HTML decks. The bundled pakco-html runtime ships two distinct animation systems: 27 CSS animations (`assets/animations/animations.css`) and 20 canvas FX modules (`assets/animations/fx/*.js`). Presentation Director currently uses the bundled CSS animation file. Canvas FX remains future capability (see "Canvas FX — out of scope" below).
 
-`Source` legend used in this file: `repo` = the named effect is a verified CSS animation in html-ppt-skill; `general` = standard CSS / Reveal.js motion knowledge. PD implements all of these as local keyframes; it does not import the source CSS.
+`Source` legend used in this file: `bundled` = the named effect is a verified CSS animation in bundled pakco-html; `general` = standard CSS motion knowledge.
 
 ## Motion Fields
 
@@ -16,15 +16,15 @@ CSS-only motion guidance for native Reveal.js decks. The source library `lewislu
 
 | Level | Use When | Allowed Effects | Source |
 |-------|----------|-----------------|--------|
-| `subtle` | research, executive, source-heavy decks | fade (up/down/left/right), rise-in, optional `.stagger-ok` decorative card rows, opacity-only reveals | repo: `fade-*`, `rise-in`, guarded stagger |
-| `expressive` | product, teaching, technical demos | zoom-pop, path-draw, counter-up, gradient-flow, guarded `.stagger-ok` card rows, blur-in | repo: all named |
-| `cinematic` | cover, section divider, finale, short pitch | spotlight, shimmer-sweep, perspective-zoom, kenburns, neon-glow, ripple-reveal | repo: all named (CSS keyframes) |
+| `subtle` | research, executive, source-heavy decks | fade (up/down/left/right), rise-in, optional `.stagger-ok` decorative card rows, opacity-only reveals | bundled: `fade-*`, `rise-in`, guarded stagger |
+| `expressive` | product, teaching, technical demos | zoom-pop, path-draw, counter-up, gradient-flow, guarded `.stagger-ok` card rows, blur-in | bundled: all named |
+| `cinematic` | cover, section divider, finale, short pitch | spotlight, shimmer-sweep, perspective-zoom, kenburns, neon-glow, ripple-reveal | bundled: all named (CSS keyframes) |
 
 `cinematic` does not mean Canvas/WebGL. It is a stronger CSS-only profile and should be limited to pages where motion supports comprehension or pacing. Every effect named above corresponds to a verified CSS keyframe in the source repo (e.g. `kf-spot`, `kf-shimmer`, `kf-pzoom`, `kf-kenburns`, `kf-neon`, `kf-ripple`) — none requires canvas.
 
-## Verified CSS animation vocabulary (repo)
+## Verified CSS animation vocabulary (bundled)
 
-The source repo's `animations.css` defines exactly these 27 CSS-only animation names (applied via `class="anim-<name>"` or `data-anim="<name>"`). PD reimplements the relevant ones as local keyframes:
+The bundled `animations.css` defines these CSS-only animation names (applied via `class="anim-<name>"` or `data-anim="<name>"`). Use the bundled CSS file by default; add local keyframes only when a deck needs a small custom effect.
 
 - Directional fades: `fade-up`, `fade-down`, `fade-left`, `fade-right`
 - Dramatic entries: `rise-in`, `drop-in`, `zoom-pop`, `blur-in`, `glitch-in`
@@ -54,7 +54,7 @@ The source repo also ships 20 **canvas FX** modules (`assets/animations/fx/*.js`
 ## Implementation Snippets
 
 ```css
-.reveal .slides section.present .rise-in {
+.slide.is-active .rise-in {
   animation: rise-in .55s ease both;
 }
 @keyframes rise-in {
@@ -62,12 +62,12 @@ The source repo also ships 20 **canvas FX** modules (`assets/animations/fx/*.js`
   to { opacity: 1; transform: translateY(0); }
 }
 
-.reveal .slides section.present .stagger.stagger-ok > * {
+.slide.is-active .stagger.stagger-ok > * {
   animation: rise-in .5s ease both;
 }
-.reveal .slides section.present .stagger.stagger-ok > *:nth-child(2) { animation-delay: .08s; }
-.reveal .slides section.present .stagger.stagger-ok > *:nth-child(3) { animation-delay: .16s; }
-.reveal .slides section.present .stagger.stagger-ok > *:nth-child(4) { animation-delay: .24s; }
+.slide.is-active .stagger.stagger-ok > *:nth-child(2) { animation-delay: .08s; }
+.slide.is-active .stagger.stagger-ok > *:nth-child(3) { animation-delay: .16s; }
+.slide.is-active .stagger.stagger-ok > *:nth-child(4) { animation-delay: .24s; }
 ```
 
 ## Guardrails
@@ -77,4 +77,4 @@ The source repo also ships 20 **canvas FX** modules (`assets/animations/fx/*.js`
 - Do not run infinite loops on content slides.
 - Do not animate chart axes after labels are already visible; reveal chart and labels together or in meaningful groups.
 - Avoid motion that changes layout dimensions after render; use `transform` and `opacity`.
-- Presenter notes should work through Reveal.js notes support; do not depend on a custom external presenter runtime. The source repo ships its own presenter mode (`S` key, `BroadcastChannel` sync, `?preview=N` iframe previews); this is verified to exist but is intentionally not used. The Reveal.js Notes plugin is the current path.
+- Presenter notes should work through bundled `assets/runtime.js`. Pressing `S` must open pakco presenter mode with current/next previews, speaker script, and timer.

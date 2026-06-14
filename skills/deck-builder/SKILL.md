@@ -1,13 +1,13 @@
 ---
 name: deck-builder
-description: Orchestrates professional presentation creation from source materials. In Codex net-new presentation requests, this skill MUST run Presentation Director intake, output format selection, research strategy, visual inspiration, and brief confirmation before routing to Reveal.js HTML, Codex Presentations, or both. For Claude/offline paths it coordinates deck.md planning, design intelligence, visual contracts, and verified output. Do NOT trigger for small edits to existing slides, quick Marp/reveal.js previews, or requests that do not require a new deck workflow.
+description: Orchestrates professional presentation creation from source materials. In Codex net-new presentation requests, this skill MUST run Presentation Director intake, output format selection, research strategy, visual inspiration, and brief confirmation before routing to pakco-compatible HTML deck output, Codex Presentations, or both. For Claude/offline paths it coordinates deck.md planning, design intelligence, visual contracts, and verified output. Do NOT trigger for small edits to existing slides, quick Marp/reveal.js previews, or requests that do not require a new deck workflow.
 ---
 
 # Deck Builder
 
 A workflow orchestration skill for building professional presentations.
 
-In Codex, this skill is the front door for net-new presentation requests: run `Presentation Director` first, confirm output format, research strategy and visual inspiration, open the confirmation page, automatically wait for the click confirmation signal, then route the confirmed brief by `output_format`. Use Reveal.js HTML direct writing for `html-revealjs`, Codex Presentations for `pptx`, and both paths for `both`. If `pptx` is selected in Codex, do not decide Presentations is missing only because it is absent from plugin UI or tool search; first resolve the bundled runtime under `$HOME/.codex/plugins/cache/openai-primary-runtime/presentations/*/skills/presentations`, run its runtime check, then use its artifact-tool build script for PPTX export. If neither the plugin nor bundled runtime is available, stop and report that the required Codex Presentations runtime is missing; do not silently fall back to `python-pptx`, pptxgenjs, Google Slides, Keynote, or PowerPoint automation. The user must only click in the HTML UI; do not ask them to copy/paste, report choices in chat, or reply "confirmed". Do not let generation start from an unconfirmed prompt unless the user explicitly asks to skip the director.
+In Codex, this skill is the front door for net-new presentation requests: run `Presentation Director` first, confirm output format, research strategy and visual inspiration, open the confirmation page, automatically wait for the click confirmation signal, then route the confirmed brief by `output_format`. Use pakco-compatible HTML direct writing for `html-revealjs`, Codex Presentations for `pptx`, and both paths for `both`. If `pptx` is selected in Codex, do not decide Presentations is missing only because it is absent from plugin UI or tool search; first resolve the bundled runtime under `$HOME/.codex/plugins/cache/openai-primary-runtime/presentations/*/skills/presentations`, run its runtime check, then use its artifact-tool build script for PPTX export. If neither the plugin nor bundled runtime is available, stop and report that the required Codex Presentations runtime is missing; do not silently fall back to `python-pptx`, pptxgenjs, Google Slides, Keynote, or PowerPoint automation. The user must only click in the HTML UI; do not ask them to copy/paste, report choices in chat, or reply "confirmed". Do not let generation start from an unconfirmed prompt unless the user explicitly asks to skip the director.
 
 Outside Codex, this skill coordinates the fuller deck.md-centered workflow: source material through slide planning, design intelligence, visual contract, and verified PPTX or HTML output.
 
@@ -94,7 +94,7 @@ Resolve dependencies in this order:
 | `design-consultant` | Use the current repo's `skills/ui-ux-pro-max/scripts/search.py` if present; otherwise try `$HOME/.claude/skills/ui-ux-pro-max/scripts/search.py`, then `$HOME/.codex/skills/ui-ux-pro-max/scripts/search.py`. If none exists, synthesize a short design intelligence brief from the source and mark the tool as unavailable. |
 | `design-locks/` | Use the current repo's `design-locks/` if present. Otherwise look for `design-locks/` inside the directory containing this SKILL.md (bundled by install.sh). If neither exists, use a lightweight visual contract written directly in `deck.md` and do not cite a missing lock file. |
 | PPTX fallback | Use `skills/pptx/SKILL.md` only outside Codex, or when the user explicitly asks to bypass Codex Presentations. In Codex `pptx` / `both` mode, missing Presentations means active plugin and bundled runtime are both unavailable or the runtime check failed; it is a blocker, not a reason to run fallback tooling. |
-| Reveal.js HTML | Native HTML output path. When `output_format` is `html-revealjs` or `both`, write Reveal.js 5.1.0 HTML directly using `references/html-theme-catalog.md`, `references/html-layout-catalog.md`, and `references/html-animation-catalog.md`; do not require `html-ppt-skill` or `guizang-ppt-skill`. |
+| HTML deck runtime | Native HTML output path. When `output_format` is `html-revealjs` or `both`, write a pakco-compatible HTML deck using the bundled `skills/html-deck/pakco-html/` assets plus `references/html-theme-catalog.md`, `references/html-layout-catalog.md`, and `references/html-animation-catalog.md`. `html-revealjs` remains the legacy output-format name. |
 | Presentation Director docs | Treat `docs/pptx-master-workflow.md` and `docs/quality-gates.md` as optional project-level context. Outside Presentation Director, rely on this skill's reference files and the minimum QA checklist below instead. |
 
 Never include file paths in a generation prompt unless those files actually exist.
@@ -162,7 +162,7 @@ Final PPTX files are the editable source of record. For small changes, use manua
 
 ## Slide Safe-Area Contract
 
-Every deck must define a safe area before generation and verify it after rendering. This applies to PPTX, Reveal.js HTML decks, and PPTX-derived HTML companions.
+Every deck must define a safe area before generation and verify it after rendering. This applies to PPTX, HTML decks, and PPTX-derived HTML companions.
 
 Default 16:9 authoring coordinates use a `1280x720` slide. Unless a template or design lock defines stricter margins, use:
 
@@ -358,8 +358,7 @@ Static estimates are not enough — font loading, line wrapping, and language-sp
 // Overflow QA — checks both scrollHeight (≤590) and scrollWidth (≤1172).
 // Auto-scales slides that overflow by ≤14% (scale ≥ 0.86).
 // Marks slides that overflow by >14% as QA_FAIL (red outline).
-// Runs after Reveal ready + fonts loaded; window.load fallback ensures
-// the check runs even if Reveal.ready fired before this script executed.
+// Runs after DOM + fonts load; window.load fallback catches late assets.
 function runOverflowQA() {
   const SAFE_H = 590, SAFE_W = 1172, MIN_SCALE = 0.86;
   document.querySelectorAll('.slide-safe').forEach((safe, idx) => {
@@ -382,7 +381,7 @@ function runOverflowQA() {
     }
   });
 }
-Reveal.on('ready', () => {
+document.addEventListener('DOMContentLoaded', () => {
   if (document.fonts && document.fonts.ready) {
     document.fonts.ready.then(runOverflowQA);
   } else {
@@ -399,23 +398,23 @@ window.addEventListener('load', () => {
 </script>
 ```
 
-This script must appear **after** `Reveal.initialize()`. It will:
+This script must appear **after** the pakco runtime script. It will:
 - Log `[QA_FIT]` for auto-corrected slides (scale 0.86–1.0)
 - Log `[QA_FAIL]` + red outline for slides that are too dense (scale < 0.86)
 - Do nothing for slides that fit correctly
 
 Auto-scale is a safety net only — the goal is zero `[QA_FIT]` logs, not "let the script handle it".
 
-### Why the earlier `.slide-safe` test produced a blank page
+### Why the earlier `.slide-safe` test produced layout failures
 
-Setting `position:relative` on sections overrides Reveal.js's `position:absolute` — all slides stack in document flow (staircase bug). Omitting `height:720px` causes section to collapse to 0px — `.slide-safe` is clipped to nothing (blank page). Both confirmed by live test. Correct spec: `width:1280px; height:720px; overflow:hidden` with NO `position`.
+Overriding pakco `.slide` positioning or turning slide sections into normal document flow breaks keyboard navigation and can create staircase layouts. Keep `section.slide` under pakco `base.css`; put normal content inside `.slide-safe` and decorative backgrounds inside `.bleed`.
 
 All regular slide content goes inside `.slide-safe`; only backgrounds and explicitly intentional bleed elements may sit outside it.
 
 **Required structure for every slide — NO EXCEPTIONS including cover and section-divider slides:**
 
 ```html
-<section>
+<section class="slide" data-title="...">
   <div class="bleed ..."><!-- background gradient / image ONLY --></div>
   <div class="slide-safe">
     <!-- ALL content: title, body, columns, charts, code, images -->
@@ -457,7 +456,7 @@ The confirmed `output_format` is authoritative. If the user later asks in chat t
 
 ### Codex Net-New Presentation Path
 
-Use this path when the user asks for a new presentation in Codex. `output_format` decides whether the final generation route is Reveal.js HTML, PPTX, or both.
+Use this path when the user asks for a new presentation in Codex. `output_format` decides whether the final generation route is HTML deck, PPTX, or both.
 
 ```
 [1] Source Material
@@ -482,7 +481,7 @@ Use this path when the user asks for a new presentation in Codex. `output_format
         ↓
 [6] Generation — route by output_format in brief-confirmed.json
     ├─ output_format = "html-revealjs"
-    │    → Claude/Codex writes Reveal.js HTML directly (NOT via Presentations plugin)
+    │    → Claude/Codex writes pakco-compatible HTML directly (NOT via Presentations plugin)
     │    → Save version to Decks/<task-slug>/v1/final.html
     │
     ├─ output_format = "pptx"
@@ -493,7 +492,7 @@ Use this path when the user asks for a new presentation in Codex. `output_format
     │
     └─ output_format = "both"
          → First: Codex Presentations capability → PPTX
-         → Then: Claude/Codex writes Reveal.js HTML directly → HTML
+         → Then: Claude/Codex writes pakco-compatible HTML directly → HTML
          → Save versions to Decks/<task-slug>/v1/
          → Note: HTML uses gradients/animation; PPTX uses solid-color equivalent
         ↓
@@ -543,7 +542,7 @@ In interactive Codex sessions, the confirmation gate is a real user-action gate:
         ↓
 [6] Generation — route by output_format in brief-confirmed.json or chat confirmation
     ├─ output_format = "html-revealjs"
-    │    → Claude writes Reveal.js 5.1.0 HTML directly (see HTML Spec in this skill)
+    │    → Claude writes pakco-compatible HTML directly (see HTML Spec in this skill)
     │    → Single .html file, CDN-loaded
     │    → Save versions to Decks/<task-slug>/vN/final.html, then copy the selected version to final/<task-slug>.html
     │
@@ -578,7 +577,7 @@ Claude Code and offline agents follow the same confirmation principle as Codex. 
 | Codex net-new PPTX | Presentation Director → Presentations capability **(primary PPTX)** | Intake + research strategy + visual inspiration + brief confirmation must happen before `artifact-tool presentation-jsx`; plugin UI absence requires bundled runtime resolution |
 | Codex targeted edit / confirmed brief | Presentations capability | Direct only when not creating a new deck or when `brief-confirmed.json` already exists |
 | Claude Code / offline | Presentation Director or equivalent confirmation → `skills/pptx` + pptxgenjs **(fallback PPTX)** | Same `content_language` / `output_constraints` split and user-confirmation gate apply before pptxgenjs |
-| Codex / Claude Code (HTML) | Claude/Codex writes Reveal.js HTML directly | Native path. No external skill or plugin required. Version: 5.1.0 via jsDelivr CDN. |
+| Codex / Claude Code (HTML) | Claude/Codex writes pakco-compatible HTML deck directly | Native path. Use bundled `skills/html-deck/pakco-html/` assets; do not install or invoke global pakco-html as a separate skill. |
 | Either | Marp | Quick draft / PDF only — not editable PPTX |
 
 **Hard constraints — never misattribute these roles:**
@@ -587,7 +586,7 @@ Claude Code and offline agents follow the same confirmation principle as Codex. 
 - `design-locks/` = visual contracts, NOT slide templates or generation engines
 - pptxgenjs = Claude Code fallback only, NOT the Codex primary path
 - In Codex `pptx` or `both` mode, missing Presentations means both active plugin and bundled runtime are unavailable or the runtime check fails. Plugin UI absence alone is not enough. Do not use `python-pptx`, pptxgenjs, Google Slides, Keynote, or PowerPoint automation as a substitute unless the user explicitly asks to bypass Presentations.
-- Reveal.js HTML = first-class browser presentation output when selected, NOT a PPTX replacement
+- HTML deck = first-class browser presentation output when selected, NOT a PPTX replacement
 - Marp output = NOT a professional editable PPTX
 
 **Claude Design / designer-skills boundary:**
@@ -600,68 +599,43 @@ Claude Code and offline agents follow the same confirmation principle as Codex. 
 
 ## Execution Steps
 
-## Reveal.js HTML Generation Spec
+## HTML Deck Generation Spec
 
-When `output_format` is `"html-revealjs"` or `"both"`, generate a self-contained Reveal.js 5.1.0 HTML file.
+When `output_format` is `"html-revealjs"` or `"both"`, generate a pakco-compatible HTML presentation. `html-revealjs` is a legacy enum value; the implementation uses the bundled pakco runtime and theme assets.
 
 This applies to both Codex and Claude Code. In Codex, write the HTML as a file artifact or local file; do NOT call Presentations plugin for HTML. Write candidate versions to `Decks/<task-slug>/vN/final.html`; after final selection copy the chosen version to `Decks/<task-slug>/final/<task-slug>.html`.
 
-### CDN Links (pin to 5.1.0)
+### Bundled Asset Contract
 
-- reset: `https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reset.css`
-- main css: `https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css`
-- theme: `https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/{black|white|league|night|serif}.css`
-- js: `https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js`
+- Resolve the bundled pakco root from the current project at `skills/html-deck/pakco-html/`.
+- Include or inline `assets/fonts.css`, `assets/base.css`, `assets/themes/{theme_key}.css`, `assets/animations/animations.css`, and `assets/runtime.js`.
+- Use pakco theme tokens: `--bg`, `--bg-soft`, `--surface`, `--surface-2`, `--border`, `--text-1`, `--text-2`, `--accent`, `--accent-2`, `--accent-3`, and `--grad`.
+- Do not install pakco-html globally or treat it as a separate generation route.
 
 ### HTML Structure
 
 ```html
 <!DOCTYPE html>
-<html lang="{content_language}">
+<html lang="{content_language}" data-theme="{theme_key}">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>{deck_title}</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reset.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/{base_theme}.css">
-  <style>
-    :root {
-      --r-main-color: {text_color};
-      --r-heading-color: {heading_color};
-      --r-link-color: {accent_color};
-    }
-  </style>
+  <link rel="stylesheet" href="./assets/fonts.css">
+  <link rel="stylesheet" href="./assets/base.css">
+  <link rel="stylesheet" id="theme-link" href="./assets/themes/{theme_key}.css">
+  <link rel="stylesheet" href="./assets/animations/animations.css">
 </head>
-<body>
-  <div class="reveal">
-    <div class="slides">
-      <section data-auto-animate>
-        <h1>{deck_title}</h1>
-        <p>{subtitle}</p>
-        <aside class="notes">{speaker_notes}</aside>
-      </section>
-
-      <section data-auto-animate data-background-gradient="{gradient_css}">
-        <h2>{slide_title}</h2>
-        <!-- content -->
-        <aside class="notes">{speaker_notes}</aside>
-      </section>
-    </div>
+<body data-themes="{theme_list}" data-theme-base="./assets/themes/">
+  <div class="deck">
+    <section class="slide" data-title="{slide_title}">
+      <p class="kicker">{kicker}</p>
+      <h1 class="h1 anim-fade-up">{deck_title}</h1>
+      <p class="lede">{subtitle}</p>
+      <aside class="notes">{speaker_notes}</aside>
+    </section>
   </div>
-  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
-  <script>
-    Reveal.initialize({
-      hash: true,
-      transition: '{html_transition}',
-      transitionSpeed: 'default',
-      backgroundTransition: 'fade',
-      slideNumber: 'c/t',
-      controls: true,
-      progress: true,
-      center: true,
-    });
-  </script>
+  <script src="./assets/runtime.js"></script>
 </body>
 </html>
 ```
@@ -938,9 +912,9 @@ python3 scripts/presentation_director.py serve-wait \
 For pre-v1 modes, generate only the targets in `image-plan.json`. In interactive Codex sessions, run `skills/deck-builder/scripts/generate_images.py --task-dir "Decks/<task-slug>" show`, display the prompts to the user, then register user-provided images with `place --source <path> --target-id <id>` or `place --sources '{...}'`. Record every attempt with `image-asset`; `final_status: success` is only valid when the registered file exists and is non-empty. Failed or missing images must not be replaced by CSS gradients or SVG placeholders. Automatic backends such as `--api stub`, `--api dall-e-3`, `--api flux`, and `--api hf` remain available only when explicitly chosen or for testing.
 
 7. Route generation by `output_format` in the confirmed brief:
-   - `html-revealjs`: write Reveal.js HTML directly to `Decks/<task-slug>/v1/final.html`; do NOT call Presentations plugin.
+   - `html-revealjs`: write pakco-compatible HTML directly to `Decks/<task-slug>/v1/final.html`; do NOT call Presentations plugin.
    - `pptx`: verify Codex Presentations / `artifact-tool presentation-jsx` through active plugin or bundled runtime, run the runtime check, then export the net-new PPTX with `build_artifact_deck.mjs` to `Decks/<task-slug>/v1/final.pptx`. If unavailable, stop and report the missing runtime.
-   - `both`: verify Codex Presentations / `artifact-tool presentation-jsx` through active plugin or bundled runtime, export PPTX with `build_artifact_deck.mjs`, then write Reveal.js HTML directly to `v1/final.html`. If Presentations runtime is unavailable, stop before generating either output unless the user explicitly changes output format.
+   - `both`: verify Codex Presentations / `artifact-tool presentation-jsx` through active plugin or bundled runtime, export PPTX with `build_artifact_deck.mjs`, then write pakco-compatible HTML directly to `v1/final.html`. If Presentations runtime is unavailable, stop before generating either output unless the user explicitly changes output format.
 
 If `image_generation_mode` is `post-v1-slot-review` or `hybrid`, after v1 exists run:
 
@@ -986,7 +960,7 @@ Do not bypass this flow in an interactive Codex session unless the user explicit
 
 ## Claude / Offline / HTML Execution Steps
 
-The steps below are for non-Codex environments without Codex Presentations, for Claude/offline PPTX fallback, or for Reveal.js HTML output. For Codex `pptx` mode, do not run the full deck.md/design-lock workflow before v1 unless the user explicitly asks for it.
+The steps below are for non-Codex environments without Codex Presentations, for Claude/offline PPTX fallback, or for HTML deck output. For Codex `pptx` mode, do not run the full deck.md/design-lock workflow before v1 unless the user explicitly asks for it.
 
 ### Claude Step 1 — Classify the Input
 
@@ -1192,7 +1166,7 @@ Read `references/prompt-templates.md` for ready-to-use prompts.
 
 - In Codex: use Template A (Presentations capability; active plugin or bundled runtime)
 - In Claude Code: use Template B (pptxgenjs fallback)
-- HTML deck (either environment): write Reveal.js 5.1.0 HTML directly using the spec above
+- HTML deck (either environment): write pakco-compatible HTML directly using the spec above
 
 Before generating a net-new deck in a workspace that has Presentation Director, run:
 

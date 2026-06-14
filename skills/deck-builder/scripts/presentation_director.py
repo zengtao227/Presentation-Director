@@ -108,6 +108,8 @@ PAGE_PATHS: dict[str, str] = {
     "style-review": "/style-review",
     "compare": "/compare",
 }
+PAKCO_HTML_ROOT: Path = Path(__file__).resolve().parents[2] / "html-deck" / "pakco-html"
+PAKCO_HTML_ROUTE_PREFIX: str = "/pakco-html/"
 SUPPORTED_UI_LANGUAGES: set[str] = {"zh", "en", "de", "fr", "it", "es"}
 HTML_LANG: dict[str, str] = {
     "zh": "zh-CN",
@@ -355,7 +357,7 @@ ADDITIONAL_UI_COPY: dict[str, dict[str, str]] = {
         "visual_gate": "视觉方向门禁",
         "visual_title": "选择第一版视觉方向",
         "visual_intro": "这些候选会根据主题、演示文稿类型和听众动态生成，借鉴 design-lock 和 ui-ux-pro-max 规律，确定配色、字体和版式方向。",
-        "visual_intro_html": "这些候选决定 Reveal.js HTML 演示的视觉主题、过渡动画和动效密度。选好方向后直接写出可在浏览器演示的 HTML 文件，无需 Codex Presentations 插件。每个候选已预先关联最适合的 HTML 主题和动效档位。",
+        "visual_intro_html": "这些候选决定 HTML deck 的视觉主题、过渡动画和动效密度。选好方向后会使用 bundled pakco-html runtime 写出可在浏览器演示的 HTML 文件，无需 Codex Presentations 插件。每个候选已预先关联最适合的 HTML 主题和动效档位。",
         "current_topic": "当前主题",
         "visual_notes": "视觉补充要求",
         "visual_notes_placeholder": "例如：更像顶级咨询公司、更少卡片、背景更有层次、适合医学研究听众。",
@@ -460,7 +462,7 @@ ADDITIONAL_UI_COPY: dict[str, dict[str, str]] = {
         "visual_gate": "Visual Inspiration Gate",
         "visual_title": "Choose the First-Draft Visual Direction",
         "visual_intro": "These candidates are generated from the topic, PPT type, and audience. They draw from design-locks and ui-ux-pro-max patterns to define palette, typography, and layout direction.",
-        "visual_intro_html": "These candidates determine the visual theme, transition style, and animation density for your Reveal.js HTML deck. The output is a browser-ready HTML file — no Codex Presentations plugin required. Each candidate is pre-matched to an HTML theme and animation profile.",
+        "visual_intro_html": "These candidates determine the visual theme, transition style, and animation density for your HTML deck. The output uses the bundled pakco-html runtime and is browser-ready — no Codex Presentations plugin required. Each candidate is pre-matched to an HTML theme and animation profile.",
         "current_topic": "Current Topic",
         "visual_notes": "Additional Visual Requirements",
         "visual_notes_placeholder": "For example: more like a top-tier consulting deck, fewer cards, richer backgrounds, or suitable for a medical research audience.",
@@ -565,7 +567,7 @@ ADDITIONAL_UI_COPY: dict[str, dict[str, str]] = {
         "visual_gate": "Tor für visuelle Richtung",
         "visual_title": "Visuelle Richtung für den ersten Entwurf wählen",
         "visual_intro": "Diese Kandidaten werden aus Thema, PPT-Typ und Zielgruppe abgeleitet. Sie nutzen Muster aus design-locks und ui-ux-pro-max, um Farbpalette, Typografie und Layout-Richtung festzulegen.",
-        "visual_intro_html": "Diese Kandidaten bestimmen visuelles Thema, Übergangseffekte und Animationsdichte für das Reveal.js-HTML-Deck. Das Ergebnis ist eine browserfähige HTML-Datei — kein Codex-Presentations-Plugin erforderlich.",
+        "visual_intro_html": "Diese Kandidaten bestimmen visuelles Thema, Übergangseffekte und Animationsdichte für das HTML-Deck. Das Ergebnis nutzt die gebündelte pakco-html-Runtime und ist browserfähig — kein Codex-Presentations-Plugin erforderlich.",
         "current_topic": "Aktuelles Thema",
         "visual_notes": "Zusätzliche visuelle Anforderungen",
         "visual_notes_placeholder": "Zum Beispiel: näher an einer Top-Consulting-Präsentation, weniger Karten, mehr Tiefe im Hintergrund oder passend für ein medizinisches Forschungspublikum.",
@@ -893,7 +895,7 @@ CHOICE_LABEL_L10N: dict[str, dict[str, dict[str, str]]] = {
             "custom": "Custom",
         },
         "output_format": {
-            "html-revealjs": "HTML (Reveal.js)",
+            "html-revealjs": "HTML deck",
             "pptx": "PPTX (PowerPoint)",
             "both": "HTML + PPTX (Both)",
         },
@@ -978,7 +980,7 @@ CHOICE_LABEL_L10N: dict[str, dict[str, dict[str, str]]] = {
             "custom": "Benutzerdefiniert",
         },
         "output_format": {
-            "html-revealjs": "HTML (Reveal.js)",
+            "html-revealjs": "HTML deck",
             "pptx": "PPTX (PowerPoint)",
             "both": "HTML + PPTX (Beide)",
         },
@@ -1088,21 +1090,21 @@ QUESTION_PROMPT_L10N: dict[str, dict[str, str]] = {
 ADDITIONAL_CHOICE_LABEL_L10N: dict[str, dict[str, dict[str, str]]] = {
     "fr": {
         "output_format": {
-            "html-revealjs": "HTML (Reveal.js)",
+            "html-revealjs": "HTML deck",
             "pptx": "PPTX (PowerPoint)",
             "both": "HTML + PPTX (Les deux)",
         },
     },
     "it": {
         "output_format": {
-            "html-revealjs": "HTML (Reveal.js)",
+            "html-revealjs": "HTML deck",
             "pptx": "PPTX (PowerPoint)",
             "both": "HTML + PPTX (Entrambi)",
         },
     },
     "es": {
         "output_format": {
-            "html-revealjs": "HTML (Reveal.js)",
+            "html-revealjs": "HTML deck",
             "pptx": "PPTX (PowerPoint)",
             "both": "HTML + PPTX (Ambos)",
         },
@@ -1177,18 +1179,40 @@ HTML_THEME_OPTIONS: tuple[tuple[str, str], ...] = (
     ("auto", "Follow visual direction automatically"),
     ("minimal-white", "Clean product, internal updates, quiet business decks"),
     ("editorial-serif", "Narrative, essay, culture, long-form explanation"),
+    ("soft-pastel", "Gentle product, education, wellness, accessible soft surfaces"),
+    ("sharp-mono", "Technical, precise, high-contrast mono-forward decks"),
+    ("arctic-cool", "Clean research, climate, healthcare, calm technology"),
+    ("sunset-warm", "Warm storytelling, retrospectives, culture, travel"),
+    ("catppuccin-latte", "Friendly light technical decks with soft contrast"),
+    ("catppuccin-mocha", "Dark technical decks with soft terminal energy"),
+    ("dracula", "Developer talks, code walkthroughs, dark-mode demos"),
+    ("tokyo-night", "Engineering, infra, systems, dark technical talks"),
+    ("nord", "Calm technical reports and restrained dark presentations"),
+    ("solarized-light", "Readable technical explainers and source-heavy decks"),
+    ("gruvbox-dark", "Terminal-heavy talks, retro engineering, code narratives"),
+    ("rose-pine", "Elegant dark editorial or product storytelling"),
+    ("neo-brutalism", "Raw product critique, provocative concepts, high contrast"),
+    ("bauhaus", "Geometric education, design history, structured product stories"),
     ("swiss-grid", "Structured reports, operations, precise comparisons"),
     ("corporate-clean", "Boardroom, consulting, executive summaries"),
     ("academic-paper", "Research, clinical, medical, evidence-heavy decks"),
     ("blueprint", "Architecture, systems, technical explainers"),
     ("engineering-whiteprint", "Engineering plans with a lighter technical surface"),
     ("terminal-green", "Developer, security, CLI, infra storytelling"),
+    ("xiaohongshu-white", "Social, lifestyle, editorial white-card decks"),
+    ("rainbow-gradient", "High-energy launches, creator decks, celebratory stories"),
     ("pitch-deck-vc", "Investor, launch, market-sizing, fundraising decks"),
     ("news-broadcast", "Live briefing, sports/news analysis, fast facts"),
     ("magazine-bold", "Editorial launches, brand stories, bold section openers"),
     ("aurora", "Science, energy, AI, emerging technology narratives"),
     ("glassmorphism", "Product, studio, premium brand, soft depth"),
+    ("memphis-pop", "Playful education, creator content, bold youth culture"),
     ("cyberpunk-neon", "Futuristic demos, nightlife, high-energy concepts"),
+    ("y2k-chrome", "Retro-futurist launches, music, fashion, visual experiments"),
+    ("retro-tv", "Broadcast nostalgia, media, cultural retrospectives"),
+    ("japanese-minimal", "Quiet luxury, culture, spatially restrained narrative"),
+    ("vaporwave", "Internet culture, music, retro-future aesthetics"),
+    ("midcentury", "Warm editorial, design, consumer product stories"),
 )
 
 HTML_THEME_DESCRIPTIONS: dict[str, str] = dict(HTML_THEME_OPTIONS)
@@ -1197,7 +1221,8 @@ HTML_THEME_DESCRIPTIONS: dict[str, str] = dict(HTML_THEME_OPTIONS)
 DARK_THEMES: frozenset[str] = frozenset({
     "pitch-deck-vc", "glassmorphism", "cyberpunk-neon", "terminal-green",
     "aurora", "news-broadcast", "blueprint", "editorial-serif",
-    "magazine-bold",
+    "magazine-bold", "catppuccin-mocha", "dracula", "tokyo-night", "nord",
+    "gruvbox-dark", "rose-pine", "vaporwave", "retro-tv", "y2k-chrome",
 })
 # Light themes (not listed above): auto, minimal-white, swiss-grid, corporate-clean,
 # academic-paper, engineering-whiteprint, soft-pastel, arctic-cool, solarized-light,
@@ -1290,7 +1315,7 @@ INTAKE_QUESTIONS: tuple[Question, ...] = (
         choices=(
             Choice(
                 "html-revealjs",
-                "HTML（Reveal.js）",
+                "HTML deck",
                 "演示场景首选：动画过渡、presenter mode、浏览器即用，支持 ?print-pdf 导出。",
             ),
             Choice(
@@ -1686,32 +1711,32 @@ def generation_strategy_text(output_format: str, task_dir: Path, ui_language: st
     task_path: str = str(task_dir)
     messages: dict[str, dict[str, str]] = {
         "zh": {
-            "html-revealjs": f"先生成版本化 Reveal.js HTML 到 {task_path}/v1/final.html；然后打开 preview-review.html 供完整浏览，最终选择后复制到 {task_path}/final/<task-slug>.html。",
+            "html-revealjs": f"先生成版本化 HTML deck 到 {task_path}/v1/final.html；然后打开 preview-review.html 供完整浏览，最终选择后复制到 {task_path}/final/<task-slug>.html。",
             "pptx": f"先生成 v1 PPTX 和 contact sheet，集中保存到 {task_path}，然后打开 preview-review.html；需要修改时再进入 style-review.html。",
             "both": f"先生成 v1/final.pptx 与 v1/final.html，然后打开 preview-review.html；最终选择后复制到 {task_path}/final/。",
         },
         "en": {
-            "html-revealjs": f"Generate versioned Reveal.js HTML at {task_path}/v1/final.html first; then open preview-review.html for browsing. After final selection it is copied to {task_path}/final/<task-slug>.html.",
+            "html-revealjs": f"Generate versioned HTML deck at {task_path}/v1/final.html first; then open preview-review.html for browsing. After final selection it is copied to {task_path}/final/<task-slug>.html.",
             "pptx": f"Generate the v1 PPTX and contact sheet first, save them under {task_path}, then open preview-review.html; enter style-review.html only if changes are needed.",
             "both": f"Generate v1/final.pptx and v1/final.html first, then open preview-review.html. After final selection copy them under {task_path}/final/.",
         },
         "de": {
-            "html-revealjs": f"Zuerst wird Reveal.js-HTML unter {task_path}/v1/final.html erzeugt; danach wird preview-review.html geöffnet. Nach finaler Auswahl wird es nach {task_path}/final/<task-slug>.html kopiert.",
+            "html-revealjs": f"Zuerst wird HTML deck unter {task_path}/v1/final.html erzeugt; danach wird preview-review.html geöffnet. Nach finaler Auswahl wird es nach {task_path}/final/<task-slug>.html kopiert.",
             "pptx": f"Zuerst werden v1-PPTX und Contact Sheet unter {task_path} gespeichert, danach wird preview-review.html geöffnet; style-review.html nur bei Änderungsbedarf.",
             "both": f"Zuerst werden v1/final.pptx und v1/final.html erzeugt, danach wird preview-review.html geöffnet. Nach finaler Auswahl werden sie unter {task_path}/final/ kopiert.",
         },
         "fr": {
-            "html-revealjs": f"Générer d'abord le HTML Reveal.js versionné dans {task_path}/v1/final.html, puis ouvrir preview-review.html; après le choix final, le copier dans {task_path}/final/<task-slug>.html.",
+            "html-revealjs": f"Générer d'abord le HTML deck versionné dans {task_path}/v1/final.html, puis ouvrir preview-review.html; après le choix final, le copier dans {task_path}/final/<task-slug>.html.",
             "pptx": f"Générer d'abord le PPTX v1 et la planche de contact dans {task_path}, puis ouvrir preview-review.html; style-review.html seulement si des changements sont nécessaires.",
             "both": f"Générer d'abord v1/final.pptx et v1/final.html, puis ouvrir preview-review.html; après le choix final, les copier dans {task_path}/final/.",
         },
         "it": {
-            "html-revealjs": f"Genera prima l'HTML Reveal.js versionato in {task_path}/v1/final.html, poi apri preview-review.html; dopo la scelta finale copialo in {task_path}/final/<task-slug>.html.",
+            "html-revealjs": f"Genera prima l'HTML deck versionato in {task_path}/v1/final.html, poi apri preview-review.html; dopo la scelta finale copialo in {task_path}/final/<task-slug>.html.",
             "pptx": f"Genera prima il PPTX v1 e il contact sheet in {task_path}, poi apri preview-review.html; style-review.html solo se servono modifiche.",
             "both": f"Genera prima v1/final.pptx e v1/final.html, poi apri preview-review.html; dopo la scelta finale copiali in {task_path}/final/.",
         },
         "es": {
-            "html-revealjs": f"Primero genera el HTML Reveal.js versionado en {task_path}/v1/final.html, luego abre preview-review.html; tras la selección final cópialo a {task_path}/final/<task-slug>.html.",
+            "html-revealjs": f"Primero genera el HTML deck versionado en {task_path}/v1/final.html, luego abre preview-review.html; tras la selección final cópialo a {task_path}/final/<task-slug>.html.",
             "pptx": f"Primero genera el PPTX v1 y la hoja de contacto en {task_path}, luego abre preview-review.html; style-review.html solo si hacen falta cambios.",
             "both": f"Primero genera v1/final.pptx y v1/final.html, luego abre preview-review.html; tras la selección final cópialos en {task_path}/final/.",
         },
@@ -2264,7 +2289,7 @@ def html_small_font_warnings(html_path: Path, min_em: float = 0.72) -> list[str]
     """Scan an HTML file for CSS font-size values below min_em and return warning strings.
 
     Only em/px values in style blocks and inline styles are checked.
-    Pixel threshold is derived from Reveal.js default base of 16px.
+    Pixel threshold uses a 16px browser base.
     """
     import re as _re
     if not html_path.exists():
@@ -2319,7 +2344,7 @@ def classes_from_selector(selector: str) -> set[str]:
 
 
 def html_structural_warnings(html_path: Path) -> list[str]:
-    """Scan a Reveal.js HTML file for structural bugs that produce the staircase layout pattern.
+    """Scan a HTML deck file for structural bugs that produce the staircase layout pattern.
 
     Returns FAIL strings for: section position override and unapproved `.stagger`.
     These bugs recur because LLMs default to position:relative on section and stagger on grids.
@@ -2340,9 +2365,9 @@ def html_structural_warnings(html_path: Path) -> list[str]:
         if bad_selectors:
             shown: str = ", ".join(bad_selectors[:3])
             warnings.append(
-                "STRUCTURAL FAIL: Reveal.js section selector sets `position:` "
-                f"({shown}) — Reveal.js manages section positioning as position:absolute; "
-                "remove position from section CSS entirely."
+                "STRUCTURAL FAIL: HTML deck section selector sets `position:` "
+                f"({shown}) — the deck runtime manages slide positioning; remove "
+                "position from section CSS entirely."
             )
             break
 
@@ -2524,6 +2549,13 @@ def selected_version_html_path(task_dir: Path, version_name: str) -> Path:
 def final_html_path_for_output(task_dir: Path, output_format: str, companion: bool = False) -> Path:
     suffix: str = "-companion" if companion else ""
     return task_dir / "final" / f"{task_dir.name}{suffix}.html"
+
+
+def copy_html_deck_assets(version_dir: Path, final_dir: Path) -> None:
+    source_assets: Path = version_dir / "assets"
+    if not source_assets.exists() or not source_assets.is_dir():
+        return
+    shutil.copytree(source_assets, final_dir / "assets", dirs_exist_ok=True)
 
 
 def visual_candidate_to_json(candidate: VisualCandidate) -> JsonDict:
@@ -3064,7 +3096,7 @@ def build_draft_brief(
     if enhance_mode:
         # PPTX→HTML enhance mode: content is already finalised — push toward rich HTML output.
         for key, value, label in (
-            ("output_format", "html-revealjs", "HTML（Reveal.js）"),
+            ("output_format", "html-revealjs", "HTML deck"),
             ("visual_freedom", "delegate", "AI 自主决策"),
         ):
             default_selections[key] = {"value": value, "label": label, "source": "enhance-mode-default"}
@@ -3605,6 +3637,7 @@ def finalize_selected_version(task_dir: Path, selected_version: str, notes: str 
             final_dir.mkdir(parents=True, exist_ok=True)
             final_html = final_html_path_for_output(task_dir, output_format)
             shutil.copy2(selected_html, final_html)
+            copy_html_deck_assets(selected_version_dir, final_dir)
             selected_html_value = str(selected_html)
             final_html_value = str(final_html)
         else:
@@ -3760,6 +3793,24 @@ def render_visual_inspiration(task_dir: Path) -> str:
         for candidate in candidates
     ]
     current_candidate: VisualCandidate = next((c for c in candidates if c.key == current_key), candidates[0])
+    pakco_picker_html: str = ""
+    if show_html_fields:
+        picker_label: str = {"zh": "打开 pakco 风格选择器", "de": "Pakco-Stilauswahl öffnen"}.get(
+            ui_language,
+            "Open pakco style picker",
+        )
+        picker_help: str = {
+            "zh": "可在新标签页浏览 bundled pakco-html 的主题、模板和动效预览；回到本页选择最接近的方向后继续确认。",
+            "de": "Öffnet die gebündelte pakco-html Vorschau in einem neuen Tab; wählen Sie danach hier die nächste visuelle Richtung.",
+        }.get(
+            ui_language,
+            "Browse bundled pakco-html themes, templates, and motion previews in a new tab; return here and choose the closest visual direction.",
+        )
+        pakco_picker_html = f"""<section class="section">
+  <h2>pakco-html</h2>
+  <p>{html.escape(picker_help)}</p>
+  <a class="button secondary" href="{PAKCO_HTML_ROUTE_PREFIX}templates/style-picker.html" target="_blank" rel="noopener">{html.escape(picker_label)}</a>
+</section>"""
     body: str = f"""<div class="topline">{html.escape(t(ui_language, "visual_gate"))}</div>
 <h1>{html.escape(t(ui_language, "visual_title"))}</h1>
 <p>{html.escape(t(ui_language, "visual_intro"))}</p>
@@ -3767,6 +3818,7 @@ def render_visual_inspiration(task_dir: Path) -> str:
   <h2>{html.escape(t(ui_language, "current_topic"))}</h2>
   <p><strong>{html.escape(topic)}</strong></p>
 </section>
+{pakco_picker_html}
 <form method="post" action="/api/visual-inspiration">
   {director_token_input(task_dir)}
   <div class="candidate-grid">
@@ -4395,7 +4447,16 @@ def render_style_review(task_dir: Path) -> str:
     else:
         version_name = latest_review_version(task_dir)
         base_notice = ""
-    version_dir: Path = resolve_version_dir(task_dir, version_name, must_exist=True)
+    version_dir: Path = resolve_version_dir(task_dir, version_name, must_exist=False)
+    if not version_dir.exists():
+        body: str = f"""<div class="topline">{html.escape(t(ui_language, "style_review"))}</div>
+<h1>{html.escape(t(ui_language, "style_title"))}</h1>
+{base_notice}
+<section class="section">
+  <h2>{html.escape(t(ui_language, "current_version"))}</h2>
+  <p class="risk">{html.escape(t(ui_language, "missing_preview_artifact"))}</p>
+</section>"""
+        return html_page(t(ui_language, "style_title"), body, ui_language)
     qa_summary: Path = version_dir / "qa-summary.md"
     image_html, artifact_path = render_version_preview(task_dir, version_name, output_format, ui_language)
     qa_text: str = qa_summary.read_text(encoding="utf-8") if qa_summary.exists() else t(ui_language, "missing_qa_summary")
@@ -4586,6 +4647,7 @@ def initial_prompt(task_dir: Path) -> str:
         return "No confirmed brief found. Confirm intake first."
     script_path: Path = Path(__file__).resolve()
     generate_images_path: Path = script_path.parent / "generate_images.py"
+    pakco_html_root: Path = PAKCO_HTML_ROOT
     output_format: str = output_format_from_brief(brief, "pptx")
     image_policy: str = image_policy_from_brief(brief)
     raw_image_mode: Any = brief.get("image_generation_mode")
@@ -4703,44 +4765,30 @@ Rules:
         html_gradient: str = str(html_config.get("gradient", "")) or str(visual_candidate.get("html_gradient", ""))
         layout_families: Any = html_config.get("layout_families", [])
         layout_families_json: str = json.dumps(layout_families if isinstance(layout_families, list) else [], ensure_ascii=False)
-        html_requirements = f"""Reveal.js requirements:
-- Use pinned CDN links for reveal.js@5.1.0: reset.css, reveal.css, a built-in theme, reveal.js, and the Notes plugin.
-- Notes plugin: import RevealNotes from https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/notes/notes.esm.js
-  Initialize with: Reveal.initialize({{ transition: "{html_transition}", plugins: [RevealNotes] }})
-- theme_key from html_config: "{theme_key}". Implement by defining CSS custom properties in <style>:
-  :root {{
-    --deck-bg: <from theme>;
-    --deck-ink: <from theme>;
-    --deck-muted: <from theme>;
-    --deck-accent: <from theme>;
-    --deck-accent-2: <from theme>;
-    --deck-line: <from theme>;
-  }}
-  Apply these tokens to .reveal background-color, h1-h3, p, code, hr, dividers, charts, and cards.
-  Do not hard-code one-off hex values per slide; consume the tokens. Cover/section gradient hint: "{html_gradient or 'use --deck-bg solid color'}".
+        html_requirements = f"""HTML deck requirements:
+- Use the bundled pakco-html runtime at {pakco_html_root}. Do not install or invoke a global pakco-html skill.
+- Build `final.html` as a pakco-compatible deck using `<div class="deck">` and one `<section class="slide" data-title="...">` per slide.
+- Include pakco assets in the output by either:
+  1. inlining `assets/fonts.css`, `assets/base.css`, `assets/themes/{theme_key}.css`, `assets/animations/animations.css`, and `assets/runtime.js` into `final.html` (preferred for final portability), or
+  2. copying `{pakco_html_root / "assets"}` to `{html_output.parent / "assets"}` and linking `./assets/...`.
+  Final selection will copy `vN/assets/` to `final/assets/` when present.
+- theme_key from html_config: "{theme_key}". Resolve it to `{pakco_html_root / "assets" / "themes"}` / `<theme_key>.css`; if that file is missing, use `minimal-white`.
+- Consume pakco theme tokens (`--bg`, `--surface`, `--surface-2`, `--border`, `--text-1`, `--text-2`, `--text-3`, `--accent`, `--accent-2`, `--accent-3`, `--grad`) instead of regenerating one-off per-slide colors. Background hint: "{html_gradient or 'use the selected pakco theme background'}".
 - Safe-area contract — NO EXCEPTIONS, including cover and section-divider slides:
   .slide-safe {{ position:absolute; left:54px; top:70px; width:1172px; height:590px; overflow:hidden; }}
   .bleed {{ position:absolute; inset:0; }}
-  Section CSS rule — write EXACTLY this, nothing else:
-    .reveal .slides section {{ width:1280px; height:720px; overflow:hidden; box-sizing:border-box; }}
-  NEVER add position to .reveal .slides section. Reveal.js sets position:absolute on every
-  section element internally before your CSS runs. Adding position:relative (or any position
-  value) overrides that and switches all slides from Reveal.js's absolute-position stack into
-  normal document flow — producing the staircase bug where slide 2 renders below slide 1,
-  slide 3 below slide 2, etc. The .bleed and .slide-safe children are already positioned
-  absolutely relative to the Reveal.js-managed section; they do NOT need a user-added
-  position:relative on the parent.
+  Pakco `.slide` already provides absolute slide positioning. Do not replace it with document-flow sections.
   REQUIRED structure for every slide type (cover, section, content, end):
-    <section>
+    <section class="slide" data-title="...">
       <div class="bleed ..."><!-- background gradient / image ONLY --></div>
       <div class="slide-safe">
         <!-- ALL content: title, body, columns, charts, code, images -->
       </div>
+      <aside class="notes">...</aside>
     </section>
   Inside .slide-safe use normal flow or flex/grid layout. Do NOT use position:absolute on
   content elements inside .slide-safe unless stacking layers within those 1172×590 bounds.
   FORBIDDEN patterns — these silently push content outside the visible area:
-    ✗ position on .reveal .slides section — causes ALL slides to stack in document flow (staircase bug)
     ✗ position:absolute on direct children of <section> (other than .bleed and .slide-safe)
     ✗ top:50%; transform:translateY(-50%) on any element outside .slide-safe
     ✗ display:flex or display:grid on the <section> element itself to position content
@@ -4752,7 +4800,7 @@ Rules:
   subtle -> fade-up and rise-in; use stagger only with explicit stagger-ok on decorative card rows.
   expressive -> adds zoom-pop, counter-up, path-draw, blur-in.
   cinematic -> adds spotlight, shimmer-sweep, kenburns for cover/section/end slides only.
-  Implement as local @keyframes; do not link external animation CSS.
+  Prefer pakco `assets/animations/animations.css`; add small local @keyframes only when the catalog does not cover the needed effect.
   Template for rise-in + stagger:
     @keyframes rise-in {{from{{opacity:0;transform:translateY(18px)}}to{{opacity:1;transform:translateY(0)}}}}
     @keyframes fade-up {{from{{opacity:0;transform:translateY(12px)}}to{{opacity:1;transform:translateY(0)}}}}
@@ -4774,12 +4822,12 @@ Rules:
 - Chart data: use Chart.js 4.x CDN (https://cdn.jsdelivr.net/npm/chart.js) and chartjs-plugin-datalabels for bar/line/pie slides. Use direct data labels instead of legends.
 - layout_families from html_config: {layout_families_json}. Do not repeat the same layout family 3 slides in a row.
 - Every slide needs one primary proof object: chart, diagram, table, quote, image, or code artifact.
-- Speaker notes: put <aside class="notes"> on every slide. Notes plugin must be loaded and the S key must open speaker notes.
+- Speaker notes: put <aside class="notes"> on every slide. Pakco `assets/runtime.js` must be loaded and the S key must open presenter mode with current/next previews, script, and timer.
 - Save the versioned output to {html_output}.
-- Include PDF export guidance: append ?print-pdf, print from Chrome/Edge, landscape, no headers/footers."""
+- Include export guidance: print from Chrome/Edge in landscape with backgrounds enabled and no headers/footers."""
 
     if output_format == "html-revealjs":
-        return f"""Write a Reveal.js 5.1.0 HTML presentation directly. Do NOT call the Codex Presentations plugin.
+        return f"""Write a pakco-compatible HTML presentation directly. Do NOT call the Codex Presentations plugin.
 
 {common_rules}
 
@@ -4798,7 +4846,7 @@ QA:
 """
 
     if output_format == "both":
-        return f"""Generate both outputs: first editable PPTX via Codex Presentations, then Reveal.js 5.1.0 HTML directly.
+        return f"""Generate both outputs: first editable PPTX via Codex Presentations, then pakco-compatible HTML directly.
 
 {common_rules}
 
@@ -4816,13 +4864,13 @@ PPTX route:
 - PPTX uses the same palette as the HTML direction, but with solid-color backgrounds instead of gradients.
 
 HTML route:
-- Write Reveal.js HTML directly; do NOT call Presentations plugin for HTML.
+- Write pakco-compatible HTML directly; do NOT call Presentations plugin for HTML.
 {html_requirements}
 
 {post_v1_image_instruction}
 
 {preview_review_instruction}
-- Final selection copies the selected PPTX to {task_dir / "final" / (task_dir.name + ".pptx")} and the selected Reveal.js deck to {final_html_path_for_output(task_dir, "both")}.
+- Final selection copies the selected PPTX to {task_dir / "final" / (task_dir.name + ".pptx")} and the selected HTML deck to {final_html_path_for_output(task_dir, "both")}.
 - Do not generate a separate companion HTML in `both` mode.
 
 QA:
@@ -4894,7 +4942,7 @@ def revision_prompt(task_dir: Path) -> str:
         for version in target_versions
     )
     if output_format == "html-revealjs":
-        return f"""Revise the existing {base_version} Reveal.js HTML deck using the selected revision request.
+        return f"""Revise the existing {base_version} HTML deck using the selected revision request.
 
 Base version:
 {base_html}
@@ -4917,9 +4965,7 @@ Revision action:
 - generate-comparison means create a comparison version while preserving facts and structure.
 
 HTML route:
-- Keep Reveal.js 5.1.0 with pinned CDN links, including the Notes plugin import:
-  https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/notes/notes.esm.js
-  Initialize with: Reveal.initialize({{ plugins: [RevealNotes] }})
+- Keep the deck pakco-compatible: `.deck`, `.slide`, bundled pakco theme tokens, and `assets/runtime.js`.
 - Keep speaker notes in `<aside class="notes">` on every slide.
 - Preserve the safe-area contract: regular content stays inside `.slide-safe`; only backgrounds use `.bleed`.
 - Use CSS-only motion from `html_config` and `html_motion_profile`; do not introduce Canvas/WebGL effects.
@@ -4967,7 +5013,7 @@ Render and QA:
 {pptx_version_outputs}
 - copy per-slide preview PNGs into the version's `slides/` folder
 - copy contact sheet and QA summary into the same version folder
-- if output_format is `both`, also revise matching Reveal.js decks using CSS-only HTML motion:
+- if output_format is `both`, also revise matching HTML decks using CSS-only HTML motion:
 {html_version_outputs}
 - explicitly check rendered slides for text overlap, especially wrapped titles covering subtitles or body text
 - fix any overlap/cropping/too-tight spacing and re-render affected slides before final selection
@@ -5014,6 +5060,8 @@ class DirectorHandler(BaseHTTPRequestHandler):
                 return True
             if len(parts) == 3 and parts[1] in {"slides", "screenshots"}:
                 return relative.suffix.lower() in IMAGE_EXTENSIONS
+            if parts[1] == "assets" and len(parts) >= 3:
+                return relative.suffix.lower() in {".css", ".js", ".woff", ".woff2", ".ttf", ".svg"}
         return False
 
     def resolve_static_path(self, relative: Path) -> Path:
@@ -5068,6 +5116,8 @@ class DirectorHandler(BaseHTTPRequestHandler):
             self.send_html(render_style_review(self.task_dir))
         elif path == "/compare":
             self.send_html(render_compare(self.task_dir))
+        elif path.startswith(PAKCO_HTML_ROUTE_PREFIX):
+            self.send_pakco_static(path.removeprefix(PAKCO_HTML_ROUTE_PREFIX))
         elif path.startswith("/static/"):
             self.send_static(path.removeprefix("/static/"))
         elif path == "/confirmed":
@@ -5254,6 +5304,14 @@ class DirectorHandler(BaseHTTPRequestHandler):
         except ValueError:
             self.send_error(HTTPStatus.BAD_REQUEST)
             return
+        parts: tuple[str, ...] = relative.parts
+        if (not path.exists() or not path.is_file()) and len(parts) >= 3 and parts[1] == "assets":
+            pakco_rel: Path = Path(*parts[1:])
+            try:
+                path = resolve_contained_path(PAKCO_HTML_ROOT, PAKCO_HTML_ROOT / pakco_rel)
+            except ValueError:
+                self.send_error(HTTPStatus.NOT_FOUND)
+                return
         if not path.exists() or not path.is_file():
             self.send_error(HTTPStatus.NOT_FOUND)
             return
@@ -5275,6 +5333,30 @@ class DirectorHandler(BaseHTTPRequestHandler):
         self.send_header("X-Content-Type-Options", "nosniff")
         if path.suffix.lower() == ".html":
             self.send_header("Content-Security-Policy", STATIC_HTML_CSP)
+        self.end_headers()
+        self.wfile.write(data)
+
+    def send_pakco_static(self, raw_path: str) -> None:
+        relative: Path = Path(unquote(raw_path))
+        if relative.is_absolute() or ".." in relative.parts:
+            self.send_error(HTTPStatus.BAD_REQUEST)
+            return
+        try:
+            path: Path = resolve_contained_path(PAKCO_HTML_ROOT, PAKCO_HTML_ROOT / relative)
+        except ValueError:
+            self.send_error(HTTPStatus.BAD_REQUEST)
+            return
+        if not path.exists() or not path.is_file():
+            self.send_error(HTTPStatus.NOT_FOUND)
+            return
+        data: bytes = path.read_bytes()
+        content_type: str = mimetypes.guess_type(str(path))[0] or "application/octet-stream"
+        if content_type.startswith("text/") or path.suffix.lower() in {".js", ".json", ".css", ".svg"}:
+            content_type = f"{content_type}; charset=utf-8"
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("X-Content-Type-Options", "nosniff")
         self.end_headers()
         self.wfile.write(data)
 

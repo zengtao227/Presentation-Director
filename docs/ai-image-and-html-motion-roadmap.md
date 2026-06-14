@@ -448,14 +448,14 @@ PPTX/<task-slug>/assets/ai/
 
 ---
 
-## 8. html-ppt-skill 内部化策略
+## 8. pakco-html 内置策略
 
-**原则**：不安装、不导入、不直接调用 `lewislulu/html-ppt-skill` 的代码。只吸收其设计知识，内化为本项目的参考 catalog。
+**当前原则**：不安装全局 Claude/Codex skill；将 `pakco-html` 作为 Presentation Director 项目内置资源放在 `skills/html-deck/pakco-html/`，由 Director pipeline 直接引用 `assets/themes/`、`assets/animations/` 和 `assets/runtime.js`。
 
 **理由**：
-- 外部依赖引入维护成本和版本风险
-- 本项目的 HTML 路径已有 Reveal.js 5.1.0，功能足够
-- 知识内化后可根据本项目设计语言自由定制
+- 全局 skill 会形成独立生成路线，容易绕过 Director intake / brief confirmation / QA。
+- 项目内置资源让 `theme_key`、style picker、presenter mode 和最终 HTML bundling 有明确实现来源。
+- 旧的“只吸收知识、不导入代码”策略已被 pakco-html vendor 策略取代。
 
 ### 8.1 新增内部 Catalog 文件
 
@@ -699,9 +699,9 @@ python3 scripts/presentation_director.py serve-wait --task "slug" \
 
 ### Q5：是否避免直接依赖外部 `html-ppt-skill`？
 
-**设计上已经避免，catalog 方案是正确的**。
+**已更新：不再采用纯 catalog 方案。**
 
-三个 catalog 文件（theme/layout/animation）将外部知识内化为本项目的参考文档，不引入任何外部代码依赖。Reveal.js 5.1.0 已是本项目的既有依赖，HTML 输出能力来自 Reveal.js，不来自 `html-ppt-skill`。
+当前 HTML 输出能力来自项目内置 `skills/html-deck/pakco-html/`，不是全局 `html-ppt-skill` 或全局 Claude skill。catalog 文件仍作为主题、布局和动效选择参考，但 runtime、主题 CSS 和 presenter mode 由 bundled pakco-html 提供。
 
 **需要注意的是**：catalog 文件只是参考，不是代码。HTML 生成 prompt 需要引用 catalog 中的具体值（theme key、layout key、animation key），这意味着 Template C 需要相应升级，能够根据 `html_motion_level` + `html_motion_profile` 组合选择合适的 theme/layout/animation 组合。这个映射逻辑需要在 Template C 中明确写出，否则 catalog 会变成死文档。
 

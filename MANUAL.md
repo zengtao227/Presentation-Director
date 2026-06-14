@@ -39,7 +39,7 @@ Presentation Director 在生成之前插入一个结构化的决策层：
 | 模式 | 引擎 | 适合场景 |
 |------|------|----------|
 | `pptx` | Codex Presentations（artifact-tool） | 需要在 PowerPoint 中继续编辑 |
-| `html-revealjs` | Reveal.js 5.1.0 直写 | 浏览器演示、动画过渡、presenter mode、`?print-pdf` 导出 |
+| `html-revealjs` | pakco-compatible HTML deck | 浏览器演示、动画过渡、presenter mode、浏览器打印导出 |
 | `both` | 两者并行 | 同时交付可编辑 PPTX 和浏览器版本 |
 
 PPTX 模式**必须**在 Codex 环境下使用 Presentations 插件，不支持 python-pptx 或 pptxgenjs 降级。HTML 模式在任何有 Python 的环境下均可运行。
@@ -693,7 +693,7 @@ PPTX/<task-slug>/
 ├── assets/
 │   └── images/               # AI 生成或手动放置的图片
 ├── v1/
-│   ├── final.html            # Reveal.js HTML 输出
+│   ├── final.html            # HTML deck 输出
 │   ├── final.pptx            # PPTX 输出
 │   ├── slides/               # per-slide PNG 预览
 │   ├── contact-sheet.png     # 缩略图总览

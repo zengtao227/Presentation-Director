@@ -196,13 +196,19 @@ Use this repository's skills/pptx/SKILL.md pptxgenjs workflow to generate an edi
 
 ---
 
-## Template C — Native Reveal.js HTML Deck
+## Template C — Pakco-Compatible HTML Deck
 
 Use this when the target output is an HTML presentation for online sharing — not when an editable PPTX is required.
 
 ```
-Generate a native Reveal.js 5.1.0 HTML presentation deck.
-Internal catalogs (do NOT import as runtime dependencies):
+Generate a pakco-compatible HTML presentation deck.
+Bundled runtime assets:
+- skills/html-deck/pakco-html/assets/fonts.css
+- skills/html-deck/pakco-html/assets/base.css
+- skills/html-deck/pakco-html/assets/themes/<theme_key>.css
+- skills/html-deck/pakco-html/assets/animations/animations.css
+- skills/html-deck/pakco-html/assets/runtime.js
+Internal catalogs:
 - skills/deck-builder/references/html-theme-catalog.md
 - skills/deck-builder/references/html-layout-catalog.md
 - skills/deck-builder/references/html-animation-catalog.md
@@ -220,12 +226,9 @@ Internal catalogs (do NOT import as runtime dependencies):
 - Do not fabricate numbers, logos, or missing data
 
 [Build Requirements]
-- CDN (pinned): reveal.js@5.1.0 reset.css, reveal.css, a built-in theme, reveal.js
-  Plus Notes plugin: import RevealNotes from https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/notes/notes.esm.js
-  Init: Reveal.initialize({ transition: "<from html_config>", plugins: [RevealNotes] });
-- Theme: use html_config.theme_key from brief; implement as CSS :root token variables:
-  :root { --deck-bg: …; --deck-ink: …; --deck-muted: …; --deck-accent: …; --deck-accent-2: …; --deck-line: …; }
-  Consume tokens everywhere; no per-slide hard-coded hex values.
+- Runtime: use pakco `.deck` / `.slide` markup and include or inline `assets/runtime.js`.
+- Theme: use html_config.theme_key from brief; resolve it to bundled `assets/themes/<theme_key>.css`.
+  Consume pakco tokens everywhere (`--bg`, `--surface`, `--text-1`, `--text-2`, `--accent`, `--accent-2`, `--grad`); no per-slide hard-coded hex values.
 - Safe-area (required on every slide):
   .slide-safe { position:absolute; left:54px; top:70px; width:1172px; height:590px; }
   .bleed { position:absolute; inset:0; }  /* AI background images only */

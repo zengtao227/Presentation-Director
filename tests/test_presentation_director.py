@@ -188,6 +188,27 @@ class HtmlStructuralWarningsTest(unittest.TestCase):
 
 
 class PreviewReviewGateTest(unittest.TestCase):
+    def test_init_renders_pages_before_v1_exists(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(MODULE_PATH),
+                    "--base-dir",
+                    tmp_dir,
+                    "init",
+                    "--task",
+                    "init-check",
+                    "--topic",
+                    "Init check",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertTrue((Path(tmp_dir) / "Decks" / "init-check" / "style-review.html").exists())
+
     def test_render_open_preview_review_blocks_bad_html(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             base_dir: Path = Path(tmp_dir)
@@ -304,6 +325,28 @@ class SecurityRegressionTest(unittest.TestCase):
                 finally:
                     response.close()
 
+    def test_pakco_style_picker_is_served_without_static_preview_csp(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            task_dir: Path = write_task(Path(tmp_dir), "<html><body>ok</body></html>")
+            with run_director_server(task_dir) as (host, port):
+                response = urlopen(f"http://{host}:{port}/pakco-html/templates/style-picker.html", timeout=2)
+                try:
+                    body: str = response.read().decode("utf-8")
+                    self.assertIn("pakco.html", body)
+                    self.assertNotIn("Content-Security-Policy", response.headers)
+                finally:
+                    response.close()
+
+    def test_final_selection_copies_html_deck_assets(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            task_dir: Path = write_task(Path(tmp_dir), "<html><body>ok</body></html>")
+            version_assets: Path = task_dir / "v1" / "assets"
+            version_assets.mkdir()
+            (version_assets / "runtime.js").write_text("window.__pd_asset_test = true;", encoding="utf-8")
+            payload: dict[str, object] = PD.finalize_selected_version(task_dir, "v1")
+            self.assertEqual(str(task_dir / "final" / f"{task_dir.name}.html"), payload["final_html"])
+            self.assertTrue((task_dir / "final" / "assets" / "runtime.js").exists())
+
     def test_preview_review_post_requires_workflow_token(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             task_dir: Path = write_task(Path(tmp_dir), "<html><body>ok</body></html>")
@@ -384,6 +427,27 @@ class SecurityRegressionTest(unittest.TestCase):
             )
             with self.assertRaises(ValueError):
                 GI.target_output_path(task_dir, {"id": "cover", "output_path": str(Path(tmp_dir) / "escape.png")})
+
+    def test_pakco_assets_served_as_fallback_from_version_dir(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            task_dir: Path = write_task(Path(tmp_dir), "<html><body>ok</body></html>")
+            with run_director_server(task_dir) as (host, port):
+                response = urlopen(f"http://{host}:{port}/static/v1/assets/runtime.js", timeout=2)
+                try:
+                    body: bytes = response.read()
+                    self.assertGreater(len(body), 100)
+                    self.assertNotIn("Content-Security-Policy", response.headers)
+                finally:
+                    response.close()
+
+    def test_pakco_asset_fallback_blocks_path_traversal(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            task_dir: Path = write_task(Path(tmp_dir), "<html><body>ok</body></html>")
+            with run_director_server(task_dir) as (host, port):
+                with self.assertRaises(HTTPError) as raised:
+                    urlopen(f"http://{host}:{port}/static/v1/assets/../brief-confirmed.json", timeout=2)
+                self.assertIn(raised.exception.code, {HTTPStatus.BAD_REQUEST, HTTPStatus.NOT_FOUND})
+                raised.exception.close()
 
     def test_safe_area_checker_fails_on_empty_layout_directory(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

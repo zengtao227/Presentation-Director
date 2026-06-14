@@ -11,7 +11,7 @@ Presentation Director 是一个把主题、文章、知识文稿、书籍摘要�
 - 可在 PowerPoint 中继续编辑
 - 有渲染预览和 QA 证据的 `.pptx`
 
-同时，`deck-builder` 已把 Reveal.js HTML deck 纳入 first-class 输出路径：当用户需要浏览器演示、动画过渡、presenter mode 或 `?print-pdf` 导出时，可以选择 `output_format = "html-revealjs"`；当需要可编辑交付时选择 `pptx`；需要两者时选择 `both`。
+同时，`deck-builder` 已把 HTML deck 纳入 first-class 输出路径：当用户需要浏览器演示、动画过渡、presenter mode 或浏览器打印导出时，可以选择 `output_format = "html-revealjs"`；当需要可编辑交付时选择 `pptx`；需要两者时选择 `both`。`html-revealjs` 是兼容旧 brief 的输出格式名；实现层优先使用项目内置 `skills/html-deck/pakco-html/` 的主题、动画和 runtime。
 
 ## 主要术语
 
@@ -58,7 +58,7 @@ $HOME/.codex/plugins/cache/openai-primary-runtime/presentations/*/skills/present
 
 ### Presentation Director
 
-Codex 环境下创建全新演示文稿前的交互增强层。它不直接生成 PPTX 或 HTML，而是先用点击式 intake 收集输出格式、听众、目标、资料路径或网页地址、资料研究策略、资料边界、内容语言、logo/品牌素材、AI 生图许可、页数/时长限制和视觉方向，再通过 brief confirmation gate 让用户确认，之后才按 `output_format` 路由到 Reveal.js HTML 直写、Codex Presentations 或两者并行。
+Codex 环境下创建全新演示文稿前的交互增强层。它不直接生成 PPTX 或 HTML，而是先用点击式 intake 收集输出格式、听众、目标、资料路径或网页地址、资料研究策略、资料边界、内容语言、logo/品牌素材、AI 生图许可、页数/时长限制和视觉方向，再通过 brief confirmation gate 让用户确认，之后才按 `output_format` 路由到 pakco-compatible HTML deck、Codex Presentations 或两者并行。
 
 Director 的沟通界面语言和 PPT 正文语言是两个不同概念：`ui_language` 默认根据当前对话文本自动检测，用于 intake、visual-inspiration、confirm、style-review、compare 等 HTML gate 页面和按钮文案；`content_language` 用于控制 PPT 正文、标题和讲稿语言。运行 `init` 时应传入最近用户请求作为 `--conversation-text`，让自动打开的 HTML 页面跟随用户对话语言。
 
@@ -89,9 +89,9 @@ Codex 交互式全新 PPTX 请求必须打开确认页并自动等待用户在 H
 
 - `design-locks/`：稳定的颜色、字体、版式约束。
 - `ui-ux-pro-max`：行业/场景匹配、配色、字体、图表和 UX 风险。
-- HTML deck / UI 生成项目经验：3 候选预览、theme/layout catalog、locked visual system、图片槽位和 QA 规则。
+- `skills/html-deck/pakco-html/`：可视化 style picker、主题 CSS、layout catalog、动画和 presenter runtime。
 
-每个候选至少说明适用场景、不适用场景、色板、背景策略、标题/字体风格、图表语法、图片策略、借鉴来源和风险。当 `output_format` 为 `"html-revealjs"` 或 `"both"` 时，候选还应显示 Reveal.js 的 `html_transition`、`html_animation` 和 `html_gradient`。用户选定后，再进入 brief confirmation 和按格式路由生成。
+每个候选至少说明适用场景、不适用场景、色板、背景策略、标题/字体风格、图表语法、图片策略、借鉴来源和风险。当 `output_format` 为 `"html-revealjs"` 或 `"both"` 时，Visual Inspiration Gate 应优先复用 pakco-html 的可视化预览和主题 key，显示 `theme_key`、`transition`、`animation` 和背景策略。用户选定后，再进入 brief confirmation 和按格式路由生成。
 
 对于 Codex 里的 net-new PPTX 请求，默认路径必须先走 Presentation Director，不应直接调用 Presentations 生成。只有以下情况可以跳过：
 
@@ -164,26 +164,25 @@ output_format: "html-revealjs" | "pptx" | "both"
 - 发现重叠后必须修复并重新渲染受影响页面；QA summary 中要写明修复前问题、修复动作和复检结果。
 - 没有渲染证据、安全区检查和 no-overlap 检查结果时，不得把 PPTX 标记为完成。
 
-### HTML Deck（Reveal.js 主输出）
+### HTML Deck（pakco-html 主输出）
 
-当 `output_format` 为 `"html-revealjs"` 或 `"both"` 时，以 Reveal.js 5.1.0 生成完整可演示的 HTML 文件作为主输出（或与 PPTX 并行的输出）。
+当 `output_format` 为 `"html-revealjs"` 或 `"both"` 时，以项目内置 `skills/html-deck/pakco-html/` 生成完整可演示的 HTML 文件作为主输出（或与 PPTX 并行的输出）。`html-revealjs` 保留为历史兼容格式名；新产物应使用 pakco-html 的 `.deck` / `.slide` runtime、主题 CSS 和 presenter mode。
 
 这不同于每个 PPTX 附带的只读 HTML Companion；HTML Deck 是功能完整的演示引擎：
 
-- 支持动画过渡（slide / fade / zoom / convex）
+- 支持主题切换和键盘翻页
 - 支持 CSS 渐变背景（PPTX 不可用）
-- 支持 auto-animate（元素平滑变形）
 - 支持 presenter mode（按 S 键）
-- 支持 `?print-pdf` 导出
+- 支持浏览器打印导出
 - 输出为单 `.html` 文件，浏览器打开即用，无需安装
 
-生成层：Claude/Codex 直接写 Reveal.js HTML。不要调用 Codex Presentations plugin，不依赖 `html-ppt-skill` 或 `guizang-ppt-skill`。
+生成层：Claude/Codex 写 pakco-compatible HTML deck。不要调用 Codex Presentations plugin 生成 HTML。必须使用 Director 项目内的 `skills/html-deck/pakco-html/assets/fonts.css`、`assets/base.css`、`assets/themes/<theme_key>.css`、`assets/animations/animations.css` 和 `assets/runtime.js`；不从全局 `.claude/skills` 安装或引用 pakco-html。
 
 输出路径：每个候选版本先写入 `Decks/<task-slug>/vN/final.html`；用户最终选择后，复制到 `Decks/<task-slug>/final/<task-slug>.html`。
 
 ### HTML Companion
 
-最终 `.pptx` 的只读分享版。它由最终版本的逐页渲染图生成，PPTX-only 输出时保存为 `Decks/<task-slug>/final/<task-slug>-companion.html`，方便浏览器打开或简单分享。它不是编辑源，也不是 HTML deck 引擎的替代品；如果 PPTX 内容被修改，应从修改后的 PPTX 或重新渲染的逐页预览图再生成一次 HTML companion。`output_format="both"` 时，`final/<task-slug>.html` 是 Reveal.js Deck，不再单独生成 companion。
+最终 `.pptx` 的只读分享版。它由最终版本的逐页渲染图生成，PPTX-only 输出时保存为 `Decks/<task-slug>/final/<task-slug>-companion.html`，方便浏览器打开或简单分享。它不是编辑源，也不是 HTML deck 引擎的替代品；如果 PPTX 内容被修改，应从修改后的 PPTX 或重新渲染的逐页预览图再生成一次 HTML companion。`output_format="both"` 时，`final/<task-slug>.html` 是 pakco-compatible HTML Deck，不再单独生成 companion。
 
 ### AI Image Gates
 
@@ -197,18 +196,18 @@ Image Style Gate 完成后，`brief-confirmed.json` 的 `html_config` 对象包�
 
 | 字段 | 说明 |
 |---|---|
-| `theme_key` | 选定的 HTML 主题（如 `aurora`、`blueprint`、`academic-paper`）；用户可在 Image Style Gate 手动选，否则由 Visual Direction 候选自动推断 |
+| `theme_key` | 选定的 pakco-html 主题（如 `aurora`、`blueprint`、`academic-paper`）；映射到 `skills/html-deck/pakco-html/assets/themes/<theme_key>.css` |
 | `motion_level` | 动效强度：`subtle`（仅 fade/rise-in）、`expressive`（加 zoom-pop/counter-up）、`cinematic`（封面/章节/结束页可用 spotlight/kenburns，CSS-only） |
 | `motion_profile` | 风格家族：`pitch`、`tech`、`editorial`、`product`、`presenter` |
 | `layout_families` | 推荐布局序列（来自 html-layout-catalog.md），如 `["cover-hero","architecture-map","flow-diagram","code-terminal","timeline"]` |
-| `transition` | Reveal.js 页面切换效果（`fade`/`slide`/`zoom`/`convex`）|
+| `transition` | HTML deck 页面切换意图；实现时使用 pakco runtime 的默认 slide/fade 行为和 CSS 动效 |
 | `effects_runtime` | 固定为 `css-only`；Canvas/WebGL 为未来能力 |
 
 生成 HTML 时必须遵守：
-- 用 CSS `:root` 变量实现主题 token（`--deck-bg`、`--deck-ink`、`--deck-muted`、`--deck-accent`、`--deck-accent-2`、`--deck-line`）
-- 所有文字/图表/表格放在 `.slide-safe`（left:54px; top:70px; width:1172px; height:590px）
-- AI 背景图用 `.bleed`（position:absolute; inset:0）
-- 加载 Reveal.js Notes plugin；每页有 `<aside class="notes">`
+- 用 pakco-html token（`--bg`、`--surface`、`--text-1`、`--text-2`、`--accent`、`--accent-2`、`--grad`）消费主题，不再每次从零写内联主题 CSS。
+- 每页使用 `<section class="slide" data-title="...">`；正文内容必须放进可控版心，避免溢出。
+- 每页写 `<aside class="notes">` 或 `<div class="notes">`，由 `assets/runtime.js` 的 S 键 presenter mode 读取。
+- final.html 可链接相对资源，也可在最终打包时内联 pakco CSS/JS；无论哪种方式，都必须随版本目录保留可打开的资源路径。
 - 数据幻灯片使用 Chart.js 4.x，直接数据标签，不用图例
 
 pre-v1 图片默认使用 `skills/deck-builder/scripts/generate_images.py show` 在对话中展示 prompt，然后用 `place --source/--target-id` 或 `place --sources` 注册用户提供的任意路径图片。自动后端保留给显式选择和测试使用。
@@ -249,7 +248,7 @@ Brief Confirmation Gate（open page and wait for user）
 Image Style Gate（写入 image_generation_mode / image-plan.json；必要时 pre-v1 生图）
     ↓
 Generation — route by output_format
-    ├─ html-revealjs → Claude/Codex writes Reveal.js HTML directly to v1/final.html
+    ├─ html-revealjs → Claude/Codex writes pakco-compatible HTML deck to v1/final.html
     ├─ pptx → Codex Presentations runtime 写 v1/final.pptx（先查 session plugin，再查 bundled runtime；缺 runtime 则停止）
     └─ both → PPTX first via Codex Presentations runtime, then HTML to v1/final.html（缺 runtime 则停止）
     ↓
@@ -276,12 +275,12 @@ scripts/macos/powerpoint-grant-access-watcher.sh 180 &
 
 在 Codex 环境中，`deck.md`、`design-locks` 和 `ui-ux-pro-max` 都可以作为可选的中间资料或风格约束，但不再是全新 PPTX 第一版生成前的硬性步骤。第一版应优先让 Presentations plugin 根据 confirmed brief 自主完成内容组织、设计系统、contact sheet rhythm 和渲染 QA。
 
-如果目标是在线分享而非 PowerPoint 编辑，生成层可以走 Reveal.js HTML deck 路由。注意这不同于每个 PPTX 最终都会附带的只读 HTML companion；HTML deck 路由是把 HTML 作为主输出。
+如果目标是在线分享而非 PowerPoint 编辑，生成层可以走 pakco-compatible HTML deck 路由。注意这不同于每个 PPTX 最终都会附带的只读 HTML companion；HTML deck 路由是把 HTML 作为主输出。
 
 ```text
 deck.md
     ↓
-Reveal.js 5.1.0 HTML generation spec
+pakco-html runtime + theme assets
     ↓
 browser QA / screenshot / text-overflow check
     ↓
