@@ -75,9 +75,21 @@ Checked after generation — mandatory before declaring done.
 | Safe area respected | All normal content sits inside `.slide-safe`; `.bleed` is used only for backgrounds or intentional full-bleed media | Move content into `.slide-safe`, constrain media/code blocks, or split the slide |
 | Text overflow absent | No text clips or wraps unexpectedly | Fix font size or container width |
 | Visual rhythm consistent | No abrupt style break between slides | Check section openers and content slides |
-| Draft / preview HTML vs final HTML not confused | Final output is in `PPTX/<task-slug>/final/`, not a temporary draft or preview location | Verify file path |
+| Speaker notes hidden | `.notes` elements are not visible on slides; `display: none` is set in the CSS style block | Add `.notes { display: none; }` to the inline `<style>` block |
+| Slide count matches `data-total` | Count of `<section class="slide">` equals the `data-total` value on every footer | Fix `data-total` or add missing slides before delivery |
+| `data-current` sequential | Slides are numbered 1 through N with no gaps or duplicates | Grep for `data-current` and compare against expected sequence |
+| Footer language consistent | Footer text language matches the deck's declared `content_language` | Rewrite mixed-language footers to match deck language |
+| Final HTML at correct path | `Decks/<task-slug>/<task-slug>.html` exists for standalone output; `Decks/<task-slug>/v1/final.html` for versioned output | Move or rename file |
 
-**Minimum evidence:** Contact sheet path (PPTX) or browser screenshot (HTML) included in completion report.
+**Mandatory validator — run before declaring any HTML deck done:**
+
+```bash
+python3 skills/deck-builder/scripts/validate_html_deck.py <path-to-html>
+```
+
+This script catches failures that grep and visual inspection miss (smart/curly quotes in attributes, slide count mismatch, sequence gaps, visible notes). Exit code must be 0. Do not report complete if it fails.
+
+**Minimum evidence:** Validator PASS output + browser screenshot included in completion report.
 
 ### Default Safe Area
 
@@ -100,11 +112,12 @@ Checked last, after render gate passes.
 
 | Check | Pass Condition | Failure Action |
 |-------|---------------|----------------|
-| Final PPTX at correct path | `PPTX/<task-slug>/final/<task-slug>.pptx` exists for PPTX output | Move or rename file |
-| Final HTML companion at correct path | `PPTX/<task-slug>/final/<task-slug>-companion.html` exists for PPTX-only output | Generate from selected version's per-slide preview images |
-| Final HTML deck at correct path | `PPTX/<task-slug>/final/<task-slug>.html` exists for HTML deck output | Move or rename file |
-| `deck.md` saved | Source of truth file is committed or saved | Save before closing |
-| Sidecar artifacts saved | `slide-plan.md`, contact sheet, QA notes retained for traceability | Save or copy into `PPTX/<task-slug>/` |
+| Final PPTX at correct path | `Decks/<task-slug>/v1/<task-slug>.pptx` exists for PPTX output | Move or rename file |
+| Final HTML companion at correct path | `Decks/<task-slug>/v1/<task-slug>-companion.html` exists for PPTX-only output | Generate from selected version's per-slide preview images |
+| Final HTML deck at correct path | `Decks/<task-slug>/v1/final.html` or `项目演示文稿/<task-slug>/<task-slug>.html` exists for HTML deck output | Move or rename file |
+| Deck workspace matches project structure | For standalone delivery decks, path is `项目演示文稿/<project-name>/`; for task-bound decks, path is `Decks/<task-slug>/` | Confirm correct workspace before copying |
+| `brief-confirmed.json` saved | Source execution contract is committed or saved | Save before closing |
+| Sidecar artifacts saved | Lock files, contact sheet, QA notes retained for traceability | Save or copy into `Decks/<task-slug>/` |
 | Remaining risks documented | Any known open issues stated in completion report | Write risk list before handing off |
 
 **Minimum evidence:** Final completion report includes: PPTX absolute path when applicable, HTML path, render evidence, remaining risks for human review.
@@ -125,6 +138,10 @@ These patterns are automatic gate failures. Do not declare done if any are prese
 | Architecture diagram is a screenshot | Render Gate | Cannot be edited by user |
 | `PPTX/<task-slug>/final/deck.html` is a temporary draft or preview artifact | Output Gate | Non-final artifact confused with final output |
 | No contact sheet or browser screenshot | Render Gate | No render evidence |
+| `.notes` content is visible on slides | Render Gate | Speaker notes must never render in main slide view; add `display: none` |
+| `data-total` does not match actual slide count | Render Gate | Navigator and footer show wrong count; grep to verify before delivery |
+| Footer text is in a different language from the deck | Render Gate | Language inconsistency destroys audience trust; fix before delivery |
+| Slides described as added but not present in file | Render Gate | Declared work that was not done; count `data-current` attributes before reporting complete |
 
 ---
 

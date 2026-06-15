@@ -66,6 +66,27 @@ Director 交互页应自动打开，不要让用户复制本地 URL、粘贴 JSO
 
 Codex 交互式全新 PPTX 请求必须打开确认页并自动等待用户在 HTML 中点击确认；agent 不得要求用户复制/粘贴、不得要求用户回聊天里回复“已确认”，也不得自己 POST `/api/confirm`、直接写入 `brief-confirmed.json` 或 `confirmed.ready` 来代替用户确认。只有用户明确说“跳过确认/直接生成/不用等我确认”时，才允许后台确认。`style-review` 和 `compare` 也应使用 HTML 点击 + 状态文件恢复；可用 `presentation_director.py open-page` 或 `render --open-page ...` 打开页面。
 
+### Director Lock Protocol
+
+Presentation Director 的核心设计流程是先锁定内容，再锁定形式，再锁定内容与形式的结合，最后才执行生成。外部设计来源和素材库只能在锁定阶段提供输入；生成器只读取已确认的合同和配置，不得重新访问外部素材源做设计判断。
+
+```text
+Content Lock
+    ↓
+Form Lock
+    ↓
+Composition Lock
+    ↓
+Generation
+```
+
+- **Content Lock**：固定讲什么，包括 source boundary、research strategy、audience、goal、thesis、slide claims、proof objects、omission notes、content language、output constraints。
+- **Form Lock**：固定怎么呈现，包括密度、视觉气质、色板、字体方向、布局家族、图表语言、图片策略、动效强度。默认使用内置设计情报、design-locks 和 pakco-html；Figma 只在用户已有真实 Figma 文件、品牌素材、截图或本地导出时作为可选参考输入，不做默认素材召回。
+- **Composition Lock**：固定每一页“用哪种形式表达哪段内容”，包括 slide id、claim、proof object、layout family、visual treatment、asset/image target、notes 和不可编造项。
+- **Generation**：按 `brief-confirmed.json`、`brief/visual-contract.md` 和 lock 文件执行，不再重新运行设计筛选或从 Figma / ui-ux-pro-max / pakco theme sources 直接取新意见。
+
+`brief-confirmed.json` 是机器执行的编译产物和 guard 的权威输入；`brief/content-lock.md`、`brief/form-lock.md`、`brief/composition-lock.md` 和 `brief/visual-contract.md` 是人可读的编辑源。交互式流程仍以用户点击确认写入 `confirmed.ready`，再由 guard 写入 `guard-passed.ready` 作为开始生成的信号。若兼容旧流程需要在确认后运行 Image Style Gate，它只能作为 late lock supplement 补写图片、HTML 主题、动效和 asset binding 字段，并必须在 Generation 前反映到 `brief-confirmed.json` 和对应 lock 文件。
+
 ### Research Strategy Gate
 
 当用户只给主题、没有给可直接使用的资料包时，不要马上开始 PPTX 生成。Presentation Director 应先让用户选择资料获取策略：
@@ -107,6 +128,9 @@ Codex 交互式全新 PPTX 请求必须打开确认页并自动等待用户在 H
 Decks/<task-slug>/
   brief/
     draft-brief.json
+    content-lock.md
+    form-lock.md
+    composition-lock.md
     visual-contract.md
   sources/
   intake.html
@@ -151,7 +175,7 @@ Codex Presentations 插件内部可能仍按插件规则使用 `outputs/<thread-
 output_format: "html-revealjs" | "pptx" | "both"
 ```
 
-已确认 brief 中的 `output_format` 是生成路由的真实来源。确认之后如果用户在聊天中改口要求 HTML ↔ PPTX ↔ both，不得直接沿用旧 brief 生成另一种格式；必须重新打开确认页更新 brief，或得到用户明确的“跳过确认/直接改成 <format>”指令，并在最终报告里记录该覆盖来源。
+已确认 brief 中的 `output_format` 是生成路由的真实来源。`brief-confirmed.json` 可以由 lock 文件和用户确认结果编译而来，但生成层和 guard 不直接依赖 Figma、ui-ux-pro-max 或 pakco 的原始输出。确认之后如果用户在聊天中改口要求 HTML ↔ PPTX ↔ both，不得直接沿用旧 brief 生成另一种格式；必须重新打开确认页更新 brief，或得到用户明确的“跳过确认/直接改成 <format>”指令，并在最终报告里记录该覆盖来源。
 
 ### Layout QA / Safe Area / No Overlap Gate
 
@@ -234,18 +258,30 @@ Claude Code / 本地代理也要遵守同一套前置确认原则：内容语言
 
 ## 当前推荐路径
 
+新协议使用四个 lock gate 描述本质流程，但保留现有 gate 名称以兼容脚本、文档和用户界面。旧 gate 的归属如下：
+
+| 现有 gate | 新归属 | 说明 |
+|---|---|---|
+| Research Strategy Gate | Content Lock 子步骤 | 决定资料边界、研究策略、可用来源和不可编造项。 |
+| Visual Inspiration Gate | Form Lock Gate | 决定视觉方向。默认使用内置设计情报和 pakco-html；HTML / both 只有在用户主动提供真实 Figma / 品牌素材 / 截图参考时才把它作为外部参考输入。 |
+| Brief Confirmation Gate | Composition Lock 主确认点 | 用户确认内容、形式、逐页组合和输出格式后，写入 `brief-confirmed.json`、`confirmed.ready`，再由 guard 写 `guard-passed.ready`。 |
+| Image Style Gate | Form Lock + Composition Lock 的 late supplement | 图片风格、HTML 主题、动效属于 Form Lock；具体图片目标、pre-v1 资产绑定和 `image-plan.json` 属于 Composition Lock。旧流程若在 Brief Confirmation 后运行它，必须在 Generation 前写回 `brief-confirmed.json` 和 lock 文件。 |
+| Post-v1 Image Placement Gate | Generation 后的修订 gate | 仅在 `post-v1-slot-review` / `hybrid` 时基于 v1 preview 写 v2，不改变锁定协议本身。 |
+
 ```text
 Source Material
     ↓
 Presentation Director intake（含 output_format 选择）
     ↓
-Research Strategy Gate
+Content Lock（含 Research Strategy Gate）
     ↓
-Visual Inspiration Gate（HTML 格式时展示 transition / animation / gradient 字段）
+Form Lock（含 Visual Inspiration Gate；HTML / both 可选使用用户提供的 Figma / 品牌参考）
     ↓
-Brief Confirmation Gate（open page and wait for user）
+Composition Lock（把内容和形式逐页绑定；产出 composition-lock.md / visual-contract.md）
     ↓
-Image Style Gate（写入 image_generation_mode / image-plan.json；必要时 pre-v1 生图）
+Brief Confirmation Gate（open page and wait for user；编译 brief-confirmed.json）
+    ↓
+Image Style Gate（如需要，作为 late lock supplement 补写 image_generation_mode / image-plan.json；必要时 pre-v1 生图）
     ↓
 Generation — route by output_format
     ├─ html-revealjs → Claude/Codex writes pakco-compatible HTML deck to v1/final.html

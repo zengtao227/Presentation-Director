@@ -288,6 +288,182 @@ class PreviewReviewGateTest(unittest.TestCase):
             self.assertFalse(PD.v1_preview_exists(task_dir, "both"))
             self.assertTrue(any("final.html" in error for error in PD.preview_review_gate_errors(task_dir)))
 
+    def test_generation_guard_allows_missing_v1_before_generation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            task_dir: Path = Path(tmp_dir) / "Decks" / "pre-v1-task"
+            (task_dir / "status").mkdir(parents=True)
+            brief: dict[str, object] = {
+                "confirmed": True,
+                "output_format": "html-revealjs",
+                "image_policy": "none",
+                "image_generation_mode": "none",
+                "confirmation_gate": {
+                    "method": "browser-form",
+                    "confirmed_by": "user-click",
+                    "token_verified": True,
+                },
+            }
+            (task_dir / "brief-confirmed.json").write_text(json.dumps(brief), encoding="utf-8")
+            (task_dir / "status" / "confirmed.ready").write_text("ready\n", encoding="utf-8")
+            (task_dir / "status" / "images-style.ready").write_text("ready\n", encoding="utf-8")
+            self.assertEqual([], PD.validate_generation_guard(task_dir))
+
+
+class OptionalFigmaReferenceTest(unittest.TestCase):
+    def test_init_renders_optional_reference_page_without_default_stdout_step(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(MODULE_PATH),
+                    "--base-dir",
+                    tmp_dir,
+                    "init",
+                    "--task",
+                    "figma-gate",
+                    "--topic",
+                    "教师课程介绍",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(0, result.returncode, result.stderr)
+            task_dir: Path = Path(tmp_dir) / "Decks" / "figma-gate"
+            self.assertTrue((task_dir / "figma-source.html").exists())
+            self.assertNotIn("Figma source", result.stdout)
+            intake_html: str = (task_dir / "intake.html").read_text(encoding="utf-8")
+            self.assertIn("figma-source", intake_html)
+
+    def test_default_intake_goes_to_visual_and_records_internal_design_source(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            base_dir: Path = Path(tmp_dir)
+            args = command_args(
+                base_dir,
+                "init",
+                task="default-flow",
+                topic="给教师使用的 Presentation Director",
+                source=[],
+                ui_language="zh",
+                conversation_text="教师 课程 课件",
+                mode="new",
+            )
+            PD.command_init(args)
+            task_dir: Path = base_dir / "Decks" / "default-flow"
+            token: str = (task_dir / "status" / "confirm.token").read_text(encoding="utf-8").strip()
+            with run_director_server(task_dir) as (host, port):
+                base_url: str = f"http://{host}:{port}"
+                intake_body: bytes = post_form(
+                    base_url,
+                    "/api/intake",
+                    {
+                        "director_token": token,
+                        "topic": "给教师使用的 Presentation Director",
+                        "deck_type": "knowledge-teaching",
+                        "output_format": "html-revealjs",
+                        "audience": "teachers-researchers",
+                        "goal": "teaching",
+                        "source_boundary": "provided-only",
+                        "research_strategy": "provided-materials",
+                        "content_language": "zh",
+                        "output_constraints": "pages-8-10",
+                        "logo_policy": "none",
+                        "image_policy": "none",
+                        "visual_freedom": "academic-editorial",
+                        "reference_deck": "none",
+                    },
+                )
+                html: str = intake_body.decode("utf-8")
+                self.assertIn("选择第一版视觉方向", html)
+                self.assertNotIn("选择 Figma-assisted", html)
+            self.assertFalse((task_dir / "figma-source-packet.json").exists())
+            selected: dict[str, object] = json.loads((task_dir / "intake-selection.json").read_text(encoding="utf-8"))
+            design_source: dict[str, object] = selected["design_source"]  # type: ignore[assignment]
+            self.assertEqual("internal", design_source["mode"])
+            self.assertFalse(design_source["figma_required"])
+
+    def test_optional_figma_reference_writes_packet_and_confirmed_design_source(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            base_dir = Path(tmp_dir)
+            args = command_args(
+                base_dir,
+                "init",
+                task="reference-flow",
+                topic="客户品牌介绍",
+                source=[],
+                ui_language="zh",
+                conversation_text="客户 品牌 Figma",
+                mode="new",
+            )
+            PD.command_init(args)
+            task_dir = base_dir / "Decks" / "reference-flow"
+            token: str = (task_dir / "status" / "confirm.token").read_text(encoding="utf-8").strip()
+            with run_director_server(task_dir) as (host, port):
+                base_url: str = f"http://{host}:{port}"
+                reference_body: bytes = post_form(
+                    base_url,
+                    "/api/intake",
+                    {
+                        "director_token": token,
+                        "next_step": "figma-source",
+                        "topic": "客户品牌介绍",
+                        "deck_type": "sales-product",
+                        "output_format": "html-revealjs",
+                        "audience": "clients-buyers",
+                        "goal": "explain-value",
+                        "source_boundary": "provided-only",
+                        "research_strategy": "provided-materials",
+                        "content_language": "zh",
+                        "output_constraints": "pages-8-10",
+                        "logo_policy": "provided-only",
+                        "image_policy": "none",
+                        "visual_freedom": "brand-safe",
+                        "reference_deck": "none",
+                    },
+                )
+                self.assertIn("可选：使用 Figma", reference_body.decode("utf-8"))
+                visual_body: bytes = post_form(
+                    base_url,
+                    "/api/figma-source",
+                    {
+                        "director_token": token,
+                        "figma_source_mode": "figma-url",
+                        "figma_url": "https://www.figma.com/design/example/brand",
+                        "figma_source_notes": "只吸收品牌色和组件气质，不照搬模板",
+                    },
+                )
+                self.assertIn("外部设计参考", visual_body.decode("utf-8"))
+                selected: dict[str, object] = json.loads((task_dir / "intake-selection.json").read_text(encoding="utf-8"))
+                selections = selected["selections"] if isinstance(selected["selections"], dict) else {}
+                figma_packet = selected["figma_source_packet"] if isinstance(selected["figma_source_packet"], dict) else {}
+                candidate_key: str = PD.build_visual_candidates("客户品牌介绍", selections, figma_packet)[0].key
+                post_form(
+                    base_url,
+                    "/api/visual-inspiration",
+                    {
+                        "director_token": token,
+                        "visual_candidate": candidate_key,
+                    },
+                )
+                post_form(
+                    base_url,
+                    "/api/confirm",
+                    {
+                        "director_token": token,
+                        "confirm_token": token,
+                    },
+                )
+            packet: dict[str, object] = json.loads((task_dir / "figma-source-packet.json").read_text(encoding="utf-8"))
+            self.assertEqual("figma-url", packet["source_status"])
+            self.assertFalse(packet["runtime_dependency"])
+            self.assertIn("figma_source_packet", selected)
+            design_source: dict[str, object] = selected["design_source"]  # type: ignore[assignment]
+            self.assertEqual("figma-url", design_source["mode"])
+            self.assertFalse(design_source["figma_required"])
+            confirmed: dict[str, object] = json.loads((task_dir / "brief-confirmed.json").read_text(encoding="utf-8"))
+            confirmed_design_source: dict[str, object] = confirmed["design_source"]  # type: ignore[assignment]
+            self.assertEqual("figma-url", confirmed_design_source["mode"])
+
 
 class SecurityRegressionTest(unittest.TestCase):
     def test_static_does_not_serve_confirmation_token(self) -> None:

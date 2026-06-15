@@ -8,14 +8,17 @@ When design guidance conflicts, agents must resolve it in this order:
 
 ```text
 User's explicit instruction
-> PPTX/<task-slug>/brief-confirmed.json
-> PPTX/<task-slug>/brief/visual-contract.md
+> Decks/<task-slug>/brief-confirmed.json
+> Decks/<task-slug>/brief/composition-lock.md
+> Decks/<task-slug>/brief/visual-contract.md
+> Decks/<task-slug>/brief/form-lock.md
+> Decks/<task-slug>/brief/content-lock.md
 > this root DESIGN.md
 > design-locks / ui-ux-pro-max / Claude Design or designer-skills advice
 > agent aesthetic preference
 ```
 
-Task-level decisions always beat global style advice. This root document should guide default behavior, not freeze every deck into one visual template.
+Task-level decisions always beat global style advice. `brief-confirmed.json` is the machine execution contract; lock files are the human-readable source for content, form, and composition decisions. This root document should guide default behavior, not freeze every deck into one visual template.
 
 ## 2. Constraint Levels
 
@@ -49,15 +52,17 @@ Claude Design / designer-skills are design support tools, not the PPT workflow o
 - MUST keep new PPT work routed through deck-builder / Presentation Director.
 - MUST NOT let design-flow, frontend-design, or design-tokens replace slide planning, brief confirmation, visual contract selection, PPTX generation, or render QA.
 - SHOULD use design-brief, design-tokens, and design-review as inputs for Director HTML gates, HTML companions, or optional visual-contract refinement.
-- MAY translate useful Claude Design output into `PPTX/<task-slug>/brief/visual-contract.md`.
+- MAY translate useful Claude Design output into `Decks/<task-slug>/brief/visual-contract.md`.
 
 ## 6. Visual Contract Rules
 
 Every high-value deck should have a task-level visual contract after visual direction is confirmed.
 
-- MUST save task-level contracts at `PPTX/<task-slug>/brief/visual-contract.md`.
+- MUST save task-level contracts at `Decks/<task-slug>/brief/visual-contract.md`.
+- SHOULD save task-level lock sources at `Decks/<task-slug>/brief/content-lock.md`, `Decks/<task-slug>/brief/form-lock.md`, and `Decks/<task-slug>/brief/composition-lock.md` when a deck needs explicit review or reusable provenance.
 - MUST treat task-level `visual-contract.md` as higher priority than global `design-locks/*.md`.
 - SHOULD include palette roles, typography, slide families, chart grammar, image policy, source-note treatment, and forbidden patterns.
+- SHOULD compile outside visual sources into the task-level locks and visual contract before generation; generators should not pull fresh design decisions directly from Figma, design intelligence tools, or theme galleries after confirmation.
 - SHOULD use softer constraints for Codex Presentations and stricter constraints for Claude / pptxgenjs fallback.
 - AVOID mixing multiple design-locks unless the contract explicitly defines which parts are inherited from each.
 
@@ -74,10 +79,10 @@ Every high-value deck should have a task-level visual contract after visual dire
 
 ## 8. Director UI And Artifact Boundaries
 
-- MUST keep user-facing deck artifacts under `PPTX/<task-slug>/`.
+- MUST keep user-facing deck artifacts under `Decks/<task-slug>/`.
 - MUST keep `.design/` for product/interface design artifacts only; do not mix it into PPTX deliverables.
 - SHOULD use `.design/` for Presentation Director's own HTML gates, interface redesigns, and designer-skills outputs.
-- SHOULD keep task files such as `brief-confirmed.json`, `visual-contract.md`, QA summaries, renders, and final outputs in the PPTX workspace.
+- SHOULD keep task files such as lock files, `brief-confirmed.json`, `visual-contract.md`, QA summaries, renders, and final outputs in the deck workspace.
 
 ## 9. QA Requirements
 

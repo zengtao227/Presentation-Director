@@ -100,6 +100,7 @@ STATUS_FILES: dict[str, str] = {
 }
 PAGE_PATHS: dict[str, str] = {
     "intake": "/intake",
+    "figma-source": "/figma-source",
     "visual-inspiration": "/visual-inspiration",
     "confirm": "/confirm",
     "image-style": "/image-style",
@@ -159,6 +160,30 @@ UI_COPY: dict[str, dict[str, str]] = {
         "confirmed_title": "Brief confirmed",
         "confirmed_message": "确认已收到。你不需要回到聊天里回复；agent 会在 guard 通过后检测 guard-passed.ready 并自动开始生成。",
         "invalid_token": "Missing or invalid confirmation token. Open the confirmation page and submit the form.",
+        "figma_source_gate": "可选设计参考",
+        "figma_source_title": "可选：使用 Figma 或本地视觉参考",
+        "figma_source_intro": "默认路线不需要 Figma。只有客户已有 Figma 文件、品牌素材、截图或导出资源时，才把它们作为 Form Lock 的参考输入。",
+        "figma_source_mode": "参考来源模式",
+        "figma_source_optional_title": "可选设计来源",
+        "figma_source_optional_desc": "默认使用内置设计情报和 pakco-html 主题；如果你已有 Figma 或品牌素材，可先保存当前选择并进入参考入口。",
+        "figma_source_optional_cta": "使用 Figma / 品牌参考",
+        "figma_source_url": "粘贴 Figma URL",
+        "figma_source_url_desc": "记录客户或团队已有的 Figma 文件；生成阶段不会直接依赖该 URL。",
+        "figma_source_local": "使用本地导出素材",
+        "figma_source_local_desc": "填写从 Figma 或品牌系统导出的截图、SVG、PNG 或素材文件夹。",
+        "figma_source_screenshot": "使用截图/参考图",
+        "figma_source_screenshot_desc": "记录可视参考图路径，用于拆解色彩、密度、组件气质和版式方向。",
+        "figma_source_skip": "跳过 Figma",
+        "figma_source_skip_desc": "回到默认路线：只使用内置设计情报、design-locks 和 pakco-html。",
+        "figma_source_url_label": "Figma 文件 URL",
+        "figma_source_local_label": "本地素材路径",
+        "figma_source_screenshot_label": "截图或参考图路径",
+        "figma_source_notes": "素材选择说明",
+        "figma_source_notes_placeholder": "可写要吸收什么：颜色、字体、组件气质、品牌限制，或明确不要照搬模板。",
+        "figma_source_next": "下一步：视觉候选",
+        "figma_source_back": "返回 intake",
+        "figma_source_status": "外部设计参考",
+        "figma_source_none": "本次未使用外部 Figma 或视觉参考。",
         "default": "default",
         "user_selected": "user-selected",
         "unknown": "unknown",
@@ -193,6 +218,30 @@ UI_COPY: dict[str, dict[str, str]] = {
         "confirmed_title": "Brief confirmed",
         "confirmed_message": "Confirmed. You do not need to reply in chat; the agent will detect guard-passed.ready after the guard check and start generation automatically.",
         "invalid_token": "Missing or invalid confirmation token. Open the confirmation page and submit the form.",
+        "figma_source_gate": "Optional Design Reference",
+        "figma_source_title": "Optional: use Figma or local visual references",
+        "figma_source_intro": "The default route does not require Figma. Use this only when a client has an existing Figma file, brand assets, screenshots, or exported resources.",
+        "figma_source_mode": "Reference source mode",
+        "figma_source_optional_title": "Optional design source",
+        "figma_source_optional_desc": "Default uses internal design intelligence and pakco-html themes. If you already have Figma or brand assets, save the current choices and open the reference step.",
+        "figma_source_optional_cta": "Use Figma / brand reference",
+        "figma_source_url": "Paste Figma URL",
+        "figma_source_url_desc": "Record an existing client or team Figma file; generation will not depend on the URL at runtime.",
+        "figma_source_local": "Use local exported assets",
+        "figma_source_local_desc": "Enter screenshots, SVGs, PNGs, or an exported asset folder from Figma or a brand system.",
+        "figma_source_screenshot": "Use screenshot/reference image",
+        "figma_source_screenshot_desc": "Record visual reference image paths for color, density, component feel, and layout direction.",
+        "figma_source_skip": "Skip Figma",
+        "figma_source_skip_desc": "Return to the default route: internal design intelligence, design-locks, and pakco-html.",
+        "figma_source_url_label": "Figma file URL",
+        "figma_source_local_label": "Local asset path",
+        "figma_source_screenshot_label": "Screenshot or reference image path",
+        "figma_source_notes": "Source notes",
+        "figma_source_notes_placeholder": "Describe what to absorb: colors, type, component feel, brand limits, or what not to copy.",
+        "figma_source_next": "Next: visual candidates",
+        "figma_source_back": "Back to intake",
+        "figma_source_status": "External design reference",
+        "figma_source_none": "No external Figma or visual reference is used in this run.",
         "default": "default",
         "user_selected": "user-selected",
         "unknown": "unknown",
@@ -1175,6 +1224,15 @@ class VisualCandidate:
     suggested_html_theme: str = ""
 
 
+DESIGN_SOURCE_MODES: tuple[str, ...] = (
+    "internal",
+    "figma-url",
+    "local-export",
+    "screenshot-reference",
+    "skipped",
+)
+
+
 HTML_THEME_OPTIONS: tuple[tuple[str, str], ...] = (
     ("auto", "Follow visual direction automatically"),
     ("minimal-white", "Clean product, internal updates, quiet business decks"),
@@ -1534,6 +1592,10 @@ def resolve_version_dir(task_dir: Path, version_name: str, *, must_exist: bool =
 
 def image_output_root(task_dir: Path) -> Path:
     return task_dir / "assets" / "images"
+
+
+def figma_source_packet_path(task_dir: Path) -> Path:
+    return task_dir / "figma-source-packet.json"
 
 
 def resolve_image_output_path(task_dir: Path, output_path_value: str) -> Path:
@@ -1899,10 +1961,19 @@ def validate_generation_guard(task_dir: Path) -> list[str]:
     raw_image_mode: Any = brief.get("image_generation_mode")
     image_policy: str = image_policy_from_brief(brief)
 
-    # HTML QA must run before the legacy image-mode early return below.
-    # image_policy=none tasks often have raw_image_mode=None.
-    for gate_error in preview_review_gate_errors(task_dir):
-        errors.append(gate_error)
+    # Run preview QA only after generation has started. The pre-generation
+    # guard is allowed to pass without v1/final.html; otherwise
+    # serve-wait --then-guard deadlocks by requiring the artifact it is meant
+    # to authorize. Once any v1 preview artifact exists, missing siblings and
+    # structural HTML warnings become real guard errors.
+    output_format: str = output_format_from_brief(brief, "html-revealjs")
+    preview_started: bool = any(
+        path.exists()
+        for path in preview_artifact_paths(task_dir, output_format, "v1")
+    )
+    if preview_started:
+        for gate_error in preview_review_gate_errors(task_dir):
+            errors.append(gate_error)
 
     # When image_policy requires a decision and no mode has been set, the
     # Image Style Gate was never completed — block generation.
@@ -2073,7 +2144,8 @@ def selected_visual_candidate_from_brief(brief: JsonDict) -> JsonDict:
             return selected_candidate
     topic: str = str(brief.get("topic", ""))
     selections: JsonDict = brief.get("selections", {}) if isinstance(brief.get("selections"), dict) else {}
-    return visual_candidate_to_json(build_visual_candidates(topic, selections)[0])
+    figma_packet: JsonDict = brief.get("figma_source_packet", {}) if isinstance(brief.get("figma_source_packet", {}), dict) else {}
+    return visual_candidate_to_json(build_visual_candidates(topic, selections, figma_packet)[0])
 
 
 def html_animation_density_for_level(motion_level: str) -> str:
@@ -2504,6 +2576,60 @@ def preview_artifact_paths(task_dir: Path, output_format: str, version_name: str
     return [version_dir / "final.pptx", version_dir / "contact-sheet.png"]
 
 
+def html_deck_integrity_warnings(html_path: Path) -> list[str]:
+    """Catch encoding and structural bugs that text-mode grep and visual inspection miss.
+
+    Checks:
+    - Smart/curly quotes in HTML attributes (invalid; browser silently drops the section)
+    - Slide count (binary) vs declared data-total
+    - data-current sequence completeness (no gaps or duplicates)
+    - .notes display:none present (speaker notes must not render on slides)
+    """
+    if not html_path.exists():
+        return []
+    raw: bytes = html_path.read_bytes()
+    warnings: list[str] = []
+
+    left_smart: int = raw.count(b"\xe2\x80\x9c")
+    right_smart: int = raw.count(b"\xe2\x80\x9d")
+    if left_smart + right_smart > 0:
+        warnings.append(
+            f"SMART QUOTES: {left_smart + right_smart} curly quote(s) found in HTML attributes. "
+            "Browser silently ignores these sections. Replace with ASCII straight quotes."
+        )
+
+    text: str = raw.decode("utf-8", errors="replace")
+    section_count: int = raw.count(b'<section class="slide"')
+    total_match = re.search(r'data-total="(\d+)"', text)
+    if total_match:
+        declared_total: int = int(total_match.group(1))
+        if section_count != declared_total:
+            warnings.append(
+                f"SLIDE COUNT MISMATCH: {section_count} valid slide sections found "
+                f"but data-total declares {declared_total}."
+            )
+    else:
+        warnings.append("MISSING data-total: no slide-number element with data-total found.")
+
+    currents: list[int] = [int(m) for m in re.findall(r'data-current="(\d+)"', text)]
+    if currents:
+        expected: list[int] = list(range(1, len(currents) + 1))
+        if sorted(currents) != expected:
+            warnings.append(
+                f"SEQUENCE GAP: data-current values are {sorted(currents)}, expected {expected}."
+            )
+    else:
+        warnings.append("MISSING data-current: no slide-number elements found.")
+
+    if ".notes" not in text or "display: none" not in text:
+        warnings.append(
+            "NOTES VISIBLE: .notes CSS rule with display:none not found. "
+            "Speaker notes will render on slides."
+        )
+
+    return warnings
+
+
 def preview_review_gate_errors(task_dir: Path) -> list[str]:
     errors: list[str] = []
     brief: JsonDict = read_json(task_dir / "brief-confirmed.json")
@@ -2514,6 +2640,8 @@ def preview_review_gate_errors(task_dir: Path) -> list[str]:
     for path in preview_artifact_paths(task_dir, output_format, "v1"):
         if path.name != "final.html":
             continue
+        for iw in html_deck_integrity_warnings(path):
+            errors.append(f"HTML integrity QA: {iw}")
         for fw in html_small_font_warnings(path):
             errors.append(f"HTML font-size QA: {fw}")
         for sw in html_structural_warnings(path):
@@ -2578,6 +2706,73 @@ def visual_candidate_to_json(candidate: VisualCandidate) -> JsonDict:
         "html_gradient": candidate.html_gradient,
         "suggested_html_theme": candidate.suggested_html_theme,
     }
+
+
+def default_design_source(mode: str = "internal") -> JsonDict:
+    normalized_mode: str = mode if mode in DESIGN_SOURCE_MODES else "internal"
+    return {
+        "mode": normalized_mode,
+        "figma_required": False,
+        "runtime_dependency": False,
+    }
+
+
+def design_source_from_packet(packet: JsonDict | None) -> JsonDict:
+    if not isinstance(packet, dict):
+        return default_design_source()
+    mode: str = str(packet.get("source_status", "internal"))
+    if mode == "skipped":
+        mode = "internal"
+    design_source: JsonDict = default_design_source(mode)
+    design_source["has_external_reference"] = mode in {"figma-url", "local-export", "screenshot-reference"}
+    if packet.get("figma_url"):
+        design_source["figma_url"] = str(packet["figma_url"])
+    if packet.get("local_export_path"):
+        design_source["local_export_path"] = str(packet["local_export_path"])
+    if packet.get("screenshot_reference_path"):
+        design_source["screenshot_reference_path"] = str(packet["screenshot_reference_path"])
+    return design_source
+
+
+def figma_source_packet_from_form(selected: JsonDict, form: dict[str, list[str]]) -> JsonDict:
+    topic: str = str(selected.get("topic", ""))
+    mode: str = first_form_value(form, "figma_source_mode", "skipped").strip()
+    if mode not in DESIGN_SOURCE_MODES:
+        mode = "skipped"
+    figma_url: str = first_form_value(form, "figma_url", "").strip()
+    local_export_path: str = first_form_value(form, "figma_local_export_path", "").strip()
+    screenshot_reference_path: str = first_form_value(form, "figma_screenshot_reference_path", "").strip()
+    notes: str = first_form_value(form, "figma_source_notes", "").strip()
+
+    packet: JsonDict = {
+        "source_status": mode,
+        "runtime_dependency": False,
+        "selected_by_user": True,
+        "selected_at": datetime.now().isoformat(timespec="seconds"),
+        "topic": topic,
+        "design_source": default_design_source("internal" if mode == "skipped" else mode),
+        "notes": notes,
+    }
+
+    if mode == "figma-url":
+        packet["figma_url"] = figma_url
+        packet["note"] = "Figma URL recorded as optional Form Lock reference. Generation does not depend on the URL."
+    elif mode == "local-export":
+        packet["local_export_path"] = local_export_path
+        if local_export_path:
+            packet["local_export_exists"] = Path(local_export_path).expanduser().exists()
+        packet["note"] = "Local export path recorded as optional Form Lock reference."
+    elif mode == "screenshot-reference":
+        packet["screenshot_reference_path"] = screenshot_reference_path
+        if screenshot_reference_path:
+            packet["screenshot_reference_exists"] = Path(screenshot_reference_path).expanduser().exists()
+        packet["note"] = "Screenshot/reference path recorded as optional Form Lock reference."
+    else:
+        packet["source_status"] = "skipped"
+        packet["design_source"] = default_design_source()
+        packet["note"] = "No external Figma or visual reference was used."
+    packet["design_source"] = design_source_from_packet(packet)
+    return packet
 
 
 def classify_visual_context(topic: str, selections: JsonDict) -> str:
@@ -2650,7 +2845,11 @@ def with_html_profile(context: str, candidate: VisualCandidate) -> VisualCandida
     )
 
 
-def build_visual_candidates(topic: str, selections: JsonDict) -> tuple[VisualCandidate, ...]:
+def build_visual_candidates(
+    topic: str,
+    selections: JsonDict,
+    figma_packet: JsonDict | None = None,
+) -> tuple[VisualCandidate, ...]:
     """Return 6 universal visual direction candidates (3 light + 3 dark).
 
     Candidates are reordered so the most context-relevant one is first,
@@ -2781,7 +2980,7 @@ def build_visual_candidates(topic: str, selections: JsonDict) -> tuple[VisualCan
         suggested_html_theme="blueprint",
     )
 
-    all_candidates: tuple[VisualCandidate, ...] = (
+    base_candidates: tuple[VisualCandidate, ...] = (
         product_launch,
         academic_paper,
         business_report,
@@ -2789,7 +2988,6 @@ def build_visual_candidates(topic: str, selections: JsonDict) -> tuple[VisualCan
         premium_brand,
         tech_blueprint,
     )
-
     # Context-aware reordering: bump the most relevant candidate to first place
     priority_key: str = {
         "research":    "academic-paper",
@@ -2801,7 +2999,7 @@ def build_visual_candidates(topic: str, selections: JsonDict) -> tuple[VisualCan
     }.get(context, "product-launch")
 
     ordered: list[VisualCandidate] = sorted(
-        all_candidates,
+        base_candidates,
         key=lambda c: (0 if c.key == priority_key else 1),
     )
     return tuple(ordered)
@@ -3215,15 +3413,28 @@ def apply_intake_selection(draft: JsonDict, form: dict[str, list[str]]) -> JsonD
     brief["risks"] = infer_risks(selected_source_items)
     brief["selections"] = selections
     brief["output_format"] = output_format_from_selections(selections, "pptx")
+    brief["design_source"] = default_design_source()
     brief["updated_at"] = datetime.now().isoformat(timespec="seconds")
     brief["confirmed"] = False
     return brief
 
 
+def apply_figma_source_selection(selected: JsonDict, form: dict[str, list[str]]) -> tuple[JsonDict, JsonDict]:
+    packet: JsonDict = figma_source_packet_from_form(selected, form)
+    updated: JsonDict = dict(selected)
+    updated["figma_source_packet"] = packet
+    updated["figma_source_status"] = packet.get("source_status", "missing")
+    updated["design_source"] = design_source_from_packet(packet)
+    updated["updated_at"] = datetime.now().isoformat(timespec="seconds")
+    updated["confirmed"] = False
+    return updated, packet
+
+
 def apply_visual_selection(selected: JsonDict, form: dict[str, list[str]]) -> JsonDict:
     topic: str = str(selected.get("topic", ""))
     selections: JsonDict = selected.get("selections", {})
-    candidates: tuple[VisualCandidate, ...] = build_visual_candidates(topic, selections)
+    figma_packet: JsonDict = selected.get("figma_source_packet", {}) if isinstance(selected.get("figma_source_packet", {}), dict) else {}
+    candidates: tuple[VisualCandidate, ...] = build_visual_candidates(topic, selections, figma_packet)
     selected_key: str = first_form_value(form, "visual_candidate", candidates[0].key)
     candidate: VisualCandidate = next((item for item in candidates if item.key == selected_key), candidates[0])
     updated: JsonDict = dict(selected)
@@ -3232,6 +3443,7 @@ def apply_visual_selection(selected: JsonDict, form: dict[str, list[str]]) -> Js
         "selected_candidate": visual_candidate_to_json(candidate),
         "available_candidates": [visual_candidate_to_json(item) for item in candidates],
         "source": "user-selected",
+        "figma_source_status": figma_packet.get("source_status", "missing") if figma_packet else "missing",
         "notes": first_form_value(form, "visual_notes", "").strip(),
         "selected_at": datetime.now().isoformat(timespec="seconds"),
     }
@@ -3247,12 +3459,14 @@ def ensure_visual_selection(selected: JsonDict) -> JsonDict:
         return selected
     topic: str = str(selected.get("topic", ""))
     selections: JsonDict = selected.get("selections", {})
-    candidate: VisualCandidate = build_visual_candidates(topic, selections)[0]
+    figma_packet: JsonDict = selected.get("figma_source_packet", {}) if isinstance(selected.get("figma_source_packet", {}), dict) else {}
+    candidate: VisualCandidate = build_visual_candidates(topic, selections, figma_packet)[0]
     updated: JsonDict = dict(selected)
     updated["visual_direction"] = {
         "selected_candidate": visual_candidate_to_json(candidate),
-        "available_candidates": [visual_candidate_to_json(item) for item in build_visual_candidates(topic, selections)],
+        "available_candidates": [visual_candidate_to_json(item) for item in build_visual_candidates(topic, selections, figma_packet)],
         "source": "agent-recommended-default",
+        "figma_source_status": figma_packet.get("source_status", "missing") if figma_packet else "missing",
         "notes": "",
         "selected_at": datetime.now().isoformat(timespec="seconds"),
     }
@@ -3766,11 +3980,105 @@ def render_intake(task_dir: Path) -> str:
     <h2>{html.escape(t(ui_language, "extra_notes"))}</h2>
     <textarea name="notes" placeholder="{html.escape(t(ui_language, "extra_notes_placeholder"))}">{html.escape(str(current.get("notes", "")))}</textarea>
   </section>
+  <section class="section">
+    <h2>{html.escape(t(ui_language, "figma_source_optional_title"))}</h2>
+    <p class="meta">{html.escape(t(ui_language, "figma_source_optional_desc"))}</p>
+  </section>
   <div class="actions">
-    <button type="submit">{html.escape(t(ui_language, "next_visual"))}</button>
+    <button type="submit" name="next_step" value="visual-inspiration">{html.escape(t(ui_language, "next_visual"))}</button>
+    <button type="submit" name="next_step" value="figma-source" class="secondary">{html.escape(t(ui_language, "figma_source_optional_cta"))}</button>
   </div>
 </form>"""
     return html_page(t(ui_language, "intake_title"), body, ui_language)
+
+
+def render_figma_source_packet_panel(packet: JsonDict, ui_language: str = "zh") -> str:
+    if not packet or packet.get("source_status") == "skipped":
+        return f"""<section class="section">
+  <h2>{html.escape(t(ui_language, "figma_source_status"))}</h2>
+  <p class="meta">{html.escape(t(ui_language, "figma_source_none"))}</p>
+</section>"""
+    status: str = str(packet.get("source_status", ""))
+    note: str = str(packet.get("note", packet.get("provenance", "")))
+    reference_items: list[str] = []
+    for key, label in (
+        ("figma_url", "Figma URL"),
+        ("local_export_path", "Local export"),
+        ("screenshot_reference_path", "Screenshot/reference"),
+    ):
+        value: str = str(packet.get(key, "")).strip()
+        if value:
+            reference_items.append(f"<li><strong>{html.escape(label)}:</strong> <code>{html.escape(value)}</code></li>")
+    references_html: str = "".join(reference_items) or "<li>No concrete reference path recorded.</li>"
+    return f"""<section class="section">
+  <h2>{html.escape(t(ui_language, "figma_source_status"))}</h2>
+  <p><strong>{html.escape(status)}</strong></p>
+  <ul>{references_html}</ul>
+  <p class="meta">{html.escape(note)}</p>
+</section>"""
+
+
+def render_figma_source(task_dir: Path) -> str:
+    draft: JsonDict = read_json(task_dir / "brief-draft.json")
+    selected: JsonDict = read_json(task_dir / "intake-selection.json", draft)
+    ui_language: str = ui_language_from_brief(selected)
+    topic: str = str(selected.get("topic", draft.get("topic", "")))
+    existing_packet: JsonDict = read_json(figma_source_packet_path(task_dir), selected.get("figma_source_packet", {}))
+    current_mode: str = str(existing_packet.get("source_status", "skipped"))
+    if current_mode not in {"figma-url", "local-export", "screenshot-reference", "skipped"}:
+        current_mode = "skipped"
+    mode_cards: list[str] = []
+    mode_labels: dict[str, tuple[str, str]] = {
+        "figma-url": (t(ui_language, "figma_source_url"), t(ui_language, "figma_source_url_desc")),
+        "local-export": (t(ui_language, "figma_source_local"), t(ui_language, "figma_source_local_desc")),
+        "screenshot-reference": (t(ui_language, "figma_source_screenshot"), t(ui_language, "figma_source_screenshot_desc")),
+        "skipped": (t(ui_language, "figma_source_skip"), t(ui_language, "figma_source_skip_desc")),
+    }
+    for mode in ("figma-url", "local-export", "screenshot-reference", "skipped"):
+        checked: str = " checked" if mode == current_mode else ""
+        label, desc = mode_labels[mode]
+        mode_cards.append(
+            f"""<label class="option">
+  <input type="radio" name="figma_source_mode" value="{html.escape(mode)}"{checked}>
+  <strong>{html.escape(label)}</strong>
+  <p>{html.escape(desc)}</p>
+</label>"""
+        )
+    body: str = f"""<div class="topline">{html.escape(t(ui_language, "figma_source_gate"))}</div>
+<h1>{html.escape(t(ui_language, "figma_source_title"))}</h1>
+<p>{html.escape(t(ui_language, "figma_source_intro"))}</p>
+<section class="section">
+  <h2>{html.escape(t(ui_language, "current_topic"))}</h2>
+  <p><strong>{html.escape(topic)}</strong></p>
+</section>
+<form method="post" action="/api/figma-source">
+  {director_token_input(task_dir)}
+  <section class="section">
+    <h2>{html.escape(t(ui_language, "figma_source_mode"))}</h2>
+    <div class="grid">{''.join(mode_cards)}</div>
+  </section>
+  <section class="section">
+    <h2>{html.escape(t(ui_language, "figma_source_status"))}</h2>
+    <label>{html.escape(t(ui_language, "figma_source_url_label"))}
+      <input type="url" name="figma_url" value="{html.escape(str(existing_packet.get("figma_url", "")))}" placeholder="https://www.figma.com/design/...">
+    </label>
+    <label>{html.escape(t(ui_language, "figma_source_local_label"))}
+      <input type="text" name="figma_local_export_path" value="{html.escape(str(existing_packet.get("local_export_path", "")))}" placeholder="/path/to/exported/screenshots">
+    </label>
+    <label>{html.escape(t(ui_language, "figma_source_screenshot_label"))}
+      <input type="text" name="figma_screenshot_reference_path" value="{html.escape(str(existing_packet.get("screenshot_reference_path", "")))}" placeholder="/path/to/reference.png">
+    </label>
+  </section>
+  <section class="section">
+    <h2>{html.escape(t(ui_language, "figma_source_notes"))}</h2>
+    <textarea name="figma_source_notes" placeholder="{html.escape(t(ui_language, "figma_source_notes_placeholder"))}">{html.escape(str(existing_packet.get("notes", "")))}</textarea>
+  </section>
+  <div class="actions">
+    <a class="button secondary" href="/intake">{html.escape(t(ui_language, "figma_source_back"))}</a>
+    <button type="submit">{html.escape(t(ui_language, "figma_source_next"))}</button>
+  </div>
+</form>"""
+    return html_page(t(ui_language, "figma_source_title"), body, ui_language)
 
 
 def render_visual_inspiration(task_dir: Path) -> str:
@@ -3779,7 +4087,8 @@ def render_visual_inspiration(task_dir: Path) -> str:
     ui_language: str = ui_language_from_brief(selected)
     topic: str = str(selected.get("topic", draft.get("topic", "")))
     selections: JsonDict = selected.get("selections", {})
-    candidates: tuple[VisualCandidate, ...] = build_visual_candidates(topic, selections)
+    figma_packet: JsonDict = read_json(figma_source_packet_path(task_dir), selected.get("figma_source_packet", {}))
+    candidates: tuple[VisualCandidate, ...] = build_visual_candidates(topic, selections, figma_packet)
     output_format: str = str(selected.get("output_format", output_format_from_selections(selections, "pptx")))
     show_html_fields: bool = output_format in {"html-revealjs", "both"}
     visual_direction: JsonDict = selected.get("visual_direction", {})
@@ -3819,6 +4128,7 @@ def render_visual_inspiration(task_dir: Path) -> str:
   <p><strong>{html.escape(topic)}</strong></p>
 </section>
 {pakco_picker_html}
+{render_figma_source_packet_panel(figma_packet, ui_language)}
 <form method="post" action="/api/visual-inspiration">
   {director_token_input(task_dir)}
   <div class="candidate-grid">
@@ -3829,7 +4139,7 @@ def render_visual_inspiration(task_dir: Path) -> str:
     <textarea name="visual_notes" placeholder="{html.escape(t(ui_language, "visual_notes_placeholder"))}">{html.escape(str(visual_direction.get("notes", "") if isinstance(visual_direction, dict) else ""))}</textarea>
   </section>
   <div class="actions">
-    <a class="button secondary" href="/intake">{html.escape(t(ui_language, "back_intake"))}</a>
+    <a class="button secondary" href="/intake">{html.escape(t(ui_language, "figma_source_back"))}</a>
     <button type="submit">{html.escape(t(ui_language, "next_confirm"))}</button>
   </div>
 </form>"""
@@ -3944,6 +4254,7 @@ def render_confirm(task_dir: Path) -> str:
     risks: list[str] = selected.get("risks", draft.get("risks", []))
     risk_html: str = "".join(f"<li>{html.escape(localized_risk(str(risk), ui_language))}</li>" for risk in risks) or f"<li>{html.escape(t(ui_language, 'no_risks'))}</li>"
     visual_direction: JsonDict = selected.get("visual_direction", {})
+    figma_packet: JsonDict = read_json(figma_source_packet_path(task_dir), selected.get("figma_source_packet", {}))
     selected_candidate: JsonDict = {}
     if isinstance(visual_direction, dict):
         raw_candidate: Any = visual_direction.get("selected_candidate", {})
@@ -3951,7 +4262,7 @@ def render_confirm(task_dir: Path) -> str:
             selected_candidate = raw_candidate
     if not selected_candidate:
         topic: str = str(selected.get("topic", draft.get("topic", "")))
-        candidates: tuple[VisualCandidate, ...] = build_visual_candidates(topic, selections)
+        candidates: tuple[VisualCandidate, ...] = build_visual_candidates(topic, selections, figma_packet)
         selected_candidate = visual_candidate_to_json(candidates[0])
     palette_html: str = "".join(
         f'<span class="swatch-preview" style="background:{html.escape(str(color))}"></span>'
@@ -3968,6 +4279,7 @@ def render_confirm(task_dir: Path) -> str:
   <h2>{html.escape(t(ui_language, "sources"))}</h2>
   {render_sources(selected.get("sources", draft.get("sources", [])), ui_language)}
 </section>
+{render_figma_source_packet_panel(figma_packet, ui_language)}
 <section class="section">
   <h2>{html.escape(t(ui_language, "summary"))}</h2>
   <table>
@@ -4607,6 +4919,7 @@ def render_compare(task_dir: Path) -> str:
 
 def render_all_pages(task_dir: Path) -> None:
     write_text(task_dir / "intake.html", render_intake(task_dir))
+    write_text(task_dir / "figma-source.html", render_figma_source(task_dir))
     write_text(task_dir / "visual-inspiration.html", render_visual_inspiration(task_dir))
     write_text(task_dir / "brief-confirm.html", render_confirm(task_dir))
     write_text(task_dir / "image-style.html", render_image_style(task_dir))
@@ -5090,6 +5403,8 @@ class DirectorHandler(BaseHTTPRequestHandler):
             self.redirect(next_path)
         elif path in ("/", "/intake"):
             self.send_html(render_intake(self.task_dir))
+        elif path == "/figma-source":
+            self.send_html(render_figma_source(self.task_dir))
         elif path == "/visual-inspiration":
             self.send_html(render_visual_inspiration(self.task_dir))
         elif path == "/confirm":
@@ -5157,6 +5472,16 @@ class DirectorHandler(BaseHTTPRequestHandler):
                 brief["topic"] = topic
             brief["notes"] = first_form_value(form, "notes", "").strip()
             write_json(self.task_dir / "intake-selection.json", brief)
+            render_all_pages(self.task_dir)
+            next_step: str = first_form_value(form, "next_step", "visual-inspiration")
+            self.redirect("/figma-source" if next_step == "figma-source" else "/visual-inspiration")
+        elif parsed.path == "/api/figma-source":
+            selected: JsonDict = read_json(self.task_dir / "intake-selection.json")
+            if not selected:
+                selected = read_json(self.task_dir / "brief-draft.json")
+            updated, packet = apply_figma_source_selection(selected, form)
+            write_json(self.task_dir / "intake-selection.json", updated)
+            write_json(figma_source_packet_path(self.task_dir), packet)
             render_all_pages(self.task_dir)
             self.redirect("/visual-inspiration")
         elif parsed.path == "/api/visual-inspiration":
@@ -5469,7 +5794,8 @@ def command_init(args: argparse.Namespace) -> None:
     print(f"Presentation Director task created{mode_label}: {task_dir}")
     print(f"Rendered local review pages under: {task_dir}")
     print("Do not open intake.html separately; serve-wait opens the interactive browser page once.")
-    print("Run intake → confirmation → guard pipeline (use run_in_background=True in Bash tool):")
+    print("Run intake → visual inspiration → confirmation → guard pipeline (use run_in_background=True in Bash tool):")
+    print("Optional: use the intake page's Figma / brand reference button only when real external assets exist.")
     print(f"  python3 {script_rel} --base-dir . serve-wait --task {task_slug} --for confirmed --then-guard")
     print("The command exits with GUARD_PASSED + generation prompt on success, GUARD_FAILED on failure.")
     print("")
