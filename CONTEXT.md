@@ -263,6 +263,41 @@ HTML deck 的预览形态必须和交付形态一致，不得用一个默认横�
 
 对酒店、门店、企业客户等 B2B 管理场景，默认使用“管理者 / 管理层 / 酒店管理者”等称呼；避免在客户可见页面和讲稿中泛称“老板”，除非用户明确要求这种语气。结束页若描述落地，不应包装成单纯“决策请求”，而应明确写成实施步骤、试点步骤或落地闭环。
 
+#### HTML Deck 布局规则 — 通用（桌面 + 移动端均适用）
+
+以下规则由 Playwright QA 的间距检测强制执行，违反会导致 `finalize` 失败：
+
+**禁止：`justify-content:space-between` + 稀疏内容**
+- `space-between` 只适合内容已填满容器 ≥ 70% 高度时使用
+- 内容少于容器 70% 时，改用 `justify-content:flex-start` + 显式 `margin-top`
+- 间距阈值：相邻 flex 子元素之间的空白 > 容器高度的 22% 即触发 QA 失败
+
+**禁止：在 `space-between` 父容器内使用 `margin-top:auto`**
+- 两者叠加会产生双重间距，内容被推向顶部和底部，中间出现巨大空洞
+- 若需将单个元素固定在底部，改为：父容器用 `flex-start`，目标元素用 `margin-top:auto`
+
+**桌面版（1280×720）`.s` 安全区：590px 高 × 1172px 宽**
+- 内容目标填充率：75–90%（约 440–530px 有效内容高度）
+
+**移动端（390×844）`.s` 安全区：756px 高 × 358px 宽**
+- 内容目标填充率：75–90%（约 570–680px 有效内容高度）
+- 移动端单列布局，禁用 `.g2`/`.g3`/`.g4` 网格；用 `.col` 加间距替代
+- 移动端字号不得低于 12px；正文推荐 14–15px
+
+**缩放 JS 规则（已确认可用）**
+```css
+#vp { width: 1280px; height: 720px; position: relative; }  /* 无 transform-origin */
+```
+```javascript
+function scale() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H);
+  vp.style.transform = `scale(${s})`;   /* 无 translate — flexbox 居中已处理位置 */
+}
+```
+`transform-origin` 必须保持默认（`center center`），不得设为 `top left`。
+
+---
+
 ### HTML Companion
 
 最终 `.pptx` 的只读分享版。它由最终版本的逐页渲染图生成，PPTX-only 输出时保存为 `Decks/<task-slug>/final/<task-slug>-companion.html`，方便浏览器打开或简单分享。它不是编辑源，也不是 HTML deck 引擎的替代品；如果 PPTX 内容被修改，应从修改后的 PPTX 或重新渲染的逐页预览图再生成一次 HTML companion。`output_format="both"` 时，`final/<task-slug>.html` 是 HTML deck compatible Deck，不再单独生成 companion。

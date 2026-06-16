@@ -2563,11 +2563,13 @@ def html_structural_warnings(html_path: Path) -> list[str]:
 
 
 def playwright_visual_qa(html_path: Path) -> list[str]:
-    """Visual QA using headless Chromium: overflow and grid-alignment checks.
+    """Visual QA using headless Chromium: overflow, gap, and alignment checks.
 
     Uses print-media mode so all slides are simultaneously visible and measurable.
-    Content container is .s (left:54 top:70 width:1172 height:590), matching the
-    Director safe-area contract. Returns FAIL strings; empty list means pass.
+    Content container is .s — the Director safe-area box for both desktop (590px)
+    and mobile (756px). All thresholds derive from .s.clientHeight/clientWidth so
+    the same function works for landscape decks and portrait mobile decks.
+    Returns FAIL strings; empty list means pass.
     """
     try:
         from playwright.sync_api import sync_playwright  # type: ignore[import]
@@ -2577,8 +2579,6 @@ def playwright_visual_qa(html_path: Path) -> list[str]:
             "Run: bash bootstrap.sh"
         ]
 
-    SAFE_H: int = 590
-    SAFE_W: int = 1172
     url: str = f"file://{html_path.resolve()}"
 
     with sync_playwright() as pw:
@@ -2590,7 +2590,7 @@ def playwright_visual_qa(html_path: Path) -> list[str]:
 
         results: list[str] = page.evaluate(
             """
-            ([SAFE_H, SAFE_W]) => {
+            () => {
                 const errors = [];
                 const slides = document.querySelectorAll('section.slide');
 
@@ -2605,6 +2605,11 @@ def playwright_visual_qa(html_path: Path) -> list[str]:
                         return;
                     }
 
+                    // Use actual .s dimensions as thresholds — works for desktop (590px)
+                    // and mobile (756px) without hardcoding either value.
+                    const clientH = content.clientHeight;
+                    const clientW = content.clientWidth;
+
                     // Overflow check: temporarily expose scroll dimensions
                     const prevOF = content.style.overflow;
                     content.style.overflow = 'visible';
@@ -2612,22 +2617,21 @@ def playwright_visual_qa(html_path: Path) -> list[str]:
                     const sw = content.scrollWidth;
                     content.style.overflow = prevOF || 'hidden';
 
-                    if (sh > SAFE_H) {
+                    if (sh > clientH) {
                         errors.push('Slide ' + num + ' (' + title + '): vertical overflow ' +
-                            sh + 'px > ' + SAFE_H + 'px (' + (sh - SAFE_H) + 'px too tall)');
+                            sh + 'px > ' + clientH + 'px (' + (sh - clientH) + 'px too tall)');
                     }
-                    if (sw > SAFE_W) {
+                    if (sw > clientW) {
                         errors.push('Slide ' + num + ' (' + title + '): horizontal overflow ' +
-                            sw + 'px > ' + SAFE_W + 'px (' + (sw - SAFE_W) + 'px too wide)');
+                            sw + 'px > ' + clientW + 'px (' + (sw - clientW) + 'px too wide)');
                     }
 
-                    // Alignment check: grid children in same row should have consistent height
+                    // Grid alignment check: same-row cells should have consistent height
                     const gridChildren = content.querySelectorAll('.g2 > *, .g3 > *, .g4 > *');
                     if (gridChildren.length >= 2) {
                         const rects = Array.from(gridChildren).map(el => el.getBoundingClientRect());
-                        // Group by row (bucket top values by 15px)
                         const rows = new Map();
-                        rects.forEach((r, i) => {
+                        rects.forEach((r) => {
                             const key = Math.round(r.top / 15) * 15;
                             if (!rows.has(key)) rows.set(key, []);
                             rows.get(key).push(r);
@@ -2643,12 +2647,38 @@ def playwright_visual_qa(html_path: Path) -> list[str]:
                             }
                         });
                     }
+
+                    // Gap check: detect excessive empty space between consecutive flex children.
+                    // Catches justify-content:space-between + sparse content — applies to both
+                    // desktop and mobile decks. Threshold: 22% of .s clientHeight.
+                    const layoutChildren = Array.from(content.children).filter(el => {
+                        const cs = getComputedStyle(el);
+                        return !el.classList.contains('orb') &&
+                               !el.classList.contains('sn') &&
+                               cs.display !== 'none' &&
+                               cs.visibility !== 'hidden' &&
+                               cs.position !== 'absolute';
+                    });
+                    if (layoutChildren.length >= 2) {
+                        const gapThreshold = clientH * 0.22;
+                        for (let i = 1; i < layoutChildren.length; i++) {
+                            const prevR = layoutChildren[i - 1].getBoundingClientRect();
+                            const currR = layoutChildren[i].getBoundingClientRect();
+                            const gap = currR.top - prevR.bottom;
+                            if (gap > gapThreshold) {
+                                errors.push('Slide ' + num + ' (' + title + '): layout gap ' +
+                                    Math.round(gap) + 'px between elements (threshold ' +
+                                    Math.round(gapThreshold) + 'px) — ' +
+                                    'use justify-content:flex-start with explicit margins; ' +
+                                    'avoid space-between with sparse content');
+                            }
+                        }
+                    }
                 });
 
                 return errors;
             }
-            """,
-            [SAFE_H, SAFE_W],
+            """
         )
 
         # Second pass: screen mode at 1440×900 to verify viewport scaling.
