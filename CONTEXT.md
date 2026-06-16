@@ -58,7 +58,7 @@ $HOME/.codex/plugins/cache/openai-primary-runtime/presentations/*/skills/present
 
 ### Presentation Director
 
-Codex 环境下创建全新演示文稿前的交互增强层。它不直接生成 PPTX 或 HTML，而是先用点击式 intake 收集输出格式、听众、目标、资料路径或网页地址、资料研究策略、资料边界、内容语言、logo/品牌素材、AI 生图许可、页数/时长限制和视觉方向，再通过 brief confirmation gate 让用户确认，之后才按 `output_format` 路由到 pakco-compatible HTML deck、Codex Presentations 或两者并行。
+Codex 环境下创建全新演示文稿前的交互增强层。它不直接生成 PPTX 或 HTML，而是先用点击式 intake 收集输出格式、听众、目标、资料路径或网页地址、资料研究策略、资料边界、内容语言、logo/品牌素材、AI 生图许可、页数/时长限制和视觉方向，再通过 brief confirmation gate 让用户确认，之后才按 `output_format` 路由到 HTML deck、Codex Presentations 或两者并行。
 
 Director 的沟通界面语言和 PPT 正文语言是两个不同概念：`ui_language` 默认根据当前对话文本自动检测，用于 intake、visual-inspiration、confirm、style-review、compare 等 HTML gate 页面和按钮文案；`content_language` 用于控制 PPT 正文、标题和讲稿语言。运行 `init` 时应传入最近用户请求作为 `--conversation-text`，让自动打开的 HTML 页面跟随用户对话语言。
 
@@ -81,9 +81,9 @@ Generation
 ```
 
 - **Content Lock**：固定讲什么，包括 source boundary、research strategy、audience、goal、thesis、slide claims、proof objects、omission notes、content language、output constraints。
-- **Form Lock**：固定怎么呈现，包括密度、视觉气质、色板、字体方向、布局家族、图表语言、图片策略、动效强度。默认使用内置设计情报、design-locks 和 pakco-html；Figma 只在用户已有真实 Figma 文件、品牌素材、截图或本地导出时作为可选参考输入，不做默认素材召回。
+- **Form Lock**：固定怎么呈现，包括密度、视觉气质、色板、字体方向、布局家族、图表语言、图片策略、动效强度。默认使用内置设计情报、design-locks 和 HTML deck 主题；Figma 只在用户已有真实 Figma 文件、品牌素材、截图或本地导出时作为可选参考输入，不做默认素材召回。
 - **Composition Lock**：固定每一页“用哪种形式表达哪段内容”，包括 slide id、claim、proof object、layout family、visual treatment、asset/image target、notes 和不可编造项。
-- **Generation**：按 `brief-confirmed.json`、`brief/visual-contract.md` 和 lock 文件执行，不再重新运行设计筛选或从 Figma / ui-ux-pro-max / pakco theme sources 直接取新意见。
+- **Generation**：按 `brief-confirmed.json`、`brief/visual-contract.md` 和 lock 文件执行，不再重新运行设计筛选或从 Figma / ui-ux-pro-max / HTML deck 主题来源 直接取新意见。
 
 `brief-confirmed.json` 是机器执行的编译产物和 guard 的权威输入；`brief/content-lock.md`、`brief/form-lock.md`、`brief/composition-lock.md` 和 `brief/visual-contract.md` 是人可读的编辑源。交互式流程仍以用户点击确认写入 `confirmed.ready`，再由 guard 写入 `guard-passed.ready` 作为开始生成的信号。若兼容旧流程需要在确认后运行 Image Style Gate，它只能作为 late lock supplement 补写图片、HTML 主题、动效和 asset binding 字段，并必须在 Generation 前反映到 `brief-confirmed.json` 和对应 lock 文件。
 
@@ -112,7 +112,7 @@ Generation
 - `ui-ux-pro-max`：行业/场景匹配、配色、字体、图表和 UX 风险。
 - `skills/html-deck/pakco-html/`：可视化 style picker、主题 CSS、layout catalog、动画和 presenter runtime。
 
-每个候选至少说明适用场景、不适用场景、色板、背景策略、标题/字体风格、图表语法、图片策略、借鉴来源和风险。当 `output_format` 为 `"html-revealjs"` 或 `"both"` 时，Visual Inspiration Gate 应优先复用 pakco-html 的可视化预览和主题 key，显示 `theme_key`、`transition`、`animation` 和背景策略。用户选定后，再进入 brief confirmation 和按格式路由生成。
+每个候选至少说明适用场景、不适用场景、色板、背景策略、标题/字体风格、图表语法、图片策略、借鉴来源和风险。当 `output_format` 为 `"html-revealjs"` 或 `"both"` 时，Visual Inspiration Gate 应优先复用 HTML deck 的可视化预览和主题 key，显示 `theme_key`、`transition`、`animation` 和背景策略。用户选定后，再进入 brief confirmation 和按格式路由生成。
 
 对于 Codex 里的 net-new PPTX 请求，默认路径必须先走 Presentation Director，不应直接调用 Presentations 生成。只有以下情况可以跳过：
 
@@ -175,7 +175,54 @@ Codex Presentations 插件内部可能仍按插件规则使用 `outputs/<thread-
 output_format: "html-revealjs" | "pptx" | "both"
 ```
 
-已确认 brief 中的 `output_format` 是生成路由的真实来源。`brief-confirmed.json` 可以由 lock 文件和用户确认结果编译而来，但生成层和 guard 不直接依赖 Figma、ui-ux-pro-max 或 pakco 的原始输出。确认之后如果用户在聊天中改口要求 HTML ↔ PPTX ↔ both，不得直接沿用旧 brief 生成另一种格式；必须重新打开确认页更新 brief，或得到用户明确的“跳过确认/直接改成 <format>”指令，并在最终报告里记录该覆盖来源。
+已确认 brief 中的 `output_format` 是生成路由的真实来源。`brief-confirmed.json` 可以由 lock 文件和用户确认结果编译而来，但生成层和 guard 不直接依赖 Figma、ui-ux-pro-max 或 HTML deck 引擎的原始输出。确认之后如果用户在聊天中改口要求 HTML ↔ PPTX ↔ both，不得直接沿用旧 brief 生成另一种格式；必须重新打开确认页更新 brief，或得到用户明确的“跳过确认/直接改成 <format>”指令，并在最终报告里记录该覆盖来源。
+
+### ⛔ MANDATORY REVIEW GATE — Draft → Final 强制审查门（不可跳过）
+
+**这是整个 Presentation Director 工作流中最重要的强制性规则。审查由 AI 自动完成，技术上保证 v1/final.html 在通过全部 QA 之前物理上不存在。**
+
+#### 正确流程：Draft → QA → Final
+
+```
+生成 HTML → v1/.draft/final.html（不是 v1/final.html）
+                    ↓
+            python3 ... finalize --task <task-slug>
+            ┌─ 静态检查：结构完整性 / 字体大小 / slide count / stagger
+            └─ Playwright 视觉检查：overflow（文字/内容出边界）/ 网格对齐
+                    ↓
+              全部通过 → v1/.draft/final.html 提升为 v1/final.html
+                          浏览器自动打开供用户查看
+                    ↓
+              失败 → 修复 draft，重跑 finalize
+```
+
+```bash
+# 生成输出路径（必须是 .draft/，不是直接 final.html）：
+Decks/<task-slug>/v1/.draft/final.html
+
+# 生成完立即运行：
+python3 "skills/deck-builder/scripts/presentation_director.py" \
+  --base-dir "." finalize --task "<task-slug>"
+```
+
+#### 强制性的技术保障
+
+- `v1/final.html` 物理上不存在，直到 `finalize` 通过 → AI 无法交付不存在的文件
+- `finalize` 失败时 `v1/final.html` 不会被创建 → 不可能"意外跳过"
+- `preview-reviewed.ready` 只由 `finalize` 在通过后写入，不可手动创建
+
+#### 严格禁止的行为
+
+- **禁止**：直接生成到 `v1/final.html`（必须先写 `.draft/`）
+- **禁止**：手动复制 `.draft/final.html` 到 `final.html` 绕过 QA
+- **禁止**：在 `v1/final.html` 不存在时宣布任务完成
+- **禁止**：在 finalize 失败后不修复直接继续
+
+#### 用户在哪里介入
+
+用户在 `finalize` 通过、浏览器打开 `v1/final.html` **之后**查看 v1。如需修改，用户提需求 → AI 修改 `.draft/final.html` → 重跑 `finalize` → 产出 v2（输出到 `v2/.draft/` → `v2/final.html`）。
+
+---
 
 ### Layout QA / Safe Area / No Overlap Gate
 
@@ -188,9 +235,9 @@ output_format: "html-revealjs" | "pptx" | "both"
 - 发现重叠后必须修复并重新渲染受影响页面；QA summary 中要写明修复前问题、修复动作和复检结果。
 - 没有渲染证据、安全区检查和 no-overlap 检查结果时，不得把 PPTX 标记为完成。
 
-### HTML Deck（pakco-html 主输出）
+### HTML Deck（主输出）
 
-当 `output_format` 为 `"html-revealjs"` 或 `"both"` 时，以项目内置 `skills/html-deck/pakco-html/` 生成完整可演示的 HTML 文件作为主输出（或与 PPTX 并行的输出）。`html-revealjs` 保留为历史兼容格式名；新产物应使用 pakco-html 的 `.deck` / `.slide` runtime、主题 CSS 和 presenter mode。
+当 `output_format` 为 `"html-revealjs"` 或 `"both"` 时，以项目内置 `skills/html-deck/pakco-html/` 生成完整可演示的 HTML 文件作为主输出（或与 PPTX 并行的输出）。`html-revealjs` 保留为历史兼容格式名；新产物应使用 HTML deck 的 `.deck` / `.slide` runtime、主题 CSS 和 presenter mode。
 
 这不同于每个 PPTX 附带的只读 HTML Companion；HTML Deck 是功能完整的演示引擎：
 
@@ -200,13 +247,25 @@ output_format: "html-revealjs" | "pptx" | "both"
 - 支持浏览器打印导出
 - 输出为单 `.html` 文件，浏览器打开即用，无需安装
 
-生成层：Claude/Codex 写 pakco-compatible HTML deck。不要调用 Codex Presentations plugin 生成 HTML。必须使用 Director 项目内的 `skills/html-deck/pakco-html/assets/fonts.css`、`assets/base.css`、`assets/themes/<theme_key>.css`、`assets/animations/animations.css` 和 `assets/runtime.js`；不从全局 `.claude/skills` 安装或引用 pakco-html。
+生成层：Claude/Codex 写 HTML deck。不要调用 Codex Presentations plugin 生成 HTML。必须使用 Director 项目内的 `skills/html-deck/pakco-html/assets/fonts.css`、`assets/base.css`、`assets/themes/<theme_key>.css`、`assets/animations/animations.css` 和 `assets/runtime.js`；不从全局 `.claude/skills` 安装或引用内置 HTML deck 引擎。
 
 输出路径：每个候选版本先写入 `Decks/<task-slug>/vN/final.html`；用户最终选择后，复制到 `Decks/<task-slug>/final/<task-slug>.html`。
 
+#### HTML Preview Form Contract
+
+HTML deck 的预览形态必须和交付形态一致，不得用一个默认横向 iframe 预览所有 HTML：
+
+- 如果交付目标是手机观看或移动端演示，`final.html` 必须声明 `data-preview-as="mobile"`，并且电脑打开时也应呈现手机纵向比例或手机壳预览，而不是横向桌面 deck。
+- 如果交付目标是电脑投屏或桌面演示，`final.html` 必须声明 `data-preview-as="desktop"`，Director 预览使用横向桌面框。
+- 如果同一任务同时产出手机和电脑两个 HTML 版本，必须声明或拆分为 `data-preview-as="both"` / 双版本产物，并在 `preview-review`、`style-review`、`compare` 中同时展示两个预览；不得只展示其中一个。
+- Director 的 `preview-review`、`style-review`、`image-placement` 和 `compare` 预览页必须读取该声明并按 mobile / desktop / both 渲染对应 iframe。预览页看到的版本就是用户将收到的版本。
+- `final.html` 需要随版本目录保留可打开的相对资源路径；截图、产品图等二进制素材优先放在 Director 静态白名单支持的 `Decks/<task-slug>/assets/images/` 下，再从版本 HTML 通过相对路径引用。
+
+对酒店、门店、企业客户等 B2B 管理场景，默认使用“管理者 / 管理层 / 酒店管理者”等称呼；避免在客户可见页面和讲稿中泛称“老板”，除非用户明确要求这种语气。结束页若描述落地，不应包装成单纯“决策请求”，而应明确写成实施步骤、试点步骤或落地闭环。
+
 ### HTML Companion
 
-最终 `.pptx` 的只读分享版。它由最终版本的逐页渲染图生成，PPTX-only 输出时保存为 `Decks/<task-slug>/final/<task-slug>-companion.html`，方便浏览器打开或简单分享。它不是编辑源，也不是 HTML deck 引擎的替代品；如果 PPTX 内容被修改，应从修改后的 PPTX 或重新渲染的逐页预览图再生成一次 HTML companion。`output_format="both"` 时，`final/<task-slug>.html` 是 pakco-compatible HTML Deck，不再单独生成 companion。
+最终 `.pptx` 的只读分享版。它由最终版本的逐页渲染图生成，PPTX-only 输出时保存为 `Decks/<task-slug>/final/<task-slug>-companion.html`，方便浏览器打开或简单分享。它不是编辑源，也不是 HTML deck 引擎的替代品；如果 PPTX 内容被修改，应从修改后的 PPTX 或重新渲染的逐页预览图再生成一次 HTML companion。`output_format="both"` 时，`final/<task-slug>.html` 是 HTML deck compatible Deck，不再单独生成 companion。
 
 ### AI Image Gates
 
@@ -220,18 +279,18 @@ Image Style Gate 完成后，`brief-confirmed.json` 的 `html_config` 对象包�
 
 | 字段 | 说明 |
 |---|---|
-| `theme_key` | 选定的 pakco-html 主题（如 `aurora`、`blueprint`、`academic-paper`）；映射到 `skills/html-deck/pakco-html/assets/themes/<theme_key>.css` |
+| `theme_key` | 选定的 HTML deck 主题（如 `aurora`、`blueprint`、`academic-paper`）；映射到 `skills/html-deck/pakco-html/assets/themes/<theme_key>.css` |
 | `motion_level` | 动效强度：`subtle`（仅 fade/rise-in）、`expressive`（加 zoom-pop/counter-up）、`cinematic`（封面/章节/结束页可用 spotlight/kenburns，CSS-only） |
 | `motion_profile` | 风格家族：`pitch`、`tech`、`editorial`、`product`、`presenter` |
 | `layout_families` | 推荐布局序列（来自 html-layout-catalog.md），如 `["cover-hero","architecture-map","flow-diagram","code-terminal","timeline"]` |
-| `transition` | HTML deck 页面切换意图；实现时使用 pakco runtime 的默认 slide/fade 行为和 CSS 动效 |
+| `transition` | HTML deck 页面切换意图；实现时使用 HTML deck 引擎 的默认 slide/fade 行为和 CSS 动效 |
 | `effects_runtime` | 固定为 `css-only`；Canvas/WebGL 为未来能力 |
 
 生成 HTML 时必须遵守：
-- 用 pakco-html token（`--bg`、`--surface`、`--text-1`、`--text-2`、`--accent`、`--accent-2`、`--grad`）消费主题，不再每次从零写内联主题 CSS。
+- 用 HTML deck 主题变量（`--bg`、`--surface`、`--text-1`、`--text-2`、`--accent`、`--accent-2`、`--grad`）消费主题，不再每次从零写内联主题 CSS。
 - 每页使用 `<section class="slide" data-title="...">`；正文内容必须放进可控版心，避免溢出。
 - 每页写 `<aside class="notes">` 或 `<div class="notes">`，由 `assets/runtime.js` 的 S 键 presenter mode 读取。
-- final.html 可链接相对资源，也可在最终打包时内联 pakco CSS/JS；无论哪种方式，都必须随版本目录保留可打开的资源路径。
+- final.html 可链接相对资源，也可在最终打包时内联 HTML deck CSS/JS；无论哪种方式，都必须随版本目录保留可打开的资源路径。
 - 数据幻灯片使用 Chart.js 4.x，直接数据标签，不用图例
 
 pre-v1 图片默认使用 `skills/deck-builder/scripts/generate_images.py show` 在对话中展示 prompt，然后用 `place --source/--target-id` 或 `place --sources` 注册用户提供的任意路径图片。自动后端保留给显式选择和测试使用。
@@ -263,7 +322,7 @@ Claude Code / 本地代理也要遵守同一套前置确认原则：内容语言
 | 现有 gate | 新归属 | 说明 |
 |---|---|---|
 | Research Strategy Gate | Content Lock 子步骤 | 决定资料边界、研究策略、可用来源和不可编造项。 |
-| Visual Inspiration Gate | Form Lock Gate | 决定视觉方向。默认使用内置设计情报和 pakco-html；HTML / both 只有在用户主动提供真实 Figma / 品牌素材 / 截图参考时才把它作为外部参考输入。 |
+| Visual Inspiration Gate | Form Lock Gate | 决定视觉方向。默认使用内置设计情报和 HTML deck 主题；HTML / both 只有在用户主动提供真实 Figma / 品牌素材 / 截图参考时才把它作为外部参考输入。 |
 | Brief Confirmation Gate | Composition Lock 主确认点 | 用户确认内容、形式、逐页组合和输出格式后，写入 `brief-confirmed.json`、`confirmed.ready`，再由 guard 写 `guard-passed.ready`。 |
 | Image Style Gate | Form Lock + Composition Lock 的 late supplement | 图片风格、HTML 主题、动效属于 Form Lock；具体图片目标、pre-v1 资产绑定和 `image-plan.json` 属于 Composition Lock。旧流程若在 Brief Confirmation 后运行它，必须在 Generation 前写回 `brief-confirmed.json` 和 lock 文件。 |
 | Post-v1 Image Placement Gate | Generation 后的修订 gate | 仅在 `post-v1-slot-review` / `hybrid` 时基于 v1 preview 写 v2，不改变锁定协议本身。 |
@@ -284,7 +343,7 @@ Brief Confirmation Gate（open page and wait for user；编译 brief-confirmed.j
 Image Style Gate（如需要，作为 late lock supplement 补写 image_generation_mode / image-plan.json；必要时 pre-v1 生图）
     ↓
 Generation — route by output_format
-    ├─ html-revealjs → Claude/Codex writes pakco-compatible HTML deck to v1/final.html
+    ├─ html-revealjs → Claude/Codex writes HTML deck to v1/final.html
     ├─ pptx → Codex Presentations runtime 写 v1/final.pptx（先查 session plugin，再查 bundled runtime；缺 runtime 则停止）
     └─ both → PPTX first via Codex Presentations runtime, then HTML to v1/final.html（缺 runtime 则停止）
     ↓
@@ -311,12 +370,12 @@ scripts/macos/powerpoint-grant-access-watcher.sh 180 &
 
 在 Codex 环境中，`deck.md`、`design-locks` 和 `ui-ux-pro-max` 都可以作为可选的中间资料或风格约束，但不再是全新 PPTX 第一版生成前的硬性步骤。第一版应优先让 Presentations plugin 根据 confirmed brief 自主完成内容组织、设计系统、contact sheet rhythm 和渲染 QA。
 
-如果目标是在线分享而非 PowerPoint 编辑，生成层可以走 pakco-compatible HTML deck 路由。注意这不同于每个 PPTX 最终都会附带的只读 HTML companion；HTML deck 路由是把 HTML 作为主输出。
+如果目标是在线分享而非 PowerPoint 编辑，生成层可以走 HTML deck 路由。注意这不同于每个 PPTX 最终都会附带的只读 HTML companion；HTML deck 路由是把 HTML 作为主输出。
 
 ```text
 deck.md
     ↓
-pakco-html runtime + theme assets
+HTML deck 引擎 + theme assets
     ↓
 browser QA / screenshot / text-overflow check
     ↓

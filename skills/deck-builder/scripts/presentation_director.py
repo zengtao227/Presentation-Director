@@ -109,8 +109,8 @@ PAGE_PATHS: dict[str, str] = {
     "style-review": "/style-review",
     "compare": "/compare",
 }
-PAKCO_HTML_ROOT: Path = Path(__file__).resolve().parents[2] / "html-deck" / "pakco-html"
-PAKCO_HTML_ROUTE_PREFIX: str = "/pakco-html/"
+HTML_DECK_ROOT: Path = Path(__file__).resolve().parents[2] / "html-deck" / "pakco-html"
+HTML_DECK_ROUTE_PREFIX: str = "/pakco-html/"
 SUPPORTED_UI_LANGUAGES: set[str] = {"zh", "en", "de", "fr", "it", "es"}
 HTML_LANG: dict[str, str] = {
     "zh": "zh-CN",
@@ -165,7 +165,7 @@ UI_COPY: dict[str, dict[str, str]] = {
         "figma_source_intro": "默认路线不需要 Figma。只有客户已有 Figma 文件、品牌素材、截图或导出资源时，才把它们作为 Form Lock 的参考输入。",
         "figma_source_mode": "参考来源模式",
         "figma_source_optional_title": "可选设计来源",
-        "figma_source_optional_desc": "默认使用内置设计情报和 pakco-html 主题；如果你已有 Figma 或品牌素材，可先保存当前选择并进入参考入口。",
+        "figma_source_optional_desc": "默认使用内置设计情报和 HTML deck 主题；如果你已有 Figma 或品牌素材，可先保存当前选择并进入参考入口。",
         "figma_source_optional_cta": "使用 Figma / 品牌参考",
         "figma_source_url": "粘贴 Figma URL",
         "figma_source_url_desc": "记录客户或团队已有的 Figma 文件；生成阶段不会直接依赖该 URL。",
@@ -174,7 +174,7 @@ UI_COPY: dict[str, dict[str, str]] = {
         "figma_source_screenshot": "使用截图/参考图",
         "figma_source_screenshot_desc": "记录可视参考图路径，用于拆解色彩、密度、组件气质和版式方向。",
         "figma_source_skip": "跳过 Figma",
-        "figma_source_skip_desc": "回到默认路线：只使用内置设计情报、design-locks 和 pakco-html。",
+        "figma_source_skip_desc": "回到默认路线：只使用内置设计情报、design-locks 和 HTML deck 主题。",
         "figma_source_url_label": "Figma 文件 URL",
         "figma_source_local_label": "本地素材路径",
         "figma_source_screenshot_label": "截图或参考图路径",
@@ -223,7 +223,7 @@ UI_COPY: dict[str, dict[str, str]] = {
         "figma_source_intro": "The default route does not require Figma. Use this only when a client has an existing Figma file, brand assets, screenshots, or exported resources.",
         "figma_source_mode": "Reference source mode",
         "figma_source_optional_title": "Optional design source",
-        "figma_source_optional_desc": "Default uses internal design intelligence and pakco-html themes. If you already have Figma or brand assets, save the current choices and open the reference step.",
+        "figma_source_optional_desc": "Default uses internal design intelligence and HTML deck themes. If you already have Figma or brand assets, save the current choices and open the reference step.",
         "figma_source_optional_cta": "Use Figma / brand reference",
         "figma_source_url": "Paste Figma URL",
         "figma_source_url_desc": "Record an existing client or team Figma file; generation will not depend on the URL at runtime.",
@@ -232,7 +232,7 @@ UI_COPY: dict[str, dict[str, str]] = {
         "figma_source_screenshot": "Use screenshot/reference image",
         "figma_source_screenshot_desc": "Record visual reference image paths for color, density, component feel, and layout direction.",
         "figma_source_skip": "Skip Figma",
-        "figma_source_skip_desc": "Return to the default route: internal design intelligence, design-locks, and pakco-html.",
+        "figma_source_skip_desc": "Return to the default route: internal design intelligence, design-locks, and HTML deck themes.",
         "figma_source_url_label": "Figma file URL",
         "figma_source_local_label": "Local asset path",
         "figma_source_screenshot_label": "Screenshot or reference image path",
@@ -406,7 +406,7 @@ ADDITIONAL_UI_COPY: dict[str, dict[str, str]] = {
         "visual_gate": "视觉方向门禁",
         "visual_title": "选择第一版视觉方向",
         "visual_intro": "这些候选会根据主题、演示文稿类型和听众动态生成，借鉴 design-lock 和 ui-ux-pro-max 规律，确定配色、字体和版式方向。",
-        "visual_intro_html": "这些候选决定 HTML deck 的视觉主题、过渡动画和动效密度。选好方向后会使用 bundled pakco-html runtime 写出可在浏览器演示的 HTML 文件，无需 Codex Presentations 插件。每个候选已预先关联最适合的 HTML 主题和动效档位。",
+        "visual_intro_html": "这些候选决定 HTML deck 的视觉主题、过渡动画和动效密度。选好方向后会使用内置 HTML deck 引擎写出可在浏览器演示的 HTML 文件，无需 Codex Presentations 插件。每个候选已预先关联最适合的 HTML 主题和动效档位。",
         "current_topic": "当前主题",
         "visual_notes": "视觉补充要求",
         "visual_notes_placeholder": "例如：更像顶级咨询公司、更少卡片、背景更有层次、适合医学研究听众。",
@@ -511,7 +511,7 @@ ADDITIONAL_UI_COPY: dict[str, dict[str, str]] = {
         "visual_gate": "Visual Inspiration Gate",
         "visual_title": "Choose the First-Draft Visual Direction",
         "visual_intro": "These candidates are generated from the topic, PPT type, and audience. They draw from design-locks and ui-ux-pro-max patterns to define palette, typography, and layout direction.",
-        "visual_intro_html": "These candidates determine the visual theme, transition style, and animation density for your HTML deck. The output uses the bundled pakco-html runtime and is browser-ready — no Codex Presentations plugin required. Each candidate is pre-matched to an HTML theme and animation profile.",
+        "visual_intro_html": "These candidates determine the visual theme, transition style, and animation density for your HTML deck. The output uses the bundled HTML deck engine and is browser-ready — no Codex Presentations plugin required. Each candidate is pre-matched to an HTML theme and animation profile.",
         "current_topic": "Current Topic",
         "visual_notes": "Additional Visual Requirements",
         "visual_notes_placeholder": "For example: more like a top-tier consulting deck, fewer cards, richer backgrounds, or suitable for a medical research audience.",
@@ -616,7 +616,7 @@ ADDITIONAL_UI_COPY: dict[str, dict[str, str]] = {
         "visual_gate": "Tor für visuelle Richtung",
         "visual_title": "Visuelle Richtung für den ersten Entwurf wählen",
         "visual_intro": "Diese Kandidaten werden aus Thema, PPT-Typ und Zielgruppe abgeleitet. Sie nutzen Muster aus design-locks und ui-ux-pro-max, um Farbpalette, Typografie und Layout-Richtung festzulegen.",
-        "visual_intro_html": "Diese Kandidaten bestimmen visuelles Thema, Übergangseffekte und Animationsdichte für das HTML-Deck. Das Ergebnis nutzt die gebündelte pakco-html-Runtime und ist browserfähig — kein Codex-Presentations-Plugin erforderlich.",
+        "visual_intro_html": "Diese Kandidaten bestimmen visuelles Thema, Übergangseffekte und Animationsdichte für das HTML-Deck. Das Ergebnis nutzt die gebündelte HTML-Deck-Engine und ist browserfähig — kein Codex-Presentations-Plugin erforderlich.",
         "current_topic": "Aktuelles Thema",
         "visual_notes": "Zusätzliche visuelle Anforderungen",
         "visual_notes_placeholder": "Zum Beispiel: näher an einer Top-Consulting-Präsentation, weniger Karten, mehr Tiefe im Hintergrund oder passend für ein medizinisches Forschungspublikum.",
@@ -1355,13 +1355,13 @@ INTAKE_QUESTIONS: tuple[Question, ...] = (
         key="deck_type",
         title="演示文稿类型",
         prompt="你要做哪类演示文稿?",
-        default="engineering-platform",
+        default="sales-product",
         choices=(
+            Choice("sales-product", "对客户销售产品介绍", "展示痛点、方案、demo 和价值证明。"),
+            Choice("knowledge-teaching", "学术课程知识讲解", "把复杂材料重组成清晰知识结构。"),
             Choice("project-report", "项目汇报", "说明进展、结果、风险和下一步。"),
-            Choice("engineering-platform", "工程 / 技术方案介绍", "解释系统价值、架构和实现路径。"),
-            Choice("investor-pitch", "投资人 / 路演 deck", "突出机会、增长、证明和决策请求。"),
-            Choice("knowledge-teaching", "学术 / 课程 / 知识讲解", "把复杂材料重组成清晰知识结构。"),
-            Choice("sales-product", "客户销售 / 产品介绍", "展示痛点、方案、demo 和价值证明。"),
+            Choice("engineering-platform", "工程技术文件介绍", "解释系统价值、架构和实现路径。"),
+            Choice("investor-pitch", "投资人路演", "突出机会、增长、证明和决策请求。"),
             Choice("custom", "自定义", "我有自己的类型描述。"),
         ),
     ),
@@ -1404,13 +1404,13 @@ INTAKE_QUESTIONS: tuple[Question, ...] = (
         key="audience",
         title="听众",
         prompt="这份演示文稿主要给谁看?",
-        default="technical-leaders",
+        default="customers-sales",
         choices=(
-            Choice("executives", "高层 / 老板 / 决策者", "更重结论、风险和决策请求。"),
-            Choice("investors-reviewers", "投资人 / 评委 / 路演对象", "更重可信证明、市场和增长叙事。"),
-            Choice("technical-leaders", "技术团队 / 工程评审", "更重架构、实现、指标和 tradeoff。"),
-            Choice("customers-sales", "客户 / 销售对象", "更重痛点、方案、案例和转化。"),
-            Choice("teachers-researchers", "学生 / 老师 / 研究者", "更重解释、引用和知识结构。"),
+            Choice("customers-sales", "客户和销售对象", "更重痛点、方案、案例和转化。"),
+            Choice("teachers-researchers", "学生、老师和研究者", "更重解释、引用和知识结构。"),
+            Choice("technical-leaders", "技术团队工程评审", "更重架构、实现、指标和 tradeoff。"),
+            Choice("executives", "高层管理层和决策者", "更重结论、风险和实施判断。"),
+            Choice("investors-reviewers", "投资人、评委和路演对象", "更重可信证明、市场和增长叙事。"),
             Choice("custom", "自定义", "我有自己的听众描述。"),
         ),
     ),
@@ -1420,11 +1420,11 @@ INTAKE_QUESTIONS: tuple[Question, ...] = (
         prompt="这份演示文稿的主要目标是什么?",
         default="explain-value",
         choices=(
+            Choice("explain-value", "展示产品 / 项目价值", "强调问题、方案、价值和证明。"),
             Choice("understand-topic", "让对方快速理解一个主题", "强调清晰解释和结构化。"),
             Choice("decision", "说服对方做决定", "强调证据、取舍和行动请求。"),
             Choice("progress-risk", "汇报进展、成果和风险", "强调状态、指标、风险和下一步。"),
             Choice("teaching", "教学讲解 / 知识传达", "强调概念、例子和学习路径。"),
-            Choice("explain-value", "展示产品 / 项目价值", "强调问题、方案、价值和证明。"),
             Choice("custom", "自定义", "我有自己的目标描述。"),
         ),
     ),
@@ -1462,8 +1462,8 @@ INTAKE_QUESTIONS: tuple[Question, ...] = (
         prompt="页数和演讲时长限制是什么?",
         default="pages-10-12",
         choices=(
-            Choice("pages-8-10", "8-10 页", "适合短讲、快速方案或 pitch 初稿。"),
             Choice("pages-10-12", "10-12 页", "默认推荐，适合 10-15 分钟演讲。"),
+            Choice("pages-8-10", "8-10 页", "适合短讲、快速方案或 pitch 初稿。"),
             Choice("pages-15-20", "15-20 页", "适合详细汇报、内部评审或长材料。"),
             Choice("custom", "自定义时长和页数", "我有自己的页数、时长或结构限制。"),
         ),
@@ -1773,14 +1773,51 @@ def generation_strategy_text(output_format: str, task_dir: Path, ui_language: st
     task_path: str = str(task_dir)
     messages: dict[str, dict[str, str]] = {
         "zh": {
-            "html-revealjs": f"先生成版本化 HTML deck 到 {task_path}/v1/final.html；然后打开 preview-review.html 供完整浏览，最终选择后复制到 {task_path}/final/<task-slug>.html。",
-            "pptx": f"先生成 v1 PPTX 和 contact sheet，集中保存到 {task_path}，然后打开 preview-review.html；需要修改时再进入 style-review.html。",
-            "both": f"先生成 v1/final.pptx 与 v1/final.html，然后打开 preview-review.html；最终选择后复制到 {task_path}/final/。",
+            "html-revealjs": (
+                f"⛔ 强制审查门（Draft → Final，不可跳过）：\n"
+                f"1. 生成 HTML deck，输出到 {task_path}/v1/.draft/final.html（不是 v1/final.html）。\n"
+                f"2. 生成完成后立即运行 finalize 命令（自动完成 QA 审查并提升到 final）：\n"
+                f"   python3 skills/deck-builder/scripts/presentation_director.py --base-dir . finalize --task <task-slug>\n"
+                f"3. finalize 会运行静态检查（结构/字体/对齐）+ Playwright 视觉检查（溢出/对齐），全部通过才提升到 v1/final.html 并打开浏览器供用户查看。\n"
+                f"4. finalize 失败时必须修复 draft 再重跑，绝不得手动复制 .draft 到 final.html。\n"
+                f"5. v1/final.html 不存在时，绝对不得宣布任务完成或复制到 {task_path}/final/。"
+            ),
+            "pptx": (
+                f"⛔ 强制审查门（不可跳过）：\n"
+                f"1. 先生成 v1 PPTX 和 contact sheet，保存到 {task_path}。\n"
+                f"2. 然后必须以前台阻塞方式运行 serve-wait --open-page preview-review --for preview-review。\n"
+                f"3. 等待 status/preview-reviewed.ready 出现后才能继续。"
+            ),
+            "both": (
+                f"⛔ 强制审查门（不可跳过）：\n"
+                f"1. 先生成 v1/final.pptx 与 v1/final.html。\n"
+                f"2. 然后必须以前台阻塞方式运行 serve-wait --open-page preview-review --for preview-review。\n"
+                f"3. 等待 status/preview-reviewed.ready 后，最终选择后复制到 {task_path}/final/。"
+            ),
         },
         "en": {
-            "html-revealjs": f"Generate versioned HTML deck at {task_path}/v1/final.html first; then open preview-review.html for browsing. After final selection it is copied to {task_path}/final/<task-slug>.html.",
-            "pptx": f"Generate the v1 PPTX and contact sheet first, save them under {task_path}, then open preview-review.html; enter style-review.html only if changes are needed.",
-            "both": f"Generate v1/final.pptx and v1/final.html first, then open preview-review.html. After final selection copy them under {task_path}/final/.",
+            "html-revealjs": (
+                f"⛔ MANDATORY REVIEW GATE (Draft → Final, cannot be skipped):\n"
+                f"1. Write the HTML deck to {task_path}/v1/.draft/final.html (NOT v1/final.html).\n"
+                f"2. After generation, immediately run the finalize command (runs QA and promotes to final):\n"
+                f"   python3 skills/deck-builder/scripts/presentation_director.py --base-dir . finalize --task <task-slug>\n"
+                f"3. finalize runs static checks (integrity/font-size/structure) + Playwright visual QA "
+                f"(overflow/alignment); only on full pass does it promote to v1/final.html and open the browser.\n"
+                f"4. If finalize fails, fix the draft and re-run finalize. Never manually copy .draft to final.html.\n"
+                f"5. Do NOT declare complete or copy to {task_path}/final/ until v1/final.html exists."
+            ),
+            "pptx": (
+                f"⛔ MANDATORY REVIEW GATE (cannot be skipped):\n"
+                f"1. Generate v1 PPTX and contact sheet under {task_path}.\n"
+                f"2. Run serve-wait --open-page preview-review --for preview-review in foreground (blocking).\n"
+                f"3. Wait for status/preview-reviewed.ready before proceeding."
+            ),
+            "both": (
+                f"⛔ MANDATORY REVIEW GATE (cannot be skipped):\n"
+                f"1. Generate v1/final.pptx and v1/final.html.\n"
+                f"2. Run serve-wait --open-page preview-review --for preview-review in foreground (blocking).\n"
+                f"3. Wait for status/preview-reviewed.ready, then copy to {task_path}/final/."
+            ),
         },
         "de": {
             "html-revealjs": f"Zuerst wird HTML deck unter {task_path}/v1/final.html erzeugt; danach wird preview-review.html geöffnet. Nach finaler Auswahl wird es nach {task_path}/final/<task-slug>.html kopiert.",
@@ -2525,6 +2562,136 @@ def html_structural_warnings(html_path: Path) -> list[str]:
     return warnings
 
 
+def playwright_visual_qa(html_path: Path) -> list[str]:
+    """Visual QA using headless Chromium: overflow and grid-alignment checks.
+
+    Uses print-media mode so all slides are simultaneously visible and measurable.
+    Content container is .s (left:54 top:70 width:1172 height:590), matching the
+    Director safe-area contract. Returns FAIL strings; empty list means pass.
+    """
+    try:
+        from playwright.sync_api import sync_playwright  # type: ignore[import]
+    except ImportError:
+        return [
+            "PLAYWRIGHT_MISSING: playwright Python package not installed. "
+            "Run: bash bootstrap.sh"
+        ]
+
+    SAFE_H: int = 590
+    SAFE_W: int = 1172
+    url: str = f"file://{html_path.resolve()}"
+
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch()
+        page = browser.new_page(viewport={"width": 1280, "height": 720})
+        page.emulate_media(media="print")
+        page.goto(url, wait_until="domcontentloaded")
+        page.wait_for_timeout(2000)  # allow Google Fonts to load
+
+        results: list[str] = page.evaluate(
+            """
+            ([SAFE_H, SAFE_W]) => {
+                const errors = [];
+                const slides = document.querySelectorAll('section.slide');
+
+                slides.forEach((slide, idx) => {
+                    const num = idx + 1;
+                    const title = slide.getAttribute('data-title') || ('Slide ' + num);
+
+                    // Find content container (.s is the Director safe-area box)
+                    const content = slide.querySelector('.s');
+                    if (!content) {
+                        errors.push('Slide ' + num + ' (' + title + '): .s content container not found');
+                        return;
+                    }
+
+                    // Overflow check: temporarily expose scroll dimensions
+                    const prevOF = content.style.overflow;
+                    content.style.overflow = 'visible';
+                    const sh = content.scrollHeight;
+                    const sw = content.scrollWidth;
+                    content.style.overflow = prevOF || 'hidden';
+
+                    if (sh > SAFE_H) {
+                        errors.push('Slide ' + num + ' (' + title + '): vertical overflow ' +
+                            sh + 'px > ' + SAFE_H + 'px (' + (sh - SAFE_H) + 'px too tall)');
+                    }
+                    if (sw > SAFE_W) {
+                        errors.push('Slide ' + num + ' (' + title + '): horizontal overflow ' +
+                            sw + 'px > ' + SAFE_W + 'px (' + (sw - SAFE_W) + 'px too wide)');
+                    }
+
+                    // Alignment check: grid children in same row should have consistent height
+                    const gridChildren = content.querySelectorAll('.g2 > *, .g3 > *, .g4 > *');
+                    if (gridChildren.length >= 2) {
+                        const rects = Array.from(gridChildren).map(el => el.getBoundingClientRect());
+                        // Group by row (bucket top values by 15px)
+                        const rows = new Map();
+                        rects.forEach((r, i) => {
+                            const key = Math.round(r.top / 15) * 15;
+                            if (!rows.has(key)) rows.set(key, []);
+                            rows.get(key).push(r);
+                        });
+                        rows.forEach((rowRects) => {
+                            if (rowRects.length < 2) return;
+                            const hs = rowRects.map(r => Math.round(r.height));
+                            const maxH = Math.max(...hs), minH = Math.min(...hs);
+                            if (maxH - minH > 24) {
+                                errors.push('Slide ' + num + ' (' + title + '): grid cell heights ' +
+                                    'misaligned in same row (' + minH + '–' + maxH + 'px, diff ' +
+                                    (maxH - minH) + 'px)');
+                            }
+                        });
+                    }
+                });
+
+                return errors;
+            }
+            """,
+            [SAFE_H, SAFE_W],
+        )
+
+        # Second pass: screen mode at 1440×900 to verify viewport scaling.
+        # Print mode uses transform:none so it cannot catch scale() bugs.
+        # This checks that the active slide is fully visible after CSS scale transform.
+        page2 = browser.new_page(viewport={"width": 1440, "height": 900})
+        page2.goto(url, wait_until="domcontentloaded")
+        page2.wait_for_timeout(2000)
+
+        scale_errors: list[str] = page2.evaluate(
+            """
+            () => {
+                const errors = [];
+                const vp = document.getElementById('vp');
+                if (!vp) { errors.push('VIEWPORT_MISSING: #vp element not found'); return errors; }
+
+                const rect = vp.getBoundingClientRect();
+                const vw = window.innerWidth, vh = window.innerHeight;
+
+                // The bounding rect after CSS transform should fit inside the viewport.
+                // Allow 2px rounding tolerance.
+                if (rect.left < -2)
+                    errors.push('SCALE_OVERFLOW: #vp left edge off-screen (' + Math.round(rect.left) + 'px)');
+                if (rect.top < -2)
+                    errors.push('SCALE_OVERFLOW: #vp top edge off-screen (' + Math.round(rect.top) + 'px)');
+                if (rect.right > vw + 2)
+                    errors.push('SCALE_OVERFLOW: #vp right edge off-screen (' + Math.round(rect.right) +
+                        'px, viewport width ' + vw + 'px)');
+                if (rect.bottom > vh + 2)
+                    errors.push('SCALE_OVERFLOW: #vp bottom edge off-screen (' + Math.round(rect.bottom) +
+                        'px, viewport height ' + vh + 'px)');
+
+                return errors;
+            }
+            """
+        )
+        results.extend(scale_errors)
+
+        browser.close()
+
+    return results
+
+
 def failed_image_asset_messages(task_dir: Path) -> list[str]:
     messages: list[str] = []
     for record in image_asset_records(task_dir):
@@ -2662,6 +2829,59 @@ def ensure_preview_review_gate_passed(task_dir: Path) -> None:
         file=sys.stderr,
     )
     raise SystemExit(2)
+
+
+def cmd_finalize(args: argparse.Namespace) -> None:
+    """Promote v1/.draft/final.html to v1/final.html after passing all QA checks.
+
+    Steps:
+      1. Static guard (integrity + font-size + structural checks)
+      2. Playwright visual QA (overflow + grid-alignment)
+      3. On pass: copy .draft/final.html -> v1/final.html, touch preview-reviewed.ready
+      4. Open the promoted file in the default browser
+    """
+    base_dir: Path = Path(args.base_dir)
+    task_dir: Path = base_dir / "Decks" / args.task
+    draft_path: Path = task_dir / "v1" / ".draft" / "final.html"
+    final_path: Path = task_dir / "v1" / "final.html"
+
+    if not draft_path.exists():
+        print(f"ERROR: draft not found: {draft_path}", file=sys.stderr)
+        print(
+            "Generate the deck and write it to v1/.draft/final.html, then re-run finalize.",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
+
+    all_errors: list[str] = []
+
+    print("Step 1/2: static QA checks...")
+    for iw in html_deck_integrity_warnings(draft_path):
+        all_errors.append(f"Integrity: {iw}")
+    for fw in html_small_font_warnings(draft_path):
+        all_errors.append(f"Font-size: {fw}")
+    for sw in html_structural_warnings(draft_path):
+        all_errors.append(f"Structural: {sw}")
+
+    print("Step 2/2: visual QA (overflow + alignment)...")
+    for ve in playwright_visual_qa(draft_path):
+        all_errors.append(f"Visual: {ve}")
+
+    if all_errors:
+        print("\n❌ FINALIZE FAILED — fix issues before promoting to v1:", file=sys.stderr)
+        for e in all_errors:
+            print(f"  • {e}", file=sys.stderr)
+        raise SystemExit(2)
+
+    shutil.copy2(draft_path, final_path)
+
+    st_dir: Path = status_dir(task_dir)
+    st_dir.mkdir(parents=True, exist_ok=True)
+    (st_dir / STATUS_FILES["preview-review"]).touch()
+
+    print(f"\n✅ FINALIZE PASSED — v1 is ready for your review")
+    print(f"   {final_path}")
+    webbrowser.open(f"file://{final_path.resolve()}")
 
 
 def open_director_page_checked(task_dir: Path, host: str, port: int, page: str) -> str:
@@ -3196,6 +3416,44 @@ def html_page(title: str, body: str, ui_language: str = "zh") -> str:
       border: 1px solid var(--line);
       border-radius: 8px;
       background: #fff;
+    }}
+    .preview-variants {{
+      display: grid;
+      gap: 16px;
+    }}
+    .preview-card {{
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfaf7;
+      padding: 14px;
+    }}
+    .preview-card h3 {{
+      margin: 0 0 10px;
+      font-size: 16px;
+    }}
+    .preview-device {{
+      display: flex;
+      justify-content: center;
+      overflow: auto;
+      padding: 16px;
+      border: 1px solid #d8d2c7;
+      border-radius: 8px;
+      background: #071126;
+    }}
+    .preview-device.mobile .html-preview {{
+      width: 390px;
+      height: 844px;
+      min-height: 844px;
+      max-width: 100%;
+      flex: 0 0 auto;
+      border-radius: 28px;
+      background: #071126;
+    }}
+    .preview-device.desktop .html-preview {{
+      width: 100%;
+      height: 560px;
+      min-height: 560px;
+      background: #071126;
     }}
     .info-banner {{
       background: #eef6ff;
@@ -4102,23 +4360,23 @@ def render_visual_inspiration(task_dir: Path) -> str:
         for candidate in candidates
     ]
     current_candidate: VisualCandidate = next((c for c in candidates if c.key == current_key), candidates[0])
-    pakco_picker_html: str = ""
+    html_deck_picker_html: str = ""
     if show_html_fields:
-        picker_label: str = {"zh": "打开 pakco 风格选择器", "de": "Pakco-Stilauswahl öffnen"}.get(
+        picker_label: str = {"zh": "打开 HTML deck 风格选择器", "de": "HTML-Deck-Stilauswahl öffnen"}.get(
             ui_language,
-            "Open pakco style picker",
+            "Open HTML deck style picker",
         )
         picker_help: str = {
-            "zh": "可在新标签页浏览 bundled pakco-html 的主题、模板和动效预览；回到本页选择最接近的方向后继续确认。",
-            "de": "Öffnet die gebündelte pakco-html Vorschau in einem neuen Tab; wählen Sie danach hier die nächste visuelle Richtung.",
+            "zh": "可在新标签页浏览内置 HTML deck 的主题、模板和动效预览；回到本页选择最接近的方向后继续确认。",
+            "de": "Öffnet die integrierte HTML-Deck-Vorschau in einem neuen Tab; wählen Sie danach hier die nächste visuelle Richtung.",
         }.get(
             ui_language,
-            "Browse bundled pakco-html themes, templates, and motion previews in a new tab; return here and choose the closest visual direction.",
+            "Browse built-in HTML deck themes, templates, and motion previews in a new tab; return here and choose the closest visual direction.",
         )
-        pakco_picker_html = f"""<section class="section">
-  <h2>pakco-html</h2>
+        html_deck_picker_html = f"""<section class="section">
+  <h2>HTML Deck 主题</h2>
   <p>{html.escape(picker_help)}</p>
-  <a class="button secondary" href="{PAKCO_HTML_ROUTE_PREFIX}templates/style-picker.html" target="_blank" rel="noopener">{html.escape(picker_label)}</a>
+  <a class="button secondary" href="{HTML_DECK_ROUTE_PREFIX}templates/style-picker.html" target="_blank" rel="noopener">{html.escape(picker_label)}</a>
 </section>"""
     body: str = f"""<div class="topline">{html.escape(t(ui_language, "visual_gate"))}</div>
 <h1>{html.escape(t(ui_language, "visual_title"))}</h1>
@@ -4127,7 +4385,7 @@ def render_visual_inspiration(task_dir: Path) -> str:
   <h2>{html.escape(t(ui_language, "current_topic"))}</h2>
   <p><strong>{html.escape(topic)}</strong></p>
 </section>
-{pakco_picker_html}
+{html_deck_picker_html}
 {render_figma_source_packet_panel(figma_packet, ui_language)}
 <form method="post" action="/api/visual-inspiration">
   {director_token_input(task_dir)}
@@ -4483,6 +4741,76 @@ def select_options(values: tuple[str, ...], current: str) -> str:
     return "".join(options)
 
 
+def html_preview_modes(html_path: Path) -> tuple[str, ...]:
+    """Detect the intended preview form for an HTML deck.
+
+    Generated HTML decks should declare `data-preview-as="mobile|desktop|both"`
+    on the `<html>` or `<body>` element. If the marker is missing, Director
+    keeps the existing desktop preview behavior.
+    """
+    if not html_path.exists():
+        return ("desktop",)
+    try:
+        sample: str = html_path.read_text(encoding="utf-8", errors="ignore")[:12000]
+    except OSError:
+        return ("desktop",)
+    marker: re.Match[str] | None = re.search(
+        r"data-preview-as\s*=\s*['\"](mobile|desktop|both)['\"]",
+        sample,
+        re.IGNORECASE,
+    )
+    if not marker:
+        marker = re.search(
+            r"name\s*=\s*['\"]presentation-preview['\"][^>]*content\s*=\s*['\"](mobile|desktop|both)['\"]",
+            sample,
+            re.IGNORECASE,
+        )
+    mode: str = marker.group(1).lower() if marker else "desktop"
+    if mode == "both":
+        return ("mobile", "desktop")
+    if mode in {"mobile", "desktop"}:
+        return (mode,)
+    return ("desktop",)
+
+
+def html_preview_label(mode: str, ui_language: str) -> str:
+    labels: dict[str, dict[str, str]] = {
+        "mobile": {
+            "zh": "手机预览",
+            "en": "Mobile preview",
+            "de": "Mobile-Vorschau",
+        },
+        "desktop": {
+            "zh": "电脑预览",
+            "en": "Desktop preview",
+            "de": "Desktop-Vorschau",
+        },
+    }
+    values: dict[str, str] = labels.get(mode, labels["desktop"])
+    return values.get(ui_language, values["en"])
+
+
+def render_html_preview_frames(version_name: str, html_path: Path, ui_language: str) -> str:
+    escaped_version: str = html.escape(version_name)
+    iframe_src: str = f"/static/{escaped_version}/final.html"
+    modes: tuple[str, ...] = html_preview_modes(html_path)
+    frames: list[str] = []
+    for mode in modes:
+        frames.append(
+            f"""<div class="preview-card">
+  <h3>{html.escape(html_preview_label(mode, ui_language))}</h3>
+  <div class="preview-device {html.escape(mode)}">
+    <iframe class="html-preview" src="{iframe_src}" title="{html.escape(html_preview_label(mode, ui_language))}"></iframe>
+  </div>
+</div>"""
+        )
+    return (
+        f'<p><a class="button" target="_blank" rel="noopener" href="{iframe_src}">'
+        f'{html.escape(t(ui_language, "open_full_preview"))}</a></p>'
+        f'<div class="preview-variants">{"".join(frames)}</div>'
+    )
+
+
 def render_image_placement(task_dir: Path) -> str:
     brief: JsonDict = read_json(task_dir / "brief-confirmed.json")
     if not brief:
@@ -4497,10 +4825,7 @@ def render_image_placement(task_dir: Path) -> str:
             preview_html = (
                 f'<p>{html.escape(t(ui_language, "preview_artifact"))}: '
                 f'<code>{html.escape(str(html_path))}</code></p>'
-                f'<div class="preview-wrap">'
-                f'<iframe class="html-preview" src="/static/v1/final.html"></iframe>'
-                f'<a class="fullscreen-btn" href="/static/v1/final.html" target="_blank">⛶ 全屏浏览</a>'
-                f'</div>'
+                f'{render_html_preview_frames("v1", html_path, ui_language)}'
             )
     else:
         contact_sheet: Path = task_dir / "v1" / "contact-sheet.png"
@@ -4597,8 +4922,7 @@ def render_version_preview(task_dir: Path, version_name: str, output_format: str
     if output_format == "html-revealjs":
         if html_path.exists():
             return (
-                f'<p><a class="button" target="_blank" rel="noopener" href="/static/{html.escape(version_name)}/final.html">{html.escape(t(ui_language, "open_full_preview"))}</a></p>'
-                f'<iframe class="html-preview" src="/static/{html.escape(version_name)}/final.html"></iframe>',
+                render_html_preview_frames(version_name, html_path, ui_language),
                 html_path,
             )
         return f"<p class='risk'>{html.escape(t(ui_language, 'missing_preview_artifact'))}</p>", html_path
@@ -4873,10 +5197,7 @@ def render_compare(task_dir: Path) -> str:
         html_path: Path = version_dir / "final.html"
         if output_format == "html-revealjs":
             image_html: str = (
-                f'<div class="preview-wrap">'
-                f'<iframe class="html-preview" src="/static/{version}/final.html"></iframe>'
-                f'<a class="fullscreen-btn" href="/static/{version}/final.html" target="_blank">⛶ 全屏浏览</a>'
-                f'</div>'
+                render_html_preview_frames(version, html_path, ui_language)
                 if html_path.exists()
                 else f"<p class='risk'>{html.escape(t(ui_language, 'missing_preview_artifact'))}</p>"
             )
@@ -4960,7 +5281,7 @@ def initial_prompt(task_dir: Path) -> str:
         return "No confirmed brief found. Confirm intake first."
     script_path: Path = Path(__file__).resolve()
     generate_images_path: Path = script_path.parent / "generate_images.py"
-    pakco_html_root: Path = PAKCO_HTML_ROOT
+    html_deck_root: Path = HTML_DECK_ROOT
     output_format: str = output_format_from_brief(brief, "pptx")
     image_policy: str = image_policy_from_brief(brief)
     raw_image_mode: Any = brief.get("image_generation_mode")
@@ -5079,18 +5400,18 @@ Rules:
         layout_families: Any = html_config.get("layout_families", [])
         layout_families_json: str = json.dumps(layout_families if isinstance(layout_families, list) else [], ensure_ascii=False)
         html_requirements = f"""HTML deck requirements:
-- Use the bundled pakco-html runtime at {pakco_html_root}. Do not install or invoke a global pakco-html skill.
-- Build `final.html` as a pakco-compatible deck using `<div class="deck">` and one `<section class="slide" data-title="...">` per slide.
-- Include pakco assets in the output by either:
+- Use the bundled HTML deck engine at {html_deck_root}. Do not install or invoke a global HTML deck skill.
+- Build `final.html` as an HTML deck using `<div class="deck">` and one `<section class="slide" data-title="...">` per slide.
+- Include HTML deck assets in the output by either:
   1. inlining `assets/fonts.css`, `assets/base.css`, `assets/themes/{theme_key}.css`, `assets/animations/animations.css`, and `assets/runtime.js` into `final.html` (preferred for final portability), or
-  2. copying `{pakco_html_root / "assets"}` to `{html_output.parent / "assets"}` and linking `./assets/...`.
+  2. copying `{html_deck_root / "assets"}` to `{html_output.parent / "assets"}` and linking `./assets/...`.
   Final selection will copy `vN/assets/` to `final/assets/` when present.
-- theme_key from html_config: "{theme_key}". Resolve it to `{pakco_html_root / "assets" / "themes"}` / `<theme_key>.css`; if that file is missing, use `minimal-white`.
-- Consume pakco theme tokens (`--bg`, `--surface`, `--surface-2`, `--border`, `--text-1`, `--text-2`, `--text-3`, `--accent`, `--accent-2`, `--accent-3`, `--grad`) instead of regenerating one-off per-slide colors. Background hint: "{html_gradient or 'use the selected pakco theme background'}".
+- theme_key from html_config: "{theme_key}". Resolve it to `{html_deck_root / "assets" / "themes"}` / `<theme_key>.css`; if that file is missing, use `minimal-white`.
+- Consume HTML deck theme tokens (`--bg`, `--surface`, `--surface-2`, `--border`, `--text-1`, `--text-2`, `--text-3`, `--accent`, `--accent-2`, `--accent-3`, `--grad`) instead of regenerating one-off per-slide colors. Background hint: "{html_gradient or 'use the selected HTML deck theme background'}".
 - Safe-area contract — NO EXCEPTIONS, including cover and section-divider slides:
   .slide-safe {{ position:absolute; left:54px; top:70px; width:1172px; height:590px; overflow:hidden; }}
   .bleed {{ position:absolute; inset:0; }}
-  Pakco `.slide` already provides absolute slide positioning. Do not replace it with document-flow sections.
+  The `.slide` class already provides absolute slide positioning. Do not replace it with document-flow sections.
   REQUIRED structure for every slide type (cover, section, content, end):
     <section class="slide" data-title="...">
       <div class="bleed ..."><!-- background gradient / image ONLY --></div>
@@ -5113,7 +5434,7 @@ Rules:
   subtle -> fade-up and rise-in; use stagger only with explicit stagger-ok on decorative card rows.
   expressive -> adds zoom-pop, counter-up, path-draw, blur-in.
   cinematic -> adds spotlight, shimmer-sweep, kenburns for cover/section/end slides only.
-  Prefer pakco `assets/animations/animations.css`; add small local @keyframes only when the catalog does not cover the needed effect.
+  Prefer `assets/animations/animations.css`; add small local @keyframes only when the catalog does not cover the needed effect.
   Template for rise-in + stagger:
     @keyframes rise-in {{from{{opacity:0;transform:translateY(18px)}}to{{opacity:1;transform:translateY(0)}}}}
     @keyframes fade-up {{from{{opacity:0;transform:translateY(12px)}}to{{opacity:1;transform:translateY(0)}}}}
@@ -5140,7 +5461,7 @@ Rules:
 - Include export guidance: print from Chrome/Edge in landscape with backgrounds enabled and no headers/footers."""
 
     if output_format == "html-revealjs":
-        return f"""Write a pakco-compatible HTML presentation directly. Do NOT call the Codex Presentations plugin.
+        return f"""Write an HTML deck presentation directly. Do NOT call the Codex Presentations plugin.
 
 {common_rules}
 
@@ -5159,7 +5480,7 @@ QA:
 """
 
     if output_format == "both":
-        return f"""Generate both outputs: first editable PPTX via Codex Presentations, then pakco-compatible HTML directly.
+        return f"""Generate both outputs: first editable PPTX via Codex Presentations, then HTML deck directly.
 
 {common_rules}
 
@@ -5177,7 +5498,7 @@ PPTX route:
 - PPTX uses the same palette as the HTML direction, but with solid-color backgrounds instead of gradients.
 
 HTML route:
-- Write pakco-compatible HTML directly; do NOT call Presentations plugin for HTML.
+- Write HTML deck directly; do NOT call Presentations plugin for HTML.
 {html_requirements}
 
 {post_v1_image_instruction}
@@ -5278,7 +5599,7 @@ Revision action:
 - generate-comparison means create a comparison version while preserving facts and structure.
 
 HTML route:
-- Keep the deck pakco-compatible: `.deck`, `.slide`, bundled pakco theme tokens, and `assets/runtime.js`.
+- Keep the deck HTML deck compatible: `.deck`, `.slide`, bundled HTML deck theme tokens, and `assets/runtime.js`.
 - Keep speaker notes in `<aside class="notes">` on every slide.
 - Preserve the safe-area contract: regular content stays inside `.slide-safe`; only backgrounds use `.bleed`.
 - Use CSS-only motion from `html_config` and `html_motion_profile`; do not introduce Canvas/WebGL effects.
@@ -5431,8 +5752,8 @@ class DirectorHandler(BaseHTTPRequestHandler):
             self.send_html(render_style_review(self.task_dir))
         elif path == "/compare":
             self.send_html(render_compare(self.task_dir))
-        elif path.startswith(PAKCO_HTML_ROUTE_PREFIX):
-            self.send_pakco_static(path.removeprefix(PAKCO_HTML_ROUTE_PREFIX))
+        elif path.startswith(HTML_DECK_ROUTE_PREFIX):
+            self.send_html_deck_static(path.removeprefix(HTML_DECK_ROUTE_PREFIX))
         elif path.startswith("/static/"):
             self.send_static(path.removeprefix("/static/"))
         elif path == "/confirmed":
@@ -5631,9 +5952,9 @@ class DirectorHandler(BaseHTTPRequestHandler):
             return
         parts: tuple[str, ...] = relative.parts
         if (not path.exists() or not path.is_file()) and len(parts) >= 3 and parts[1] == "assets":
-            pakco_rel: Path = Path(*parts[1:])
+            html_deck_rel: Path = Path(*parts[1:])
             try:
-                path = resolve_contained_path(PAKCO_HTML_ROOT, PAKCO_HTML_ROOT / pakco_rel)
+                path = resolve_contained_path(HTML_DECK_ROOT, HTML_DECK_ROOT / html_deck_rel)
             except ValueError:
                 self.send_error(HTTPStatus.NOT_FOUND)
                 return
@@ -5651,6 +5972,18 @@ class DirectorHandler(BaseHTTPRequestHandler):
             content_type = "text/html; charset=utf-8"
         elif path.suffix.lower() == ".md":
             content_type = "text/plain; charset=utf-8"
+        elif path.suffix.lower() == ".css":
+            content_type = "text/css; charset=utf-8"
+        elif path.suffix.lower() == ".js":
+            content_type = "application/javascript; charset=utf-8"
+        elif path.suffix.lower() == ".svg":
+            content_type = "image/svg+xml; charset=utf-8"
+        elif path.suffix.lower() == ".woff":
+            content_type = "font/woff"
+        elif path.suffix.lower() == ".woff2":
+            content_type = "font/woff2"
+        elif path.suffix.lower() == ".ttf":
+            content_type = "font/ttf"
         data: bytes = path.read_bytes()
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", content_type)
@@ -5661,13 +5994,13 @@ class DirectorHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
-    def send_pakco_static(self, raw_path: str) -> None:
+    def send_html_deck_static(self, raw_path: str) -> None:
         relative: Path = Path(unquote(raw_path))
         if relative.is_absolute() or ".." in relative.parts:
             self.send_error(HTTPStatus.BAD_REQUEST)
             return
         try:
-            path: Path = resolve_contained_path(PAKCO_HTML_ROOT, PAKCO_HTML_ROOT / relative)
+            path: Path = resolve_contained_path(HTML_DECK_ROOT, HTML_DECK_ROOT / relative)
         except ValueError:
             self.send_error(HTTPStatus.BAD_REQUEST)
             return
@@ -5890,9 +6223,14 @@ def command_serve_wait(args: argparse.Namespace) -> None:
     print_director_urls(task_dir, host, port, target)
     chained_to_image_gate: bool = False
     started: float = time.time()
+    opened_marker: Path = status_dir(task_dir) / f"browser-opened-{args.open_page}.ready"
     try:
         if not args.no_open and args.open_page:
-            open_director_page_checked(task_dir, host, port, args.open_page)
+            if opened_marker.exists():
+                print(f"[director] Browser already opened for {args.open_page!r} — skipping duplicate open.")
+            else:
+                open_director_page_checked(task_dir, host, port, args.open_page)
+                opened_marker.write_text("opened\n", encoding="utf-8")
         while True:
             if target.exists():
                 # After brief confirmation, auto-chain to image style gate if needed
@@ -6138,6 +6476,17 @@ def build_parser() -> argparse.ArgumentParser:
     guard_parser = subparsers.add_parser("guard", help="Validate that a net-new PPTX task passed the user confirmation gate.")
     guard_parser.add_argument("--task", required=True, help="Task slug or title.")
     guard_parser.set_defaults(func=command_guard)
+
+    finalize_parser = subparsers.add_parser(
+        "finalize",
+        help=(
+            "Run QA checks on v1/.draft/final.html and promote to v1/final.html. "
+            "Runs static integrity/font-size/structural checks + Playwright visual QA "
+            "(overflow, grid alignment). Opens the deck in the browser on success."
+        ),
+    )
+    finalize_parser.add_argument("--task", required=True, help="Task slug.")
+    finalize_parser.set_defaults(func=cmd_finalize)
 
     image_asset_parser = subparsers.add_parser("image-asset", help="Record one AI image generation attempt with output-file validation.")
     image_asset_parser.add_argument("--task", required=True, help="Task slug or title.")
