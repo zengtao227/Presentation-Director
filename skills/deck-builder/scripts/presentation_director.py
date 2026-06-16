@@ -2676,28 +2676,54 @@ def playwright_visual_qa(html_path: Path) -> list[str]:
                     }
 
                     // Blank-space check: catch pages where real content ends too early,
-                    // leaving a large unused lower safe area. This complements the gap
-                    // check because a single flex wrapper can hide the empty space.
-                    if (layoutChildren.length >= 2) {
-                        const contentRect = content.getBoundingClientRect();
-                        const visibleRects = layoutChildren
-                            .map(el => el.getBoundingClientRect())
-                            .filter(r => r.width > 1 && r.height > 1);
-                        if (visibleRects.length >= 2) {
-                            const contentTop = Math.min(...visibleRects.map(r => r.top));
-                            const contentBottom = Math.max(...visibleRects.map(r => r.bottom));
-                            const topGap = contentTop - contentRect.top;
-                            const bottomGap = contentRect.bottom - contentBottom;
-                            const usedHeight = contentBottom - contentTop;
-                            const topHeavy = topGap < clientH * 0.16 &&
-                                             bottomGap > clientH * 0.26 &&
-                                             usedHeight < clientH * 0.72;
-                            if (topHeavy) {
-                                errors.push('Slide ' + num + ' (' + title + '): large unused lower safe area ' +
-                                    Math.round(bottomGap) + 'px (content uses ' +
-                                    Math.round(usedHeight) + 'px of ' + clientH + 'px) — ' +
-                                    'avoid top-heavy mobile layouts; tighten internal gaps or use the lower safe area');
-                            }
+                    // leaving a large unused lower safe area. Measure descendant content,
+                    // not only direct flex children, so a single wrapper cannot hide it.
+                    const contentRect = content.getBoundingClientRect();
+                    const visibleRects = Array.from(content.querySelectorAll('*'))
+                        .filter(el => {
+                            const tag = el.tagName.toLowerCase();
+                            if (['script', 'style', 'template'].includes(tag)) return false;
+                            if (el.closest('.notes')) return false;
+                            if (el.classList.contains('orb') || el.classList.contains('sn')) return false;
+
+                            const cs = getComputedStyle(el);
+                            if (cs.display === 'none' || cs.visibility === 'hidden') return false;
+                            if (cs.position === 'absolute' || cs.position === 'fixed') return false;
+
+                            const r = el.getBoundingClientRect();
+                            if (r.width <= 1 || r.height <= 1) return false;
+                            if (r.bottom < contentRect.top || r.top > contentRect.bottom) return false;
+
+                            const childElements = Array.from(el.children).filter(child => {
+                                const childStyle = getComputedStyle(child);
+                                return childStyle.display !== 'none' && childStyle.visibility !== 'hidden';
+                            });
+                            const isLeaf = childElements.length === 0;
+                            const hasText = (el.textContent || '').trim().length > 0;
+                            const hasMedia = ['img', 'svg', 'canvas', 'video', 'table', 'ul', 'ol', 'li'].includes(tag);
+                            const hasBackground = cs.backgroundImage !== 'none' &&
+                                cs.backgroundImage !== '' ||
+                                (cs.backgroundColor !== 'rgba(0, 0, 0, 0)' && cs.backgroundColor !== 'transparent');
+                            const hasBorder = ['Top', 'Right', 'Bottom', 'Left']
+                                .some(side => parseFloat(cs['border' + side + 'Width'] || '0') > 0);
+
+                            return hasMedia || hasBackground || hasBorder || (isLeaf && hasText);
+                        })
+                        .map(el => el.getBoundingClientRect());
+                    if (visibleRects.length >= 1) {
+                        const contentTop = Math.min(...visibleRects.map(r => r.top));
+                        const contentBottom = Math.max(...visibleRects.map(r => r.bottom));
+                        const topGap = contentTop - contentRect.top;
+                        const bottomGap = contentRect.bottom - contentBottom;
+                        const usedHeight = contentBottom - contentTop;
+                        const topHeavy = topGap < clientH * 0.16 &&
+                                         bottomGap > clientH * 0.26 &&
+                                         usedHeight < clientH * 0.72;
+                        if (topHeavy) {
+                            errors.push('Slide ' + num + ' (' + title + '): large unused lower safe area ' +
+                                Math.round(bottomGap) + 'px (content uses ' +
+                                Math.round(usedHeight) + 'px of ' + clientH + 'px) — ' +
+                                'avoid top-heavy mobile layouts; tighten internal gaps or use the lower safe area');
                         }
                     }
                 });

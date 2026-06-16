@@ -353,6 +353,7 @@ class PreviewReviewGateTest(unittest.TestCase):
 <head>
 <style>
   html, body { margin: 0; width: 390px; height: 844px; overflow: hidden; }
+  #vp { width: 390px; height: 844px; position: relative; }
   .slide { width: 390px; height: 844px; overflow: hidden; page-break-after: always; }
   .s { position: absolute; left: 16px; top: 44px; width: 358px; height: 756px; overflow: hidden; display: flex; flex-direction: column; gap: 12px; }
   .block { height: 80px; background: #223; color: white; }
@@ -360,6 +361,7 @@ class PreviewReviewGateTest(unittest.TestCase):
 </style>
 </head>
 <body data-preview-as="mobile">
+<div id="vp">
 <section class="slide" data-title="Top Heavy">
   <div class="s">
     <div class="block">A</div>
@@ -369,11 +371,51 @@ class PreviewReviewGateTest(unittest.TestCase):
   <span class="slide-number" data-current="1" data-total="1"></span>
   <aside class="notes">Notes</aside>
 </section>
+</div>
 </body>
 </html>
 """
         with tempfile.TemporaryDirectory() as tmp_dir:
             html_path: Path = Path(tmp_dir) / "blank.html"
+            html_path.write_text(html_text, encoding="utf-8")
+            errors: list[str] = PD.playwright_visual_qa(html_path)
+            if any(error.startswith("PLAYWRIGHT_MISSING") for error in errors):
+                self.skipTest("playwright is not installed")
+            self.assertTrue(any("large unused lower safe area" in error for error in errors))
+
+    def test_visual_qa_rejects_wrapped_top_heavy_mobile_blank_space(self) -> None:
+        html_text: str = """<!doctype html>
+<html data-preview-as="mobile">
+<head>
+<style>
+  html, body { margin: 0; width: 390px; height: 844px; overflow: hidden; }
+  #vp { width: 390px; height: 844px; position: relative; }
+  .slide { width: 390px; height: 844px; overflow: hidden; page-break-after: always; }
+  .s { position: absolute; left: 16px; top: 44px; width: 358px; height: 756px; overflow: hidden; display: flex; flex-direction: column; }
+  .wrapper { display: flex; flex-direction: column; gap: 12px; }
+  .block { height: 80px; background: #223; color: white; }
+  .notes { display: none; }
+</style>
+</head>
+<body data-preview-as="mobile">
+<div id="vp">
+<section class="slide" data-title="Wrapped Top Heavy">
+  <div class="s">
+    <div class="wrapper">
+      <div class="block">A</div>
+      <div class="block">B</div>
+      <div class="block">C</div>
+    </div>
+  </div>
+  <span class="slide-number" data-current="1" data-total="1"></span>
+  <aside class="notes">Notes</aside>
+</section>
+</div>
+</body>
+</html>
+"""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            html_path: Path = Path(tmp_dir) / "wrapped-blank.html"
             html_path.write_text(html_text, encoding="utf-8")
             errors: list[str] = PD.playwright_visual_qa(html_path)
             if any(error.startswith("PLAYWRIGHT_MISSING") for error in errors):
