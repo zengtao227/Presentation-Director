@@ -67,6 +67,31 @@ BAD_HTML: str = """<!doctype html>
 """
 
 
+GOOD_HTML: str = """<!doctype html>
+<html lang="en" data-preview-as="desktop">
+<head>
+  <meta charset="utf-8">
+  <style>
+    .notes { display: none; }
+    .slide { width: 1280px; height: 720px; overflow: hidden; }
+    .slide-safe { width: 1172px; height: 590px; overflow: hidden; }
+  </style>
+</head>
+<body data-preview-as="desktop">
+  <div class="deck">
+    <section class="slide" data-title="One">
+      <div class="slide-safe">
+        <p>Ready</p>
+        <span class="slide-number" data-current="1" data-total="1"></span>
+      </div>
+      <aside class="notes">Speaker notes</aside>
+    </section>
+  </div>
+</body>
+</html>
+"""
+
+
 def write_task(base_dir: Path, html_text: str, output_format: str = "html-revealjs") -> Path:
     task_dir: Path = base_dir / "Decks" / "bad-task"
     (task_dir / "v1").mkdir(parents=True)
@@ -121,13 +146,16 @@ def run_director_server(task_dir: Path) -> Iterator[tuple[str, int]]:
         thread.join(timeout=2)
 
 
-def post_form(base_url: str, path: str, data: dict[str, str]) -> bytes:
+def post_form(base_url: str, path: str, data: dict[str, str], headers: dict[str, str] | None = None) -> bytes:
     body: bytes = urlencode(data).encode()
+    request_headers: dict[str, str] = {"Content-Type": "application/x-www-form-urlencoded"}
+    if headers:
+        request_headers.update(headers)
     request = Request(
         base_url + path,
         data=body,
         method="POST",
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        headers=request_headers,
     )
     return urlopen(request, timeout=2).read()
 
@@ -281,12 +309,43 @@ class PreviewReviewGateTest(unittest.TestCase):
     def test_both_output_requires_html_artifact(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             base_dir: Path = Path(tmp_dir)
-            task_dir: Path = write_task(base_dir, "<html><body>ok</body></html>", output_format="both")
+            task_dir: Path = write_task(base_dir, GOOD_HTML, output_format="both")
             (task_dir / "v1" / "final.html").unlink()
             (task_dir / "v1" / "final.pptx").write_bytes(b"pptx")
             (task_dir / "v1" / "contact-sheet.png").write_bytes(b"png")
             self.assertFalse(PD.v1_preview_exists(task_dir, "both"))
             self.assertTrue(any("final.html" in error for error in PD.preview_review_gate_errors(task_dir)))
+
+    def test_html_preview_form_marker_is_required(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            base_dir: Path = Path(tmp_dir)
+            task_dir: Path = write_task(base_dir, GOOD_HTML.replace(' data-preview-as="desktop"', ""))
+            errors: list[str] = PD.preview_review_gate_errors(task_dir)
+            self.assertTrue(any("data-preview-as" in error for error in errors))
+
+    def test_generation_guard_checks_generated_v2_html(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            base_dir: Path = Path(tmp_dir)
+            task_dir: Path = write_task(base_dir, GOOD_HTML)
+            v2_dir: Path = task_dir / "v2"
+            v2_dir.mkdir()
+            (v2_dir / "final.html").write_text(BAD_HTML, encoding="utf-8")
+            errors: list[str] = PD.validate_generation_guard(task_dir)
+            self.assertTrue(any(error.startswith("v2:") for error in errors))
+
+    def test_finalize_promotes_requested_version(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            base_dir: Path = Path(tmp_dir)
+            task_dir: Path = base_dir / "Decks" / "bad-task"
+            draft_dir: Path = task_dir / "v2" / ".draft"
+            draft_dir.mkdir(parents=True)
+            (draft_dir / "final.html").write_text(GOOD_HTML, encoding="utf-8")
+            args: Namespace = command_args(base_dir, "finalize", version="v2")
+            with patch.object(PD.webbrowser, "open"):
+                with patch.object(PD, "playwright_visual_qa", return_value=[]):
+                    PD.cmd_finalize(args)
+            self.assertTrue((task_dir / "v2" / "final.html").exists())
+            self.assertFalse((task_dir / "v1" / "final.html").exists())
 
     def test_generation_guard_allows_missing_v1_before_generation(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -468,7 +527,7 @@ class OptionalFigmaReferenceTest(unittest.TestCase):
 class SecurityRegressionTest(unittest.TestCase):
     def test_static_does_not_serve_confirmation_token(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
-            task_dir: Path = write_task(Path(tmp_dir), "<html><body>ok</body></html>")
+            task_dir: Path = write_task(Path(tmp_dir), GOOD_HTML)
             PD.ensure_confirm_token(task_dir)
             with run_director_server(task_dir) as (host, port):
                 with self.assertRaises(HTTPError) as raised:
@@ -478,7 +537,7 @@ class SecurityRegressionTest(unittest.TestCase):
 
     def test_static_rejects_symlink_escape_from_allowed_preview_path(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
-            task_dir: Path = write_task(Path(tmp_dir), "<html><body>ok</body></html>")
+            task_dir: Path = write_task(Path(tmp_dir), GOOD_HTML)
             PD.ensure_confirm_token(task_dir)
             (task_dir / "v1" / "final.html").unlink()
             (task_dir / "v1" / "final.html").symlink_to(task_dir / "status" / "confirm.token")
@@ -490,7 +549,7 @@ class SecurityRegressionTest(unittest.TestCase):
 
     def test_static_html_is_served_with_api_blocking_csp(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
-            task_dir: Path = write_task(Path(tmp_dir), "<html><body>ok</body></html>")
+            task_dir: Path = write_task(Path(tmp_dir), GOOD_HTML)
             with run_director_server(task_dir) as (host, port):
                 response = urlopen(f"http://{host}:{port}/static/v1/final.html", timeout=2)
                 try:
@@ -503,7 +562,7 @@ class SecurityRegressionTest(unittest.TestCase):
 
     def test_pakco_style_picker_is_served_without_static_preview_csp(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
-            task_dir: Path = write_task(Path(tmp_dir), "<html><body>ok</body></html>")
+            task_dir: Path = write_task(Path(tmp_dir), GOOD_HTML)
             with run_director_server(task_dir) as (host, port):
                 response = urlopen(f"http://{host}:{port}/pakco-html/templates/style-picker.html", timeout=2)
                 try:
@@ -515,7 +574,7 @@ class SecurityRegressionTest(unittest.TestCase):
 
     def test_final_selection_copies_html_deck_assets(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
-            task_dir: Path = write_task(Path(tmp_dir), "<html><body>ok</body></html>")
+            task_dir: Path = write_task(Path(tmp_dir), GOOD_HTML)
             version_assets: Path = task_dir / "v1" / "assets"
             version_assets.mkdir()
             (version_assets / "runtime.js").write_text("window.__pd_asset_test = true;", encoding="utf-8")
@@ -525,7 +584,7 @@ class SecurityRegressionTest(unittest.TestCase):
 
     def test_preview_review_post_requires_workflow_token(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
-            task_dir: Path = write_task(Path(tmp_dir), "<html><body>ok</body></html>")
+            task_dir: Path = write_task(Path(tmp_dir), GOOD_HTML)
             with run_director_server(task_dir) as (host, port):
                 base_url: str = f"http://{host}:{port}"
                 with self.assertRaises(HTTPError) as raised:
@@ -546,10 +605,32 @@ class SecurityRegressionTest(unittest.TestCase):
                 )
                 self.assertTrue((task_dir / "preview-review.json").exists())
 
+    def test_post_rejects_spoofed_host_origin_pair(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            task_dir: Path = write_task(Path(tmp_dir), GOOD_HTML)
+            token: str = PD.ensure_confirm_token(task_dir)
+            with run_director_server(task_dir) as (host, port):
+                with self.assertRaises(HTTPError) as raised:
+                    post_form(
+                        f"http://{host}:{port}",
+                        "/api/preview-review",
+                        {
+                            "director_token": token,
+                            "base_version": "v1",
+                            "preview_action": "style-review",
+                        },
+                        headers={
+                            "Origin": "http://evil.example",
+                            "Host": "evil.example",
+                        },
+                    )
+                self.assertEqual(HTTPStatus.FORBIDDEN, raised.exception.code)
+                raised.exception.close()
+
     def test_final_selection_rejects_version_traversal(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             base_dir: Path = Path(tmp_dir)
-            task_dir: Path = write_task(base_dir, "<html><body>ok</body></html>")
+            task_dir: Path = write_task(base_dir, GOOD_HTML)
             outside: Path = base_dir / "outside-secret"
             outside.mkdir()
             (outside / "final.html").write_text("SECRET", encoding="utf-8")
@@ -606,7 +687,7 @@ class SecurityRegressionTest(unittest.TestCase):
 
     def test_pakco_assets_served_as_fallback_from_version_dir(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
-            task_dir: Path = write_task(Path(tmp_dir), "<html><body>ok</body></html>")
+            task_dir: Path = write_task(Path(tmp_dir), GOOD_HTML)
             with run_director_server(task_dir) as (host, port):
                 response = urlopen(f"http://{host}:{port}/static/v1/assets/runtime.js", timeout=2)
                 try:
@@ -618,7 +699,7 @@ class SecurityRegressionTest(unittest.TestCase):
 
     def test_pakco_asset_fallback_blocks_path_traversal(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
-            task_dir: Path = write_task(Path(tmp_dir), "<html><body>ok</body></html>")
+            task_dir: Path = write_task(Path(tmp_dir), GOOD_HTML)
             with run_director_server(task_dir) as (host, port):
                 with self.assertRaises(HTTPError) as raised:
                     urlopen(f"http://{host}:{port}/static/v1/assets/../brief-confirmed.json", timeout=2)

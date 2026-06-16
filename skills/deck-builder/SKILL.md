@@ -482,7 +482,8 @@ Use this path when the user asks for a new presentation in Codex. `output_format
 [6] Generation — route by output_format in brief-confirmed.json
     ├─ output_format = "html-revealjs"
     │    → Claude/Codex writes pakco-compatible HTML directly (NOT via Presentations plugin)
-    │    → Save version to Decks/<task-slug>/v1/final.html
+    │    → Save draft to Decks/<task-slug>/v1/.draft/final.html
+    │    → Run finalize --version v1; only QA pass promotes to Decks/<task-slug>/v1/final.html
     │
     ├─ output_format = "pptx"
     │    → Codex Presentations capability (active plugin or bundled runtime scripts)
@@ -492,7 +493,8 @@ Use this path when the user asks for a new presentation in Codex. `output_format
     │
     └─ output_format = "both"
          → First: Codex Presentations capability → PPTX
-         → Then: Claude/Codex writes pakco-compatible HTML directly → HTML
+         → Then: Claude/Codex writes pakco-compatible HTML draft directly → HTML
+         → Run finalize for the HTML version before preview-review
          → Save versions to Decks/<task-slug>/v1/
          → Note: HTML uses gradients/animation; PPTX uses solid-color equivalent
         ↓
@@ -544,7 +546,8 @@ In interactive Codex sessions, the confirmation gate is a real user-action gate:
     ├─ output_format = "html-revealjs"
     │    → Claude writes pakco-compatible HTML directly (see HTML Spec in this skill)
     │    → Single .html file, CDN-loaded
-    │    → Save versions to Decks/<task-slug>/vN/final.html, then copy the selected version to final/<task-slug>.html
+    │    → Save versions to Decks/<task-slug>/vN/.draft/final.html
+    │    → Run finalize --version vN, then copy the selected promoted version to final/<task-slug>.html
     │
     ├─ output_format = "pptx"
     │    → skills/pptx + pptxgenjs (existing path, no change)
@@ -603,7 +606,7 @@ Claude Code and offline agents follow the same confirmation principle as Codex. 
 
 When `output_format` is `"html-revealjs"` or `"both"`, generate a pakco-compatible HTML presentation. `html-revealjs` is a legacy enum value; the implementation uses the bundled pakco runtime and theme assets.
 
-This applies to both Codex and Claude Code. In Codex, write the HTML as a file artifact or local file; do NOT call Presentations plugin for HTML. Write candidate versions to `Decks/<task-slug>/vN/final.html`; after final selection copy the chosen version to `Decks/<task-slug>/final/<task-slug>.html`.
+This applies to both Codex and Claude Code. In Codex, write the HTML as a file artifact or local file; do NOT call Presentations plugin for HTML. Write candidate versions to `Decks/<task-slug>/vN/.draft/final.html`; run `presentation_director.py finalize --version vN` to promote only QA-passing drafts to `Decks/<task-slug>/vN/final.html`; after final selection copy the chosen promoted version to `Decks/<task-slug>/final/<task-slug>.html`.
 
 ### Bundled Asset Contract
 
@@ -616,7 +619,7 @@ This applies to both Codex and Claude Code. In Codex, write the HTML as a file a
 
 ```html
 <!DOCTYPE html>
-<html lang="{content_language}" data-theme="{theme_key}">
+<html lang="{content_language}" data-theme="{theme_key}" data-preview-as="{mobile|desktop|both}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -626,7 +629,7 @@ This applies to both Codex and Claude Code. In Codex, write the HTML as a file a
   <link rel="stylesheet" id="theme-link" href="./assets/themes/{theme_key}.css">
   <link rel="stylesheet" href="./assets/animations/animations.css">
 </head>
-<body data-themes="{theme_list}" data-theme-base="./assets/themes/">
+<body data-themes="{theme_list}" data-theme-base="./assets/themes/" data-preview-as="{mobile|desktop|both}">
   <div class="deck">
     <section class="slide" data-title="{slide_title}">
       <p class="kicker">{kicker}</p>
@@ -639,6 +642,18 @@ This applies to both Codex and Claude Code. In Codex, write the HTML as a file a
 </body>
 </html>
 ```
+
+### Preview Form Contract
+
+Declare the intended HTML preview form on every generated HTML deck:
+
+- `data-preview-as="mobile"` when the requested delivery is phone/mobile/portrait. The file must open on desktop as a phone-shaped or portrait mobile experience, not as a 16:9 desktop deck.
+- `data-preview-as="desktop"` when the requested delivery is computer/projector/desktop.
+- `data-preview-as="both"` only when the task intentionally provides both mobile and desktop HTML views; Director preview pages must show both.
+
+Presentation Director reads this attribute in `preview-review`, `style-review`, `image-placement`, and `compare`. The preview shown in Director must match what the user is receiving. Do not ship a mobile deck whose review page only shows a wide desktop iframe, and do not hide one of two requested versions.
+
+For B2B customer-facing decks, prefer audience wording such as "management", "operators", "hotel managers", "管理者", "管理层", or "酒店管理者". Avoid visible generic wording like "老板" unless the user explicitly asks for that tone. If a closing slide is about rollout, label it as implementation steps or rollout workflow rather than only a decision request.
 
 ### Content Density Rules — MUST follow to prevent overflow
 
@@ -912,9 +927,9 @@ python3 scripts/presentation_director.py serve-wait \
 For pre-v1 modes, generate only the targets in `image-plan.json`. In interactive Codex sessions, run `skills/deck-builder/scripts/generate_images.py --task-dir "Decks/<task-slug>" show`, display the prompts to the user, then register user-provided images with `place --source <path> --target-id <id>` or `place --sources '{...}'`. Record every attempt with `image-asset`; `final_status: success` is only valid when the registered file exists and is non-empty. Failed or missing images must not be replaced by CSS gradients or SVG placeholders. Automatic backends such as `--api stub`, `--api dall-e-3`, `--api flux`, and `--api hf` remain available only when explicitly chosen or for testing.
 
 7. Route generation by `output_format` in the confirmed brief:
-   - `html-revealjs`: write pakco-compatible HTML directly to `Decks/<task-slug>/v1/final.html`; do NOT call Presentations plugin.
+   - `html-revealjs`: write pakco-compatible HTML directly to `Decks/<task-slug>/v1/.draft/final.html`, then run `finalize --version v1`; do NOT call Presentations plugin.
    - `pptx`: verify Codex Presentations / `artifact-tool presentation-jsx` through active plugin or bundled runtime, run the runtime check, then export the net-new PPTX with `build_artifact_deck.mjs` to `Decks/<task-slug>/v1/final.pptx`. If unavailable, stop and report the missing runtime.
-   - `both`: verify Codex Presentations / `artifact-tool presentation-jsx` through active plugin or bundled runtime, export PPTX with `build_artifact_deck.mjs`, then write pakco-compatible HTML directly to `v1/final.html`. If Presentations runtime is unavailable, stop before generating either output unless the user explicitly changes output format.
+   - `both`: verify Codex Presentations / `artifact-tool presentation-jsx` through active plugin or bundled runtime, export PPTX with `build_artifact_deck.mjs`, then write pakco-compatible HTML directly to `v1/.draft/final.html` and run `finalize --version v1`. If Presentations runtime is unavailable, stop before generating either output unless the user explicitly changes output format.
 
 If `image_generation_mode` is `post-v1-slot-review` or `hybrid`, after v1 exists run:
 
@@ -925,7 +940,7 @@ python3 scripts/presentation_director.py serve-wait \
   --for images-placement
 ```
 
-Then generate v2 from `image-placement-request.json`: PPTX uses targeted edit and re-rendered `v2/contact-sheet.png`; HTML-only regenerates `v2/final.html`; `both` uses PPTX as the primary placement review and regenerates matching HTML.
+Then generate v2 from `image-placement-request.json`: PPTX uses targeted edit and re-rendered `v2/contact-sheet.png`; HTML-only writes `v2/.draft/final.html` and runs `finalize --version v2`; `both` uses PPTX as the primary placement review, writes matching HTML to `v2/.draft/final.html`, and runs `finalize --version v2`.
 
 After the latest required version is generated, render Director pages and open the preview review page. Use the local Director server for click-to-submit behavior; opening `preview-review.html` directly is only a static preview. If the user keeps the current version, final selection is written by the preview gate. If the user chooses style changes, wait for `revision.ready` from the style review gate, then use:
 
@@ -1178,7 +1193,7 @@ If that guard fails, open the Director confirmation page through `serve-wait` an
 
 For new confirmed briefs with `image_generation_mode`, the guard also enforces Image Style Gate completion and, once a v1 preview artifact exists, Image Placement Gate completion for `post-v1-slot-review` and `hybrid`. Older briefs without `image_generation_mode` skip image gates for compatibility.
 
-The guard also runs **structural HTML QA** on `v1/final.html` and auto-fails on two patterns that recurrently cause the staircase layout bug:
+The guard also runs **structural HTML QA** on every generated `vN/final.html` and auto-fails on two patterns that recurrently cause the staircase layout bug:
 1. `section { position:... }` in CSS — Reveal.js manages section positioning; any override breaks slide stacking.
 2. Unapproved `.stagger` — `.stagger` is forbidden by default and allowed only as `.stagger stagger-ok` on decorative, single-row, uniform horizontal card/tile/metric grids.
 

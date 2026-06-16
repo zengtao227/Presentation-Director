@@ -145,8 +145,8 @@ no text, no people, clean and airy,
         ↓
 [6] 生成 v1
     ├─ pptx → v1/final.pptx + v1/contact-sheet.png
-    ├─ html-revealjs → v1/final.html
-    └─ both → v1/final.pptx + v1/final.html
+    ├─ html-revealjs → v1/.draft/final.html → finalize → v1/final.html
+    └─ both → v1/final.pptx + v1/.draft/final.html → finalize → v1/final.html
         ↓
 [6.5] Image Placement Gate（post-v1-slot-review / hybrid）
     基于 v1 preview artifact 确认插图位置，写 image-placement-request.json

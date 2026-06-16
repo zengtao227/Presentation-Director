@@ -249,7 +249,7 @@ python3 "skills/deck-builder/scripts/presentation_director.py" \
 
 生成层：Claude/Codex 写 HTML deck。不要调用 Codex Presentations plugin 生成 HTML。必须使用 Director 项目内的 `skills/html-deck/pakco-html/assets/fonts.css`、`assets/base.css`、`assets/themes/<theme_key>.css`、`assets/animations/animations.css` 和 `assets/runtime.js`；不从全局 `.claude/skills` 安装或引用内置 HTML deck 引擎。
 
-输出路径：每个候选版本先写入 `Decks/<task-slug>/vN/final.html`；用户最终选择后，复制到 `Decks/<task-slug>/final/<task-slug>.html`。
+输出路径：每个 HTML 候选版本必须先写入 `Decks/<task-slug>/vN/.draft/final.html`，运行 `finalize --version vN` 通过 QA 后才提升为 `Decks/<task-slug>/vN/final.html`；用户最终选择后，复制到 `Decks/<task-slug>/final/<task-slug>.html`。
 
 #### HTML Preview Form Contract
 
@@ -378,9 +378,9 @@ Brief Confirmation Gate（open page and wait for user；编译 brief-confirmed.j
 Image Style Gate（如需要，作为 late lock supplement 补写 image_generation_mode / image-plan.json；必要时 pre-v1 生图）
     ↓
 Generation — route by output_format
-    ├─ html-revealjs → Claude/Codex writes HTML deck to v1/final.html
+    ├─ html-revealjs → Claude/Codex writes HTML deck to v1/.draft/final.html → finalize promotes to v1/final.html
     ├─ pptx → Codex Presentations runtime 写 v1/final.pptx（先查 session plugin，再查 bundled runtime；缺 runtime 则停止）
-    └─ both → PPTX first via Codex Presentations runtime, then HTML to v1/final.html（缺 runtime 则停止）
+    └─ both → PPTX first via Codex Presentations runtime, then HTML to v1/.draft/final.html → finalize promotes to v1/final.html（缺 runtime 则停止）
     ↓
 Post-v1 Image Placement Gate（仅 post-v1-slot-review / hybrid；写 v2）
     ↓
@@ -413,6 +413,10 @@ deck.md
 HTML deck 引擎 + theme assets
     ↓
 browser QA / screenshot / text-overflow check
+    ↓
+Decks/<task-slug>/vN/.draft/final.html
+    ↓
+finalize --version vN
     ↓
 Decks/<task-slug>/vN/final.html
     ↓

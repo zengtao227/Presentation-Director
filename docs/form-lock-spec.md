@@ -80,7 +80,7 @@ Record optional visual references in a table or short list. Do not invent Figma/
 Each candidate should include:
 
 - Candidate or reference name.
-- Source type: user-provided Figma file, local export, screenshot/reference image, existing deck, internal design lock, pakco theme, or manual source packet.
+- Source type: user-provided Figma file, local export, screenshot/reference image, existing deck, internal design lock, HTML deck theme, or manual source packet.
 - Useful form elements: palette, typography, grid, layout family, component, chart grammar, image treatment, motion rhythm.
 - Risk.
 - License or provenance note when relevant.

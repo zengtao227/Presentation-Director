@@ -218,7 +218,9 @@ Internal catalogs:
 - Confirmed brief: PPTX/<task-slug>/brief-confirmed.json (read html_config.theme_key, html_config.motion_level)
 
 [Output Target]
-- Versioned HTML: PPTX/<task-slug>/v1/final.html; after final selection copy to PPTX/<task-slug>/final/<task-slug>.html
+- Draft HTML: PPTX/<task-slug>/v1/.draft/final.html
+- Promotion: run `presentation_director.py finalize --version v1`; only QA-passing drafts become PPTX/<task-slug>/v1/final.html
+- Final selection copies the promoted version to PPTX/<task-slug>/final/<task-slug>.html
 
 [Narrative Requirements]
 - Produce a claim spine first: thesis / audience / arc / per-slide claim / proof object / source

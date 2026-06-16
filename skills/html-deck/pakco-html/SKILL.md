@@ -149,6 +149,11 @@ Only after those are clear, scaffold the deck and start writing.
   so the deck supports ← → / T / A / F / S / O / hash deep-links.
 - **One `.slide` per logical page.** `runtime.js` makes `.slide.is-active`
   visible; all others are hidden.
+- **Declare the delivery preview form.** Put `data-preview-as="mobile"`,
+  `data-preview-as="desktop"`, or `data-preview-as="both"` on `<html>` and
+  `<body>`. Mobile decks must open as a phone/portrait experience even on a
+  desktop browser. Desktop decks should preview as desktop. If both are
+  requested, provide both previews instead of hiding one.
 - **Supply notes.** Wrap speaker notes in `<div class="notes">…</div>` inside
   each slide. Press S to open the overlay.
 - **NEVER put presenter-only text on the slide itself.** Descriptive text like
@@ -157,6 +162,10 @@ Only after those are clear, scaffold the deck and start writing.
   `<p>` / `<span>` elements on the slide. The `.notes` class is `display:none`
   by default — it only appears in the S overlay. Slides should contain ONLY
   audience-facing content (titles, bullet points, data, charts, images).
+- **Use audience-appropriate customer wording.** For B2B customer-facing
+  decks, prefer "管理者 / 管理层 / 酒店管理者 / operators" over generic "老板",
+  unless the user explicitly wants that tone. Rollout slides should read as
+  implementation steps or operational workflow when that is the actual content.
 
 ## Writing guide
 

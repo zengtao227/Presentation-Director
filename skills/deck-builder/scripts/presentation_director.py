@@ -44,6 +44,7 @@ LEGACY_DECK_WORKSPACE_DIR: str = "PPTX"
 IMAGE_EXTENSIONS: set[str] = {".png", ".jpg", ".jpeg", ".webp"}
 VERSION_DIR_RE: re.Pattern[str] = re.compile(r"^v[1-9][0-9]*$")
 DIRECTOR_TOKEN_FIELD: str = "director_token"
+TRUSTED_ORIGIN_HOSTS: frozenset[str] = frozenset({"127.0.0.1", "localhost", "::1"})
 STATIC_HTML_CSP: str = (
     "default-src 'self' https: data: blob: 'unsafe-inline' 'unsafe-eval'; "
     "connect-src 'none'; "
@@ -480,7 +481,7 @@ ADDITIONAL_UI_COPY: dict[str, dict[str, str]] = {
         "image_confirm_required": "⚠️ ask-before-use 模式下，选择 pre-v1 生图模式后必须逐条勾选下方的 Prompt 草稿确认框，然后再保存。未确认的 target：",
         "image_placement_gate": "图片插入门禁",
         "image_placement_title": "确认 v1 后图片插入",
-        "image_placement_intro": "请基于 v1 预览选择哪些位置需要补充图片。PPTX 会用 targeted edit；HTML-only 会重新生成 v2/final.html。",
+        "image_placement_intro": "请基于 v1 预览选择哪些位置需要补充图片。PPTX 会用 targeted edit；HTML-only 会先写 v2/.draft/final.html，再由 finalize 生成 v2/final.html。",
         "preview_artifact": "v1 预览文件",
         "missing_preview_artifact": "还没有找到当前输出格式需要的 v1 预览文件。请先完成 v1 生成并刷新此页。",
         "placement_rows": "插入请求",
@@ -585,7 +586,7 @@ ADDITIONAL_UI_COPY: dict[str, dict[str, str]] = {
         "image_confirm_required": "⚠️ In ask-before-use mode with a pre-v1 image mode selected, you must check every Prompt draft confirmation box below before saving. Unconfirmed targets:",
         "image_placement_gate": "Image Placement Gate",
         "image_placement_title": "Confirm Post-v1 Image Placement",
-        "image_placement_intro": "Use the v1 preview to decide where generated images should be added. PPTX uses targeted edit; HTML-only regenerates v2/final.html.",
+        "image_placement_intro": "Use the v1 preview to decide where generated images should be added. PPTX uses targeted edit; HTML-only writes v2/.draft/final.html first, then finalize promotes v2/final.html.",
         "preview_artifact": "v1 preview artifact",
         "missing_preview_artifact": "The required v1 preview artifact for this output format is missing. Generate v1 first, then refresh this page.",
         "placement_rows": "Placement Requests",
@@ -837,7 +838,7 @@ WORKFLOW_UI_COPY: dict[str, dict[str, str]] = {
         "html_motion_profile_cinematic": "Cinematic: stärkere CSS-Animation; Canvas/WebGL ist nicht aktiviert",
         "image_placement_gate": "Bildplatzierungs-Gate",
         "image_placement_title": "Bildplatzierung nach v1 bestätigen",
-        "image_placement_intro": "Wählen Sie anhand der v1-Vorschau, wo zusätzliche Bilder eingefügt werden sollen. PPTX nutzt gezielte Bearbeitung; HTML-only erzeugt v2/final.html neu.",
+        "image_placement_intro": "Wählen Sie anhand der v1-Vorschau, wo zusätzliche Bilder eingefügt werden sollen. PPTX nutzt gezielte Bearbeitung; HTML-only schreibt zuerst v2/.draft/final.html, danach erzeugt finalize v2/final.html.",
         "preview_artifact": "v1-Vorschauartefakt",
         "placement_rows": "Platzierungsanfragen",
         "slide_index": "Folie / HTML-Abschnitt",
@@ -1790,9 +1791,10 @@ def generation_strategy_text(output_format: str, task_dir: Path, ui_language: st
             ),
             "both": (
                 f"⛔ 强制审查门（不可跳过）：\n"
-                f"1. 先生成 v1/final.pptx 与 v1/final.html。\n"
-                f"2. 然后必须以前台阻塞方式运行 serve-wait --open-page preview-review --for preview-review。\n"
-                f"3. 等待 status/preview-reviewed.ready 后，最终选择后复制到 {task_path}/final/。"
+                f"1. 先生成 v1/final.pptx，并把 HTML 写到 {task_path}/v1/.draft/final.html（不是 v1/final.html）。\n"
+                f"2. 立即运行 finalize --version v1，通过 QA 后才提升为 v1/final.html。\n"
+                f"3. 然后必须以前台阻塞方式运行 serve-wait --open-page preview-review --for preview-review。\n"
+                f"4. 等待 status/preview-reviewed.ready 后，最终选择后复制到 {task_path}/final/。"
             ),
         },
         "en": {
@@ -1814,30 +1816,31 @@ def generation_strategy_text(output_format: str, task_dir: Path, ui_language: st
             ),
             "both": (
                 f"⛔ MANDATORY REVIEW GATE (cannot be skipped):\n"
-                f"1. Generate v1/final.pptx and v1/final.html.\n"
-                f"2. Run serve-wait --open-page preview-review --for preview-review in foreground (blocking).\n"
-                f"3. Wait for status/preview-reviewed.ready, then copy to {task_path}/final/."
+                f"1. Generate v1/final.pptx, and write HTML to {task_path}/v1/.draft/final.html (NOT v1/final.html).\n"
+                f"2. Immediately run finalize --version v1; only a full QA pass promotes it to v1/final.html.\n"
+                f"3. Run serve-wait --open-page preview-review --for preview-review in foreground (blocking).\n"
+                f"4. Wait for status/preview-reviewed.ready, then copy to {task_path}/final/."
             ),
         },
         "de": {
-            "html-revealjs": f"Zuerst wird HTML deck unter {task_path}/v1/final.html erzeugt; danach wird preview-review.html geöffnet. Nach finaler Auswahl wird es nach {task_path}/final/<task-slug>.html kopiert.",
+            "html-revealjs": f"Zuerst wird das HTML deck unter {task_path}/v1/.draft/final.html erzeugt und per finalize nach v1/final.html befördert; danach wird preview-review.html geöffnet. Nach finaler Auswahl wird es nach {task_path}/final/<task-slug>.html kopiert.",
             "pptx": f"Zuerst werden v1-PPTX und Contact Sheet unter {task_path} gespeichert, danach wird preview-review.html geöffnet; style-review.html nur bei Änderungsbedarf.",
-            "both": f"Zuerst werden v1/final.pptx und v1/final.html erzeugt, danach wird preview-review.html geöffnet. Nach finaler Auswahl werden sie unter {task_path}/final/ kopiert.",
+            "both": f"Zuerst werden v1/final.pptx und HTML unter {task_path}/v1/.draft/final.html erzeugt; finalize befördert HTML nach v1/final.html, danach wird preview-review.html geöffnet. Nach finaler Auswahl werden sie unter {task_path}/final/ kopiert.",
         },
         "fr": {
-            "html-revealjs": f"Générer d'abord le HTML deck versionné dans {task_path}/v1/final.html, puis ouvrir preview-review.html; après le choix final, le copier dans {task_path}/final/<task-slug>.html.",
+            "html-revealjs": f"Générer d'abord le HTML deck dans {task_path}/v1/.draft/final.html, puis le promouvoir avec finalize vers v1/final.html avant d'ouvrir preview-review.html; après le choix final, le copier dans {task_path}/final/<task-slug>.html.",
             "pptx": f"Générer d'abord le PPTX v1 et la planche de contact dans {task_path}, puis ouvrir preview-review.html; style-review.html seulement si des changements sont nécessaires.",
-            "both": f"Générer d'abord v1/final.pptx et v1/final.html, puis ouvrir preview-review.html; après le choix final, les copier dans {task_path}/final/.",
+            "both": f"Générer d'abord v1/final.pptx et le HTML dans {task_path}/v1/.draft/final.html; finalize promeut le HTML vers v1/final.html avant preview-review.html; après le choix final, les copier dans {task_path}/final/.",
         },
         "it": {
-            "html-revealjs": f"Genera prima l'HTML deck versionato in {task_path}/v1/final.html, poi apri preview-review.html; dopo la scelta finale copialo in {task_path}/final/<task-slug>.html.",
+            "html-revealjs": f"Genera prima l'HTML deck in {task_path}/v1/.draft/final.html, poi promuovilo con finalize a v1/final.html prima di aprire preview-review.html; dopo la scelta finale copialo in {task_path}/final/<task-slug>.html.",
             "pptx": f"Genera prima il PPTX v1 e il contact sheet in {task_path}, poi apri preview-review.html; style-review.html solo se servono modifiche.",
-            "both": f"Genera prima v1/final.pptx e v1/final.html, poi apri preview-review.html; dopo la scelta finale copiali in {task_path}/final/.",
+            "both": f"Genera prima v1/final.pptx e l'HTML in {task_path}/v1/.draft/final.html; finalize promuove l'HTML a v1/final.html prima di preview-review.html; dopo la scelta finale copiali in {task_path}/final/.",
         },
         "es": {
-            "html-revealjs": f"Primero genera el HTML deck versionado en {task_path}/v1/final.html, luego abre preview-review.html; tras la selección final cópialo a {task_path}/final/<task-slug>.html.",
+            "html-revealjs": f"Primero genera el HTML deck en {task_path}/v1/.draft/final.html y promuévelo con finalize a v1/final.html antes de abrir preview-review.html; tras la selección final cópialo a {task_path}/final/<task-slug>.html.",
             "pptx": f"Primero genera el PPTX v1 y la hoja de contacto en {task_path}, luego abre preview-review.html; style-review.html solo si hacen falta cambios.",
-            "both": f"Primero genera v1/final.pptx y v1/final.html, luego abre preview-review.html; tras la selección final cópialos en {task_path}/final/.",
+            "both": f"Primero genera v1/final.pptx y el HTML en {task_path}/v1/.draft/final.html; finalize promueve el HTML a v1/final.html antes de preview-review.html; tras la selección final cópialos en {task_path}/final/.",
         },
     }
     language_messages: dict[str, str] = messages.get(ui_language, messages["en"])
@@ -2004,13 +2007,9 @@ def validate_generation_guard(task_dir: Path) -> list[str]:
     # to authorize. Once any v1 preview artifact exists, missing siblings and
     # structural HTML warnings become real guard errors.
     output_format: str = output_format_from_brief(brief, "html-revealjs")
-    preview_started: bool = any(
-        path.exists()
-        for path in preview_artifact_paths(task_dir, output_format, "v1")
-    )
-    if preview_started:
-        for gate_error in preview_review_gate_errors(task_dir):
-            errors.append(gate_error)
+    for version_name in generated_preview_versions(task_dir, output_format):
+        for gate_error in preview_review_gate_errors(task_dir, version_name):
+            errors.append(f"{version_name}: {gate_error}")
 
     # When image_policy requires a decision and no mode has been set, the
     # Image Style Gate was never completed — block generation.
@@ -2566,8 +2565,9 @@ def playwright_visual_qa(html_path: Path) -> list[str]:
     """Visual QA using headless Chromium: overflow, gap, and alignment checks.
 
     Uses print-media mode so all slides are simultaneously visible and measurable.
-    Content container is .s — the Director safe-area box for both desktop (590px)
-    and mobile (756px). All thresholds derive from .s.clientHeight/clientWidth so
+    Content container is .slide-safe (new) or .s (legacy) — the Director safe-area
+    box for both desktop (590px) and mobile (756px). All thresholds derive from
+    the safe-area box clientHeight/clientWidth so
     the same function works for landscape decks and portrait mobile decks.
     Returns FAIL strings; empty list means pass.
     """
@@ -2598,14 +2598,14 @@ def playwright_visual_qa(html_path: Path) -> list[str]:
                     const num = idx + 1;
                     const title = slide.getAttribute('data-title') || ('Slide ' + num);
 
-                    // Find content container (.s is the Director safe-area box)
-                    const content = slide.querySelector('.s');
+                    // Find content container (.slide-safe is current; .s is legacy)
+                    const content = slide.querySelector('.slide-safe, .s');
                     if (!content) {
-                        errors.push('Slide ' + num + ' (' + title + '): .s content container not found');
+                        errors.push('Slide ' + num + ' (' + title + '): .slide-safe/.s content container not found');
                         return;
                     }
 
-                    // Use actual .s dimensions as thresholds — works for desktop (590px)
+                    // Use actual safe-area dimensions as thresholds — works for desktop (590px)
                     // and mobile (756px) without hardcoding either value.
                     const clientH = content.clientHeight;
                     const clientW = content.clientWidth;
@@ -2752,8 +2752,28 @@ def artifact_exists(path: Path) -> bool:
     return path.exists() and path.is_file() and path.stat().st_size > 0
 
 
+def version_preview_exists(task_dir: Path, output_format: str, version_name: str) -> bool:
+    return all(artifact_exists(path) for path in required_preview_artifact_paths(task_dir, output_format, version_name))
+
+
 def v1_preview_exists(task_dir: Path, output_format: str) -> bool:
-    return all(artifact_exists(path) for path in required_preview_artifact_paths(task_dir, output_format, "v1"))
+    return version_preview_exists(task_dir, output_format, "v1")
+
+
+def version_dir_has_preview(task_dir: Path, output_format: str, version_name: str) -> bool:
+    return any(path.exists() for path in preview_artifact_paths(task_dir, output_format, version_name))
+
+
+def generated_preview_versions(task_dir: Path, output_format: str) -> list[str]:
+    versions: list[str] = []
+    if not task_dir.exists():
+        return versions
+    for item in sorted(task_dir.iterdir(), key=version_number):
+        if not item.is_dir() or version_number(item) < 1:
+            continue
+        if version_dir_has_preview(task_dir, output_format, item.name):
+            versions.append(item.name)
+    return versions
 
 
 def preview_artifact_paths(task_dir: Path, output_format: str, version_name: str = "v1") -> list[Path]:
@@ -2771,6 +2791,46 @@ def preview_artifact_paths(task_dir: Path, output_format: str, version_name: str
             paths.extend(sorted(screenshot_dir.glob("*.png"), key=natural_sort_key))
         return paths
     return [version_dir / "final.pptx", version_dir / "contact-sheet.png"]
+
+
+def html_slide_section_count(text: str) -> int:
+    return sum(
+        1
+        for _ in re.finditer(
+            r"<section\b[^>]*\bclass\s*=\s*(['\"])(?=[^'\"]*\bslide\b)[^'\"]*\1",
+            text,
+            re.IGNORECASE,
+        )
+    )
+
+
+def html_linked_css_text(html_path: Path, text: str) -> str:
+    chunks: list[str] = []
+    hrefs: list[str] = re.findall(
+        r"<link\b[^>]*\bhref\s*=\s*['\"]([^'\"]+\.css(?:\?[^'\"]*)?)['\"]",
+        text,
+        re.IGNORECASE,
+    )
+    for href in hrefs:
+        clean_href: str = unquote(href.split("?", 1)[0])
+        if re.match(r"^[a-z][a-z0-9+.-]*:", clean_href, re.IGNORECASE):
+            continue
+        try:
+            css_path: Path = resolve_contained_path(html_path.parent, html_path.parent / clean_href)
+        except ValueError:
+            continue
+        if not css_path.exists() or not css_path.is_file():
+            continue
+        try:
+            chunks.append(css_path.read_text(encoding="utf-8", errors="ignore"))
+        except OSError:
+            continue
+    return "\n".join(chunks)
+
+
+def html_has_hidden_notes_rule(html_path: Path, text: str) -> bool:
+    css_text: str = text + "\n" + html_linked_css_text(html_path, text)
+    return bool(re.search(r"\.notes\b[^{]*\{[^}]*display\s*:\s*none", css_text, re.IGNORECASE))
 
 
 def html_deck_integrity_warnings(html_path: Path) -> list[str]:
@@ -2796,8 +2856,8 @@ def html_deck_integrity_warnings(html_path: Path) -> list[str]:
         )
 
     text: str = raw.decode("utf-8", errors="replace")
-    section_count: int = raw.count(b'<section class="slide"')
-    total_match = re.search(r'data-total="(\d+)"', text)
+    section_count: int = html_slide_section_count(text)
+    total_match = re.search(r"data-total\s*=\s*['\"](\d+)['\"]", text)
     if total_match:
         declared_total: int = int(total_match.group(1))
         if section_count != declared_total:
@@ -2808,9 +2868,21 @@ def html_deck_integrity_warnings(html_path: Path) -> list[str]:
     else:
         warnings.append("MISSING data-total: no slide-number element with data-total found.")
 
-    currents: list[int] = [int(m) for m in re.findall(r'data-current="(\d+)"', text)]
+    preview_marker = re.search(
+        r"data-preview-as\s*=\s*['\"](mobile|desktop|both)['\"]",
+        text,
+        re.IGNORECASE,
+    ) or re.search(
+        r"name\s*=\s*['\"]presentation-preview['\"][^>]*content\s*=\s*['\"](mobile|desktop|both)['\"]",
+        text,
+        re.IGNORECASE,
+    )
+    if not preview_marker:
+        warnings.append("MISSING data-preview-as: declare mobile, desktop, or both on <html> or <body>.")
+
+    currents: list[int] = [int(m) for m in re.findall(r'data-current\s*=\s*[\'"](\d+)[\'"]', text)]
     if currents:
-        expected: list[int] = list(range(1, len(currents) + 1))
+        expected: list[int] = list(range(1, section_count + 1))
         if sorted(currents) != expected:
             warnings.append(
                 f"SEQUENCE GAP: data-current values are {sorted(currents)}, expected {expected}."
@@ -2818,7 +2890,7 @@ def html_deck_integrity_warnings(html_path: Path) -> list[str]:
     else:
         warnings.append("MISSING data-current: no slide-number elements found.")
 
-    if ".notes" not in text or "display: none" not in text:
+    if ".notes" not in text or not html_has_hidden_notes_rule(html_path, text):
         warnings.append(
             "NOTES VISIBLE: .notes CSS rule with display:none not found. "
             "Speaker notes will render on slides."
@@ -2827,14 +2899,14 @@ def html_deck_integrity_warnings(html_path: Path) -> list[str]:
     return warnings
 
 
-def preview_review_gate_errors(task_dir: Path) -> list[str]:
+def preview_review_gate_errors(task_dir: Path, version_name: str = "v1") -> list[str]:
     errors: list[str] = []
     brief: JsonDict = read_json(task_dir / "brief-confirmed.json")
     output_format: str = output_format_from_brief(brief, "html-revealjs")
-    for path in required_preview_artifact_paths(task_dir, output_format, "v1"):
+    for path in required_preview_artifact_paths(task_dir, output_format, version_name):
         if not artifact_exists(path):
             errors.append(f"Missing or empty preview artifact: {path}")
-    for path in preview_artifact_paths(task_dir, output_format, "v1"):
+    for path in preview_artifact_paths(task_dir, output_format, version_name):
         if path.name != "final.html":
             continue
         for iw in html_deck_integrity_warnings(path):
@@ -2847,7 +2919,8 @@ def preview_review_gate_errors(task_dir: Path) -> list[str]:
 
 
 def ensure_preview_review_gate_passed(task_dir: Path) -> None:
-    errors: list[str] = preview_review_gate_errors(task_dir)
+    version_name: str = latest_review_version(task_dir)
+    errors: list[str] = preview_review_gate_errors(task_dir, version_name)
     if not errors:
         return
     print("Preview-review gate failed:", file=sys.stderr)
@@ -2862,23 +2935,24 @@ def ensure_preview_review_gate_passed(task_dir: Path) -> None:
 
 
 def cmd_finalize(args: argparse.Namespace) -> None:
-    """Promote v1/.draft/final.html to v1/final.html after passing all QA checks.
+    """Promote vN/.draft/final.html to vN/final.html after passing all QA checks.
 
     Steps:
       1. Static guard (integrity + font-size + structural checks)
       2. Playwright visual QA (overflow + grid-alignment)
-      3. On pass: copy .draft/final.html -> v1/final.html, touch preview-reviewed.ready
+      3. On pass: copy .draft/final.html -> vN/final.html, touch preview-reviewed.ready
       4. Open the promoted file in the default browser
     """
     base_dir: Path = Path(args.base_dir)
     task_dir: Path = base_dir / "Decks" / args.task
-    draft_path: Path = task_dir / "v1" / ".draft" / "final.html"
-    final_path: Path = task_dir / "v1" / "final.html"
+    version_name: str = resolve_version_dir(task_dir, str(args.version), must_exist=False).name
+    draft_path: Path = task_dir / version_name / ".draft" / "final.html"
+    final_path: Path = task_dir / version_name / "final.html"
 
     if not draft_path.exists():
         print(f"ERROR: draft not found: {draft_path}", file=sys.stderr)
         print(
-            "Generate the deck and write it to v1/.draft/final.html, then re-run finalize.",
+            f"Generate the deck and write it to {version_name}/.draft/final.html, then re-run finalize.",
             file=sys.stderr,
         )
         raise SystemExit(1)
@@ -2898,18 +2972,19 @@ def cmd_finalize(args: argparse.Namespace) -> None:
         all_errors.append(f"Visual: {ve}")
 
     if all_errors:
-        print("\n❌ FINALIZE FAILED — fix issues before promoting to v1:", file=sys.stderr)
+        print(f"\n❌ FINALIZE FAILED — fix issues before promoting to {version_name}:", file=sys.stderr)
         for e in all_errors:
             print(f"  • {e}", file=sys.stderr)
         raise SystemExit(2)
 
+    final_path.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(draft_path, final_path)
 
     st_dir: Path = status_dir(task_dir)
     st_dir.mkdir(parents=True, exist_ok=True)
     (st_dir / STATUS_FILES["preview-review"]).touch()
 
-    print(f"\n✅ FINALIZE PASSED — v1 is ready for your review")
+    print(f"\n✅ FINALIZE PASSED — {version_name} is ready for your review")
     print(f"   {final_path}")
     webbrowser.open(f"file://{final_path.resolve()}")
 
@@ -4121,6 +4196,10 @@ def finalize_selected_version(task_dir: Path, selected_version: str, notes: str 
     output_format: str = output_format_from_brief(brief, "pptx") if brief else "pptx"
     selected_version_dir: Path = resolve_version_dir(task_dir, selected_version, must_exist=True)
     selected_version = selected_version_dir.name
+    gate_errors: list[str] = preview_review_gate_errors(task_dir, selected_version)
+    if gate_errors:
+        joined_errors: str = "; ".join(gate_errors)
+        raise ValueError(f"Selected version {selected_version} has not passed preview gate: {joined_errors}")
     selected_pptx: Path = selected_version_dir / "final.pptx"
     final_dir: Path = task_dir / "final"
     final_pptx: Path = final_dir / f"{task_dir.name}.pptx"
@@ -4848,25 +4927,12 @@ def render_image_placement(task_dir: Path) -> str:
     ui_language: str = ui_language_from_brief(brief)
     output_format: str = output_format_from_brief(brief, "pptx")
     preview_exists: bool = v1_preview_exists(task_dir, output_format)
-    preview_html: str = ""
-    if output_format == "html-revealjs":
-        html_path: Path = task_dir / "v1" / "final.html"
-        if html_path.exists():
-            preview_html = (
-                f'<p>{html.escape(t(ui_language, "preview_artifact"))}: '
-                f'<code>{html.escape(str(html_path))}</code></p>'
-                f'{render_html_preview_frames("v1", html_path, ui_language)}'
-            )
-    else:
-        contact_sheet: Path = task_dir / "v1" / "contact-sheet.png"
-        pptx_path: Path = task_dir / "v1" / "final.pptx"
-        if contact_sheet.exists():
-            preview_html = (
-                f'<img class="contact-sheet" src="/static/v1/contact-sheet.png" alt="v1 contact sheet">'
-                f'<p>{html.escape(t(ui_language, "pptx_label"))}: <code>{html.escape(str(pptx_path))}</code></p>'
-            )
-    if not preview_html:
-        preview_html = f"<p class='risk'>{html.escape(t(ui_language, 'missing_preview_artifact'))}</p>"
+    preview_html, artifact_path = render_version_preview(task_dir, "v1", output_format, ui_language)
+    preview_html = (
+        f'<p>{html.escape(t(ui_language, "preview_artifact"))}: '
+        f'<code>{html.escape(str(artifact_path))}</code></p>'
+        f'{preview_html}'
+    )
 
     row_html: list[str] = []
     existing_request: JsonDict = read_json(image_placement_path(task_dir))
@@ -4956,6 +5022,28 @@ def render_version_preview(task_dir: Path, version_name: str, output_format: str
                 html_path,
             )
         return f"<p class='risk'>{html.escape(t(ui_language, 'missing_preview_artifact'))}</p>", html_path
+    if output_format == "both":
+        parts: list[str] = []
+        if contact_sheet.exists():
+            parts.append(
+                f"""<section class="section">
+  <h3>{html.escape(t(ui_language, "pptx_label"))}</h3>
+  <img class="contact-sheet" src="/static/{html.escape(version_name)}/contact-sheet.png" alt="{html.escape(version_name)} contact sheet">
+  <p><code>{html.escape(str(pptx_path))}</code></p>
+</section>"""
+            )
+        else:
+            parts.append(f"<p class='risk'>{html.escape(t(ui_language, 'no_contact_sheet'))}</p>")
+        if html_path.exists():
+            parts.append(
+                f"""<section class="section">
+  <h3>HTML deck</h3>
+  {render_html_preview_frames(version_name, html_path, ui_language)}
+</section>"""
+            )
+        else:
+            parts.append(f"<p class='risk'>{html.escape(t(ui_language, 'missing_preview_artifact'))}</p>")
+        return "".join(parts), version_dir
     if contact_sheet.exists():
         return (
             f'<img class="contact-sheet" src="/static/{html.escape(version_name)}/contact-sheet.png" alt="{html.escape(version_name)} contact sheet">'
@@ -5221,24 +5309,9 @@ def render_compare(task_dir: Path) -> str:
         version_dir: Path = resolve_version_dir(task_dir, version, must_exist=False)
         if not version_dir.exists():
             continue
-        contact_sheet: Path = version_dir / "contact-sheet.png"
         qa_summary: Path = version_dir / "qa-summary.md"
-        pptx_path: Path = version_dir / "final.pptx"
-        html_path: Path = version_dir / "final.html"
-        if output_format == "html-revealjs":
-            image_html: str = (
-                render_html_preview_frames(version, html_path, ui_language)
-                if html_path.exists()
-                else f"<p class='risk'>{html.escape(t(ui_language, 'missing_preview_artifact'))}</p>"
-            )
-            artifact_label: str = str(html_path)
-        else:
-            image_html = (
-                f'<img class="contact-sheet" src="/static/{version}/contact-sheet.png" alt="{version} contact sheet">'
-                if contact_sheet.exists()
-                else f"<p class='risk'>{html.escape(t(ui_language, 'no_contact_sheet'))}</p>"
-            )
-            artifact_label = str(pptx_path)
+        image_html, artifact_path = render_version_preview(task_dir, version, output_format, ui_language)
+        artifact_label: str = str(artifact_path)
         qa_text: str = qa_summary.read_text(encoding="utf-8") if qa_summary.exists() else t(ui_language, "missing_qa_summary")
         version_cards.append(
             f"""<section class="section">
@@ -5295,10 +5368,7 @@ def latest_review_version(task_dir: Path) -> str:
         for item in task_dir.iterdir()
         if item.is_dir()
         and version_number(item) >= 1
-        and (
-            ((item / "final.html").exists() and output_format == "html-revealjs")
-            or ((item / "contact-sheet.png").exists() and (item / "final.pptx").exists())
-        )
+        and version_preview_exists(task_dir, output_format, item.name)
     ]
     if not candidates:
         return "v1"
@@ -5316,8 +5386,8 @@ def initial_prompt(task_dir: Path) -> str:
     image_policy: str = image_policy_from_brief(brief)
     raw_image_mode: Any = brief.get("image_generation_mode")
     image_mode: str = normalize_image_generation_mode(str(raw_image_mode), image_policy) if raw_image_mode is not None else "none"
-    html_v1_output: Path = task_dir / "v1" / "final.html"
-    html_v2_output: Path = task_dir / "v2" / "final.html"
+    html_v1_output: Path = task_dir / "v1" / ".draft" / "final.html"
+    html_v2_output: Path = task_dir / "v2" / ".draft" / "final.html"
     pptx_v1_output: Path = task_dir / "v1" / "final.pptx"
     pptx_v2_output: Path = task_dir / "v2" / "final.pptx"
     image_style_gate_instruction: str = (
@@ -5349,6 +5419,15 @@ def initial_prompt(task_dir: Path) -> str:
   python3 "{generate_images_path}" --task-dir "{task_dir}" --api stub
 {image_asset_record_command}- After all pre-v1 images are recorded, run guard again and continue only when all active targets are success with matching prompts.
 """
+    html_finalize_instruction: str = ""
+    if output_format in {"html-revealjs", "both"}:
+        html_finalize_instruction = f"""HTML Draft → Final requirements:
+- Write HTML only to `vN/.draft/final.html`; never write `vN/final.html` directly.
+- After each HTML draft is written, run finalize for that version:
+  python3 "{script_path}" --base-dir "{task_dir.parent.parent}" finalize --task "{task_dir.name}" --version "<vN>"
+- If finalize fails, fix the draft and rerun finalize. Do not copy `.draft/final.html` by hand.
+"""
+
     post_v1_image_instruction: str = ""
     if image_mode in POST_V1_IMAGE_MODES:
         post_v1_image_instruction = f"""Post-v1 image slot review:
@@ -5357,10 +5436,11 @@ def initial_prompt(task_dir: Path) -> str:
 - Then read {image_placement_path(task_dir)}.
 - Generate or reuse images for the approved placements only, using the same retry-2-then-stop rule and `image-asset` recording command.
 - For PPTX output, apply the approved placements with a targeted edit and write {pptx_v2_output}; re-render to {task_dir / "v2" / "contact-sheet.png"} and {task_dir / "v2" / "qa-summary.md"}.
-- For HTML-only output, regenerate the HTML deck to {html_v2_output}; do not mutate v1/final.html in place.
-- For `both`, treat PPTX as primary for placement review, then regenerate the matching HTML deck to {html_v2_output}.
-"""
+- For HTML-only output, regenerate the HTML deck to {html_v2_output}, then run finalize with `--version v2`; do not mutate v1/final.html in place.
+- For `both`, treat PPTX as primary for placement review, then regenerate the matching HTML deck to {html_v2_output} and run finalize with `--version v2`.
+  """
     preview_review_instruction: str = f"""After generation:
+- If this run produced an HTML deck, make sure the matching finalize command has promoted the draft before this step.
 - Regenerate Director pages so the review page can see the new artifacts:
   python3 "{script_path}" --base-dir "{task_dir.parent.parent}" render --task "{task_dir.name}"
 - Run the generation guard to verify the HTML before opening preview-review:
@@ -5432,6 +5512,7 @@ Rules:
         html_requirements = f"""HTML deck requirements:
 - Use the bundled HTML deck engine at {html_deck_root}. Do not install or invoke a global HTML deck skill.
 - Build `final.html` as an HTML deck using `<div class="deck">` and one `<section class="slide" data-title="...">` per slide.
+- Declare the delivery form with `data-preview-as="mobile"`, `"desktop"`, or `"both"` on `<html>` and `<body>`. Use `mobile` only when the requested delivery is phone/mobile/portrait, `desktop` for projector/computer delivery, and `both` only when both forms are explicitly requested.
 - Include HTML deck assets in the output by either:
   1. inlining `assets/fonts.css`, `assets/base.css`, `assets/themes/{theme_key}.css`, `assets/animations/animations.css`, and `assets/runtime.js` into `final.html` (preferred for final portability), or
   2. copying `{html_deck_root / "assets"}` to `{html_output.parent / "assets"}` and linking `./assets/...`.
@@ -5487,7 +5568,7 @@ Rules:
 - layout_families from html_config: {layout_families_json}. Do not repeat the same layout family 3 slides in a row.
 - Every slide needs one primary proof object: chart, diagram, table, quote, image, or code artifact.
 - Speaker notes: put <aside class="notes"> on every slide. Pakco `assets/runtime.js` must be loaded and the S key must open presenter mode with current/next previews, script, and timer.
-- Save the versioned output to {html_output}.
+- Save the draft output to {html_output}. Do not write `vN/final.html` directly.
 - Include export guidance: print from Chrome/Edge in landscape with backgrounds enabled and no headers/footers."""
 
     if output_format == "html-revealjs":
@@ -5500,6 +5581,8 @@ Rules:
 {html_requirements}
 
 {post_v1_image_instruction}
+
+{html_finalize_instruction}
 
 {preview_review_instruction}
 - Final selection copies the selected `vN/final.html` to {final_html_path_for_output(task_dir, "html-revealjs")}.
@@ -5532,6 +5615,8 @@ HTML route:
 {html_requirements}
 
 {post_v1_image_instruction}
+
+{html_finalize_instruction}
 
 {preview_review_instruction}
 - Final selection copies the selected PPTX to {task_dir / "final" / (task_dir.name + ".pptx")} and the selected HTML deck to {final_html_path_for_output(task_dir, "both")}.
@@ -5598,7 +5683,7 @@ def revision_prompt(task_dir: Path) -> str:
     target_versions: list[str] = [f"v{next_version_number + offset}" for offset in range(revision_count)]
     target_version_text: str = ", ".join(target_versions)
     html_version_outputs: str = "\n".join(
-        f"  - {version}: {task_dir / version / 'final.html'} and {task_dir / version / 'qa-summary.md'}"
+        f"  - {version}: write draft to {task_dir / version / '.draft' / 'final.html'}, then run finalize --version {version}; write {task_dir / version / 'qa-summary.md'}"
         for version in target_versions
     )
     pptx_version_outputs: str = "\n".join(
@@ -5636,6 +5721,7 @@ HTML route:
 - Generate {revision_count} revised version(s): {target_version_text}.
 - Write outputs:
 {html_version_outputs}
+- Do not write `vN/final.html` directly; only `finalize --version vN` may promote a draft.
 - Verify browser load, navigation, presenter notes, print-PDF readiness, and no text overflow.
 - Do not mutate {base_html}; each version must remain reproducible.
 """
@@ -5698,8 +5784,15 @@ class DirectorHandler(BaseHTTPRequestHandler):
         if not origin:
             return True
         parsed_origin = urlparse(origin)
-        host: str = self.headers.get("Host", "")
-        return bool(parsed_origin.scheme in {"http", "https"} and parsed_origin.netloc.lower() == host.lower())
+        if parsed_origin.scheme not in {"http", "https"}:
+            return False
+        origin_host: str = parsed_origin.hostname or ""
+        if origin_host.lower() not in TRUSTED_ORIGIN_HOSTS:
+            return False
+        default_port: int = 443 if parsed_origin.scheme == "https" else 80
+        origin_port: int = parsed_origin.port or default_port
+        server_port: int = int(self.server.server_address[1])
+        return origin_port == server_port
 
     def valid_director_post(self, path: str, form: dict[str, list[str]]) -> bool:
         if not self.request_has_trusted_origin():
@@ -5765,7 +5858,7 @@ class DirectorHandler(BaseHTTPRequestHandler):
         elif path == "/image-placement":
             self.send_html(render_image_placement(self.task_dir))
         elif path == "/preview-review":
-            preview_errors: list[str] = preview_review_gate_errors(self.task_dir)
+            preview_errors: list[str] = preview_review_gate_errors(self.task_dir, latest_review_version(self.task_dir))
             if preview_errors:
                 ui_language: str = ui_language_for_task(self.task_dir)
                 errors_html: str = "\n".join(f"- {error}" for error in preview_errors)
@@ -5914,7 +6007,11 @@ class DirectorHandler(BaseHTTPRequestHandler):
             render_all_pages(self.task_dir)
             revision_action: str = str(request.get("revision_action", ""))
             if revision_action == "keep-current":
-                finalize_selected_version(self.task_dir, str(request.get("base_version", "v1")), str(request.get("notes", "")))
+                try:
+                    finalize_selected_version(self.task_dir, str(request.get("base_version", "v1")), str(request.get("notes", "")))
+                except ValueError as exc:
+                    self.send_error(HTTPStatus.BAD_REQUEST, str(exc))
+                    return
                 self.redirect("/final-selected")
             elif revision_action == "switch-direction":
                 self.redirect("/visual-inspiration")
@@ -5937,7 +6034,11 @@ class DirectorHandler(BaseHTTPRequestHandler):
                 })
                 self.redirect("/style-review")
             else:
-                finalize_selected_version(self.task_dir, selected_version, notes)
+                try:
+                    finalize_selected_version(self.task_dir, selected_version, notes)
+                except ValueError as exc:
+                    self.send_error(HTTPStatus.BAD_REQUEST, str(exc))
+                    return
                 self.redirect("/final-selected")
         else:
             self.send_error(HTTPStatus.NOT_FOUND)
@@ -6510,12 +6611,13 @@ def build_parser() -> argparse.ArgumentParser:
     finalize_parser = subparsers.add_parser(
         "finalize",
         help=(
-            "Run QA checks on v1/.draft/final.html and promote to v1/final.html. "
+            "Run QA checks on vN/.draft/final.html and promote to vN/final.html. "
             "Runs static integrity/font-size/structural checks + Playwright visual QA "
             "(overflow, grid alignment). Opens the deck in the browser on success."
         ),
     )
     finalize_parser.add_argument("--task", required=True, help="Task slug.")
+    finalize_parser.add_argument("--version", default="v1", help="Version directory to promote. Default: v1.")
     finalize_parser.set_defaults(func=cmd_finalize)
 
     image_asset_parser = subparsers.add_parser("image-asset", help="Record one AI image generation attempt with output-file validation.")

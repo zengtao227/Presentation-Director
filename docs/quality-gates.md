@@ -75,11 +75,12 @@ Checked after generation — mandatory before declaring done.
 | Safe area respected | All normal content sits inside `.slide-safe`; `.bleed` is used only for backgrounds or intentional full-bleed media | Move content into `.slide-safe`, constrain media/code blocks, or split the slide |
 | Text overflow absent | No text clips or wraps unexpectedly | Fix font size or container width |
 | Visual rhythm consistent | No abrupt style break between slides | Check section openers and content slides |
-| Speaker notes hidden | `.notes` elements are not visible on slides; `display: none` is set in the CSS style block | Add `.notes { display: none; }` to the inline `<style>` block |
-| Slide count matches `data-total` | Count of `<section class="slide">` equals the `data-total` value on every footer | Fix `data-total` or add missing slides before delivery |
+| Speaker notes hidden | `.notes` elements are not visible on slides; `display: none` is set in inline or linked local CSS | Add `.notes { display: none; }` to the HTML deck CSS |
+| Slide count matches `data-total` | Count of `<section>` elements whose class list contains `slide` equals the `data-total` value on every footer | Fix `data-total` or add missing slides before delivery |
 | `data-current` sequential | Slides are numbered 1 through N with no gaps or duplicates | Grep for `data-current` and compare against expected sequence |
+| Preview form declared | HTML deck declares `data-preview-as="mobile"`, `"desktop"`, or `"both"` | Add the marker to `<html>` and `<body>` so Director preview matches delivery form |
 | Footer language consistent | Footer text language matches the deck's declared `content_language` | Rewrite mixed-language footers to match deck language |
-| Final HTML at correct path | `Decks/<task-slug>/<task-slug>.html` exists for standalone output; `Decks/<task-slug>/v1/final.html` for versioned output | Move or rename file |
+| Final HTML at correct path | `Decks/<task-slug>/vN/.draft/final.html` is promoted by `finalize --version vN` to `Decks/<task-slug>/vN/final.html`; final delivery lives under `Decks/<task-slug>/final/` | Run finalize; do not copy draft HTML by hand |
 
 **Mandatory validator — run before declaring any HTML deck done:**
 
@@ -114,7 +115,7 @@ Checked last, after render gate passes.
 |-------|---------------|----------------|
 | Final PPTX at correct path | `Decks/<task-slug>/v1/<task-slug>.pptx` exists for PPTX output | Move or rename file |
 | Final HTML companion at correct path | `Decks/<task-slug>/v1/<task-slug>-companion.html` exists for PPTX-only output | Generate from selected version's per-slide preview images |
-| Final HTML deck at correct path | `Decks/<task-slug>/v1/final.html` or `项目演示文稿/<task-slug>/<task-slug>.html` exists for HTML deck output | Move or rename file |
+| Final HTML deck at correct path | Selected `Decks/<task-slug>/vN/final.html` exists after `finalize`, and `Decks/<task-slug>/final/<task-slug>.html` exists for delivery | Run finalize and final selection before handoff |
 | Deck workspace matches project structure | For standalone delivery decks, path is `项目演示文稿/<project-name>/`; for task-bound decks, path is `Decks/<task-slug>/` | Confirm correct workspace before copying |
 | `brief-confirmed.json` saved | Source execution contract is committed or saved | Save before closing |
 | Sidecar artifacts saved | Lock files, contact sheet, QA notes retained for traceability | Save or copy into `Decks/<task-slug>/` |

@@ -158,8 +158,8 @@ v1 生成（含已生成图片的引用）
   ↓
 v1 preview artifact（output_format 决定触发物）
   ├─ pptx → v1/final.pptx + v1/contact-sheet.png + v1/slides/*.png
-  ├─ html-revealjs → v1/final.html + v1/screenshots/*.png（浏览器截图）
-  └─ both → v1/final.pptx + v1/final.html + v1/contact-sheet.png
+  ├─ html-revealjs → v1/.draft/final.html → finalize → v1/final.html + v1/screenshots/*.png（浏览器截图）
+  └─ both → v1/final.pptx + v1/.draft/final.html → finalize → v1/final.html + v1/contact-sheet.png
   ↓
 ★ Image Placement Gate（新增，仅当 mode = post-v1-slot-review / hybrid）
   └─ 展示 v1 preview artifact（PPTX: contact-sheet.png；HTML: screenshots/*.png）
@@ -171,9 +171,9 @@ Post-v1 生图 + 写入（Image Placement Gate 完成后，output_format 决定�
   ├─ pptx → targeted edit 将图片插入 v1/final.pptx → 产出 v2/final.pptx
   │          重新渲染 v2/contact-sheet.png + v2/slides/*.png
   │          在 v2/qa-summary.md 中记录
-  ├─ html-revealjs → 用图片路径重新生成 Reveal.js HTML → v2/final.html
+  ├─ html-revealjs → 用图片路径重新生成 Reveal.js HTML → v2/.draft/final.html → finalize → v2/final.html
   │                  重新截图 v2/screenshots/*.png
-  └─ both → 先 PPTX targeted edit → v2/final.pptx；再重生成 Reveal.js HTML → v2/final.html
+  └─ both → 先 PPTX targeted edit → v2/final.pptx；再重生成 Reveal.js HTML → v2/.draft/final.html → finalize → v2/final.html
   └─ 追加 final_status 到 image-assets.json
   ↓
 Style Review（已有，此时展示的是含图片的 v2）
@@ -356,8 +356,8 @@ PPTX/<task-slug>/status/
 
 | 版本目录 | PPTX | HTML |
 |---|---|---|
-| v1/ | `v1/final.pptx` + `v1/contact-sheet.png` | `v1/final.html` + `v1/screenshots/*.png` |
-| v2/ | `v2/final.pptx` + `v2/contact-sheet.png` | `v2/final.html` + `v2/screenshots/*.png` |
+| v1/ | `v1/final.pptx` + `v1/contact-sheet.png` | `v1/.draft/final.html` → `finalize --version v1` → `v1/final.html` + `v1/screenshots/*.png` |
+| v2/ | `v2/final.pptx` + `v2/contact-sheet.png` | `v2/.draft/final.html` → `finalize --version v2` → `v2/final.html` + `v2/screenshots/*.png` |
 | final/ | `final/<task-slug>.pptx` | `final/<task-slug>.html` |
 
 **`final/` 目录内容规则（output_format 决定）**：
@@ -448,14 +448,14 @@ PPTX/<task-slug>/assets/ai/
 
 ---
 
-## 8. pakco-html 内置策略
+## 8. HTML deck 内置策略
 
 **当前原则**：不安装全局 Claude/Codex skill；将 `pakco-html` 作为 Presentation Director 项目内置资源放在 `skills/html-deck/pakco-html/`，由 Director pipeline 直接引用 `assets/themes/`、`assets/animations/` 和 `assets/runtime.js`。
 
 **理由**：
 - 全局 skill 会形成独立生成路线，容易绕过 Director intake / brief confirmation / QA。
 - 项目内置资源让 `theme_key`、style picker、presenter mode 和最终 HTML bundling 有明确实现来源。
-- 旧的“只吸收知识、不导入代码”策略已被 pakco-html vendor 策略取代。
+- 旧的“只吸收知识、不导入代码”策略已被内置 HTML deck 引擎策略取代。
 
 ### 8.1 新增内部 Catalog 文件
 
@@ -559,7 +559,7 @@ else:
             raise GuardError("Image Placement Gate not completed — run serve-wait --for images-placement first")
 ```
 
-> `v1_preview_exists()` 的实现取决于输出格式（见 §3.2）：PPTX 检查 `v1/contact-sheet.png`，HTML 检查 `v1/screenshots/` 或 `v1/final.html`。
+> `v1_preview_exists()` 的实现取决于输出格式（见 §3.2）：PPTX 检查 `v1/contact-sheet.png`，HTML 检查 `v1/final.html`（它只能由 `finalize` 从 `.draft/` 提升产生，可辅以 `v1/screenshots/`）。
 
 ### 9.1b PPTX prompt 对 html_config 的处理
 
@@ -620,14 +620,14 @@ python3 scripts/presentation_director.py serve-wait --task "slug" \
 
 # 生成 v1（含已生成图片的路径引用）
 # ... Codex Presentations / guard → v1/final.pptx + v1/contact-sheet.png (pptx)
-#                                   or v1/final.html (html-revealjs) ...
+#                                   or v1/.draft/final.html → finalize → v1/final.html (html-revealjs) ...
 
 # Image Placement Gate
 # 前提：v1 preview artifact 已就绪（output_format 决定检查物，见 §3.2）
 # open-page image-placement 命令内部做 preview 存在性检查，不存在则报错
 python3 scripts/presentation_director.py serve-wait --task "slug" \
     --for images-placement --open-page image-placement
-# 执行 placement 生图 → 产出 v2（PPTX: targeted edit → v2/final.pptx；HTML: 重生成 → v2/final.html）
+# 执行 placement 生图 → 产出 v2（PPTX: targeted edit → v2/final.pptx；HTML: 重生成 → v2/.draft/final.html → finalize）
 ```
 
 > **注意**：`open-page` 命令要求 server 已在运行；`serve-wait` 同时负责启动 server 和等待。新 Gate 的 `--open-page` 值（`image-style` / `image-placement`）和 `--for` 值（`images-style` / `images-placement`）需在代码中注册（`PAGE_PATHS` 和 `STATUS_FILES` 字典），这是阶段 1a/3a 的实现任务。
@@ -659,8 +659,8 @@ python3 scripts/presentation_director.py serve-wait --task "slug" \
 | output_format | 检查物 |
 |---|---|
 | `pptx` | `v1/contact-sheet.png` 存在 |
-| `html-revealjs` | `v1/final.html` 存在（可辅以 `v1/screenshots/` 截图） |
-| `both` | `v1/contact-sheet.png` 存在（PPTX 为主） |
+| `html-revealjs` | `v1/final.html` 存在，且该文件由 `finalize` 从 `.draft/` 提升产生（可辅以 `v1/screenshots/` 截图） |
+| `both` | `v1/final.pptx`、`v1/contact-sheet.png` 和经 `finalize` 提升的 `v1/final.html` 都存在 |
 
 `open-page --page image-placement` 命令应硬编码检查对应 output_format 的 preview artifact，不存在时返回错误并提示"请先完成 v1 渲染"。不能只靠 prompt 约定。
 
@@ -751,7 +751,7 @@ python3 scripts/presentation_director.py serve-wait --task "slug" \
 - [ ] 生图失败（3 次 attempt 全部失败）时，`image-assets.json` 中 `final_status = "failed"`，guard 抛出 GuardError；pre-v1 失败写 stderr / guard message，不依赖尚未存在的 `qa-summary.md`
 - [ ] Image Placement Gate 在 v1 preview artifact 未就绪时打开失败，有明确错误提示（PPTX 检查 contact-sheet.png，HTML 检查 v1/final.html）
 - [ ] Image Placement Gate 在 v1 preview artifact 就绪后正常打开，产生 `image-placement-request.json` 和 `images-placement.ready`
-- [ ] post-v1 生图完成后产生 v2 输出（PPTX: v2/final.pptx + v2/contact-sheet.png；HTML: v2/final.html）
+- [ ] post-v1 生图完成后产生 v2 输出（PPTX: v2/final.pptx + v2/contact-sheet.png；HTML: v2/.draft/final.html → finalize → v2/final.html）
 - [ ] `image_policy = none` 时，Image Style Gate 只显示 `mode = none` 选项
 - [ ] `image_policy = ask-before-use` 时，Image Style Gate 默认推荐 `mode = post-v1-slot-review`
 - [ ] Image Style Gate 对所有 mode（含 none、post-v1-slot-review）均产生 `images-style.ready`
