@@ -2674,6 +2674,32 @@ def playwright_visual_qa(html_path: Path) -> list[str]:
                             }
                         }
                     }
+
+                    // Blank-space check: catch pages where real content ends too early,
+                    // leaving a large unused lower safe area. This complements the gap
+                    // check because a single flex wrapper can hide the empty space.
+                    if (layoutChildren.length >= 2) {
+                        const contentRect = content.getBoundingClientRect();
+                        const visibleRects = layoutChildren
+                            .map(el => el.getBoundingClientRect())
+                            .filter(r => r.width > 1 && r.height > 1);
+                        if (visibleRects.length >= 2) {
+                            const contentTop = Math.min(...visibleRects.map(r => r.top));
+                            const contentBottom = Math.max(...visibleRects.map(r => r.bottom));
+                            const topGap = contentTop - contentRect.top;
+                            const bottomGap = contentRect.bottom - contentBottom;
+                            const usedHeight = contentBottom - contentTop;
+                            const topHeavy = topGap < clientH * 0.16 &&
+                                             bottomGap > clientH * 0.26 &&
+                                             usedHeight < clientH * 0.72;
+                            if (topHeavy) {
+                                errors.push('Slide ' + num + ' (' + title + '): large unused lower safe area ' +
+                                    Math.round(bottomGap) + 'px (content uses ' +
+                                    Math.round(usedHeight) + 'px of ' + clientH + 'px) — ' +
+                                    'avoid top-heavy mobile layouts; tighten internal gaps or use the lower safe area');
+                            }
+                        }
+                    }
                 });
 
                 return errors;

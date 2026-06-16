@@ -1,7 +1,10 @@
 node_modules/
 outputs/
+outputs
 /PPTX/
+PPTX
 /Decks/
+Decks
 assets/
 .DS_Store
 *.log
