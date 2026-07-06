@@ -287,8 +287,9 @@ class PreviewReviewGateTest(unittest.TestCase):
             host: str = str(server.server_address[0])
             port: int = int(server.server_address[1])
             try:
-                with self.assertRaises(HTTPError) as raised:
-                    urlopen(f"http://{host}:{port}/preview-review", timeout=2)
+                with patch.object(PD, "playwright_visual_qa", return_value=[]):
+                    with self.assertRaises(HTTPError) as raised:
+                        urlopen(f"http://{host}:{port}/preview-review", timeout=2)
                 error: HTTPError = raised.exception
                 self.assertEqual(HTTPStatus.CONFLICT, error.code)
                 try:
@@ -315,7 +316,9 @@ class PreviewReviewGateTest(unittest.TestCase):
             (task_dir / "v1" / "final.pptx").write_bytes(b"pptx")
             (task_dir / "v1" / "contact-sheet.png").write_bytes(b"png")
             self.assertFalse(PD.v1_preview_exists(task_dir, "both"))
-            self.assertTrue(any("final.html" in error for error in PD.preview_review_gate_errors(task_dir)))
+            with patch.object(PD, "playwright_visual_qa", return_value=[]):
+                errors: list[str] = PD.preview_review_gate_errors(task_dir)
+            self.assertTrue(any("final.html" in error for error in errors))
 
     def test_html_preview_form_marker_is_required(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -654,7 +657,8 @@ class SecurityRegressionTest(unittest.TestCase):
             version_assets: Path = task_dir / "v1" / "assets"
             version_assets.mkdir()
             (version_assets / "runtime.js").write_text("window.__pd_asset_test = true;", encoding="utf-8")
-            payload: dict[str, object] = PD.finalize_selected_version(task_dir, "v1")
+            with patch.object(PD, "playwright_visual_qa", return_value=[]):
+                payload: dict[str, object] = PD.finalize_selected_version(task_dir, "v1")
             self.assertEqual(str(task_dir / "final" / f"{task_dir.name}.html"), payload["final_html"])
             self.assertTrue((task_dir / "final" / "assets" / "runtime.js").exists())
 
@@ -670,15 +674,16 @@ class SecurityRegressionTest(unittest.TestCase):
                 self.assertFalse((task_dir / "preview-review.json").exists())
 
                 token: str = PD.ensure_confirm_token(task_dir)
-                post_form(
-                    base_url,
-                    "/api/preview-review",
-                    {
-                        "director_token": token,
-                        "base_version": "v1",
-                        "preview_action": "keep-final",
-                    },
-                )
+                with patch.object(PD, "playwright_visual_qa", return_value=[]):
+                    post_form(
+                        base_url,
+                        "/api/preview-review",
+                        {
+                            "director_token": token,
+                            "base_version": "v1",
+                            "preview_action": "keep-final",
+                        },
+                    )
                 self.assertTrue((task_dir / "preview-review.json").exists())
 
     def test_post_rejects_spoofed_host_origin_pair(self) -> None:
@@ -861,6 +866,20 @@ class TopLevelScriptSyncTest(unittest.TestCase):
 
     def test_check_presentation_safe_area_is_synced(self) -> None:
         self._assert_synced("check_presentation_safe_area.py")
+
+
+class PreviewReviewGateRunsPlaywrightTest(unittest.TestCase):
+    def test_generation_guard_surfaces_playwright_errors(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            base_dir: Path = Path(tmp_dir)
+            task_dir: Path = write_task(base_dir, GOOD_HTML)
+            with patch.object(
+                PD,
+                "playwright_visual_qa",
+                return_value=["Slide 2: content overflows .slide-safe by 40px"],
+            ):
+                errors: list[str] = PD.preview_review_gate_errors(task_dir)
+            self.assertTrue(any("overflows" in error for error in errors))
 
 
 if __name__ == "__main__":

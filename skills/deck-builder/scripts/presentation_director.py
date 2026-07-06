@@ -2571,6 +2571,8 @@ def playwright_visual_qa(html_path: Path) -> list[str]:
     the same function works for landscape decks and portrait mobile decks.
     Returns FAIL strings; empty list means pass.
     """
+    if not html_path.exists():
+        return []
     try:
         from playwright.sync_api import sync_playwright  # type: ignore[import]
     except ImportError:
@@ -2967,6 +2969,8 @@ def preview_review_gate_errors(task_dir: Path, version_name: str = "v1") -> list
             errors.append(f"HTML font-size QA: {fw}")
         for sw in html_structural_warnings(path):
             errors.append(f"HTML structural QA: {sw}")
+        for ve in playwright_visual_qa(path):
+            errors.append(f"HTML visual QA: {ve}")
     return errors
 
 
