@@ -5571,6 +5571,7 @@ Rules:
   2. copying `{html_deck_root / "assets"}` to `{html_output.parent / "assets"}` and linking `./assets/...`.
   Final selection will copy `vN/assets/` to `final/assets/` when present.
 - theme_key from html_config: "{theme_key}". Resolve it to `{html_deck_root / "assets" / "themes"}` / `<theme_key>.css`; if that file is missing, use `minimal-white`.
+- transition from html_config: "{html_transition}". Use it as the slide-change transition intent (wire it into `assets/runtime.js` transition config or the slide-change animation class); do not substitute a different default transition.
 - Consume HTML deck theme tokens (`--bg`, `--surface`, `--surface-2`, `--border`, `--text-1`, `--text-2`, `--text-3`, `--accent`, `--accent-2`, `--accent-3`, `--grad`) instead of regenerating one-off per-slide colors. Background hint: "{html_gradient or 'use the selected HTML deck theme background'}".
 - Safe-area contract — NO EXCEPTIONS, including cover and section-divider slides:
   .slide-safe {{ position:absolute; left:54px; top:70px; width:1172px; height:590px; overflow:hidden; }}

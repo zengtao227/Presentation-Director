@@ -820,5 +820,20 @@ class VisualCandidateCardRenderTest(unittest.TestCase):
         self.assertIn("linear-gradient(135deg, #0f172a, #38bdf8)", card_html)
 
 
+class InitialPromptHtmlConfigTest(unittest.TestCase):
+    def test_html_transition_is_included_in_generation_prompt(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            task_dir: Path = Path(tmp_dir) / "Decks" / "transition-task"
+            task_dir.mkdir(parents=True)
+            brief: dict[str, object] = {
+                "confirmed": True,
+                "output_format": "html-revealjs",
+                "html_config": {"transition": "zoom-fade"},
+            }
+            (task_dir / "brief-confirmed.json").write_text(json.dumps(brief), encoding="utf-8")
+            prompt: str = PD.initial_prompt(task_dir)
+            self.assertIn('transition from html_config: "zoom-fade"', prompt)
+
+
 if __name__ == "__main__":
     unittest.main()
