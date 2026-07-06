@@ -14,6 +14,12 @@ Usage:
     # then open: assets/locks-preview.html
 """
 
+# MAINTENANCE: scripts/preview_locks.py (repo top level) must stay byte-identical
+# to this file — do not replace it with a runpy shim (see Global Constraints in
+# docs/superpowers/plans/2026-07-06-review-remediation.md for why). After editing
+# this file, run: cp skills/deck-builder/scripts/preview_locks.py scripts/preview_locks.py
+# Enforced by tests/test_presentation_director.py::TopLevelScriptSyncTest.
+
 import http.server
 import json as _json
 import socket

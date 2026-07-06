@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import filecmp
 import importlib.util
 import json
 import subprocess
@@ -833,6 +834,33 @@ class InitialPromptHtmlConfigTest(unittest.TestCase):
             (task_dir / "brief-confirmed.json").write_text(json.dumps(brief), encoding="utf-8")
             prompt: str = PD.initial_prompt(task_dir)
             self.assertIn('transition from html_config: "zoom-fade"', prompt)
+
+
+class TopLevelScriptSyncTest(unittest.TestCase):
+    """scripts/*.py must stay byte-identical to their skills/deck-builder/scripts/*.py
+    canonical source. Do not "fix" this by converting the top-level copy into a
+    runpy shim: preview_locks.py and preview_palette.py resolve `assets/` via
+    Path(__file__).parent.parent, which is meant to mean the current project's
+    root. A shim would make __file__ resolve inside skills/deck-builder/scripts/
+    instead, silently redirecting reads/writes to skills/deck-builder/assets/.
+    """
+
+    def _assert_synced(self, name: str) -> None:
+        top_level: Path = ROOT_DIR / "scripts" / name
+        canonical: Path = ROOT_DIR / "skills" / "deck-builder" / "scripts" / name
+        self.assertTrue(
+            filecmp.cmp(top_level, canonical, shallow=False),
+            f"{top_level} has drifted from {canonical}. Fix with: cp {canonical} {top_level}",
+        )
+
+    def test_preview_locks_is_synced(self) -> None:
+        self._assert_synced("preview_locks.py")
+
+    def test_preview_palette_is_synced(self) -> None:
+        self._assert_synced("preview_palette.py")
+
+    def test_check_presentation_safe_area_is_synced(self) -> None:
+        self._assert_synced("check_presentation_safe_area.py")
 
 
 if __name__ == "__main__":

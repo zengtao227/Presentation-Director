@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# MAINTENANCE: scripts/check_presentation_safe_area.py (repo top level) must stay
+# byte-identical to this file. After editing this file, run:
+# cp skills/deck-builder/scripts/check_presentation_safe_area.py scripts/check_presentation_safe_area.py
+# Enforced by tests/test_presentation_director.py::TopLevelScriptSyncTest.
 from __future__ import annotations
 
 import argparse
