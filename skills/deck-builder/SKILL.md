@@ -1017,6 +1017,12 @@ Rules:
 - Every slide needs one primary `Proof object` (chart, diagram, table, big number, case)
 - Every number and logo needs a `Source`; write "missing" if unverifiable — never invent data
 
+Optional sanity check before moving on: render a visual storyboard of `deck.md` to catch layout mismatches, weak claims, or missing proof objects before spending time on full generation:
+
+```bash
+python3 scripts/deck_storyboard.py --deck Decks/<task-slug>/deck.md --open
+```
+
 ### Claude Step 4 — 颜色层 (Color Layer)
 
 **Sub-step 4a — 行业情报查询（Industry Intelligence）**
