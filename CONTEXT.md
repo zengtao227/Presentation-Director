@@ -426,6 +426,7 @@ Decks/<task-slug>/final/<task-slug>.html
 ## 当前研究记录
 
 - `docs/deck-builder-review-and-external-research.md`：记录 `deck-builder` 首轮审查发现，以及对 `ppt-master`、`frontend-slides`、`guizang-ppt-skill`、`html-ppt-skill`、`beautiful-html-templates` 的外部方案分析和后续路线图。
+- `docs/architecture-review-2026-07-06.md`：全项目流程逻辑 / 架构 / 冗余审查。核心发现：`guard` 命令未复核 Playwright 视觉 QA（只有 `finalize` 会跑，CONTEXT.md 的"技术保证"对视觉 QA 层不成立）；`render_visual_candidate_card` 的 `gradient_preview` 和 HTML 生成指令里的 `html_transition` 两处字段算出来但未接入模板；顶层 `scripts/preview_locks.py` / `preview_palette.py` 相对 `skills/deck-builder/scripts/` 下的规范版本存在功能性漂移（SKILL.md 引导用户运行的正是过时那份）。
 
 ## 常见输入模式
 
