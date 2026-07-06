@@ -793,5 +793,32 @@ class SecurityRegressionTest(unittest.TestCase):
             self.assertIn("No layout files found", result.stderr)
 
 
+class VisualCandidateCardRenderTest(unittest.TestCase):
+    def test_html_gradient_preview_is_rendered_when_present(self) -> None:
+        candidate: PD.VisualCandidate = PD.VisualCandidate(
+            key="aurora-test",
+            name="Aurora Test",
+            summary="summary",
+            best_for="best",
+            avoid_for="avoid",
+            palette=("#0f172a", "#e2e8f0", "#38bdf8", "#a855f7"),
+            background="dark gradient",
+            typography="sans",
+            layout="grid",
+            chart="line",
+            image_strategy="none",
+            inspiration="test",
+            risk="none",
+            html_transition="fade",
+            html_animation="subtle",
+            html_gradient="linear-gradient(135deg, #0f172a, #38bdf8)",
+            suggested_html_theme="aurora",
+        )
+        card_html: str = PD.render_visual_candidate_card(
+            candidate, checked=True, ui_language="zh", show_html_fields=True
+        )
+        self.assertIn("linear-gradient(135deg, #0f172a, #38bdf8)", card_html)
+
+
 if __name__ == "__main__":
     unittest.main()
