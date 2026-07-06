@@ -426,6 +426,11 @@ class PreviewReviewGateTest(unittest.TestCase):
                 self.skipTest("playwright is not installed")
             self.assertTrue(any("large unused lower safe area" in error for error in errors))
 
+    def test_visual_qa_returns_empty_for_missing_html_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            missing_path: Path = Path(tmp_dir) / "does-not-exist.html"
+            self.assertEqual([], PD.playwright_visual_qa(missing_path))
+
     def test_generation_guard_allows_missing_v1_before_generation(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             task_dir: Path = Path(tmp_dir) / "Decks" / "pre-v1-task"
