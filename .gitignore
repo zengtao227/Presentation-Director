@@ -6,7 +6,7 @@ outputs
 PPTX
 /Decks/
 Decks
-assets/
+/assets/
 .DS_Store
 *.log
 __pycache__/
