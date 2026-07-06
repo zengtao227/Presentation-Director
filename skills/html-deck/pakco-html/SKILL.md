@@ -24,7 +24,7 @@ One command, no build. Pure static HTML/CSS/JS with only CDN webfonts.
 - **24 deck taste cards** (`templates/full-decks/<name>/` + Guizang variants) — 15 native complete multi-slide decks with scoped `.tpl-<name>` CSS, plus 9 Guizang color variants. Native templates include 8 extracted looks (xhs-white-editorial, graphify-dark-graph, knowledge-arch-blueprint, hermes-cyber-terminal, obsidian-claude-gradient, testing-safety-alert, xhs-pastel-card, dir-key-nav-minimal) and 7 scenario scaffolds (pitch-deck, product-launch, tech-sharing, weekly-report, xhs-post 3:4, course-module, **presenter-mode-reveal** — 演讲者模式专用)
 - **31 layouts** (`templates/single-page/*.html`) with realistic demo data
 - **27 CSS animations** (`assets/animations/animations.css`) via `data-anim`
-- **20 canvas FX animations** (`assets/animations/fx/*.js`) via `data-fx` — particle-burst, confetti-cannon, firework, starfield, matrix-rain, knowledge-graph (force-directed), neural-net (pulses), constellation, orbit-ring, galaxy-swirl, word-cascade, letter-explode, chain-react, magnetic-field, data-stream, gradient-blob, sparkle-trail, shockwave, typewriter-multi, counter-explosion
+- **25 canvas FX animations** (`assets/animations/fx/*.js`) via `data-fx` — particle-burst, confetti-cannon, firework, starfield, matrix-rain, knowledge-graph (force-directed), neural-net (pulses), constellation, orbit-ring, galaxy-swirl, word-cascade, letter-explode, chain-react, magnetic-field, data-stream, gradient-blob, sparkle-trail, shockwave, typewriter-multi, counter-explosion; **background FX** (inspired by ReactBits): aurora (shifting aurora-borealis bands), dot-field (pulsing scattered dots), dot-grid (ripple dot matrix), side-rays (angled light beams from left edge), light-rays (crepuscular god-rays from top center)
 - **Keyboard runtime** (`assets/runtime.js`) — arrows, T (theme), A (anim), F/O, **S (presenter mode: magnetic-card popup with CURRENT / NEXT / SCRIPT / TIMER cards)**, N (notes drawer), R (reset timer in presenter)
 - **FX runtime** (`assets/animations/fx-runtime.js`) — auto-inits `[data-fx]` on slide enter, cleans up on leave
 - **Showcase decks** for themes / layouts / animations / full-decks gallery
@@ -141,6 +141,10 @@ Only after those are clear, scaffold the deck and start writing.
 - **Use tokens, not literal colors.** Every color, radius, shadow should come
   from CSS variables defined in `assets/base.css` and overridden by a theme.
   Good: `color: var(--text-1)`. Bad: `color: #111`.
+- **Gradient text — two separate classes, choose one:**
+  - `.gradient-text` — static gradient fill. Use for most headings that need accent color (body slides, stat numbers, section titles).
+  - `.gradient-text-flow` — animated flowing gradient. Use **only** for hero/cover titles where motion draws attention. Add `.slow` (8 s) or `.fast` (2 s) to adjust speed. Hover pauses the animation.
+  - These are independent classes — applying `.gradient-text-flow` does NOT override `.gradient-text`; they share the same gradient source (`--grad`) but are separate declarations with different background-size and animation properties. Never apply both to the same element.
 - **Don't invent new layout files.** Prefer composing existing ones. Only add
   a new `templates/single-page/*.html` if none of the 31 fit.
 - **Respect chrome slots.** `.deck-header`, `.deck-footer`, `.slide-number`
