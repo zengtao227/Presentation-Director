@@ -1,5 +1,5 @@
 {
-  "name": "md2ppt",
+  "name": "presentation-director",
   "version": "1.0.0",
   "private": false,
   "description": "Presentation Director workflow for editable PPTX generation with Marp fallback.",
