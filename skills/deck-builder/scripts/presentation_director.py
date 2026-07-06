@@ -2006,7 +2006,7 @@ def validate_generation_guard(task_dir: Path) -> list[str]:
     # serve-wait --then-guard deadlocks by requiring the artifact it is meant
     # to authorize. Once any v1 preview artifact exists, missing siblings and
     # structural HTML warnings become real guard errors.
-    output_format: str = output_format_from_brief(brief, "html-revealjs")
+    output_format: str = output_format_from_brief(brief, "pptx")
     for version_name in generated_preview_versions(task_dir, output_format):
         for gate_error in preview_review_gate_errors(task_dir, version_name):
             errors.append(f"{version_name}: {gate_error}")
@@ -2076,7 +2076,6 @@ def validate_generation_guard(task_dir: Path) -> list[str]:
                 "then register them with `generate_images.py place --source <path> --target-id <id>`."
             )
 
-    output_format: str = output_format_from_brief(brief, "pptx")
     if image_mode in POST_V1_IMAGE_MODES and v1_preview_exists(task_dir, output_format):
         if not status_exists(task_dir, "images-placement"):
             errors.append(f"Missing post-v1 image placement status: {status_dir(task_dir) / STATUS_FILES['images-placement']}")
@@ -4524,7 +4523,6 @@ def render_visual_inspiration(task_dir: Path) -> str:
         render_visual_candidate_card(candidate, current_key == candidate.key, ui_language, show_html_fields)
         for candidate in candidates
     ]
-    current_candidate: VisualCandidate = next((c for c in candidates if c.key == current_key), candidates[0])
     html_deck_picker_html: str = ""
     if show_html_fields:
         picker_label: str = {"zh": "打开 HTML deck 风格选择器", "de": "HTML-Deck-Stilauswahl öffnen"}.get(
