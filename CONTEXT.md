@@ -85,7 +85,9 @@ Generation
 - **Composition Lock**：固定每一页“用哪种形式表达哪段内容”，包括 slide id、claim、proof object、layout family、visual treatment、asset/image target、notes 和不可编造项。
 - **Generation**：按 `brief-confirmed.json`、`brief/visual-contract.md` 和 lock 文件执行，不再重新运行设计筛选或从 Figma / ui-ux-pro-max / HTML deck 主题来源 直接取新意见。
 
-`brief-confirmed.json` 是机器执行的编译产物和 guard 的权威输入；`brief/content-lock.md`、`brief/form-lock.md`、`brief/composition-lock.md` 和 `brief/visual-contract.md` 是人可读的编辑源。交互式流程仍以用户点击确认写入 `confirmed.ready`，再由 guard 写入 `guard-passed.ready` 作为开始生成的信号。若兼容旧流程需要在确认后运行 Image Style Gate，它只能作为 late lock supplement 补写图片、HTML 主题、动效和 asset binding 字段，并必须在 Generation 前反映到 `brief-confirmed.json` 和对应 lock 文件。
+`brief-confirmed.json` 只是现有 standalone/legacy 机器执行与 guard 的输入；它会在确认后被 late Image Style Gate 补写，因此不具备跨仓治理所需的不变性，也绝不是 `PresentationDirectorPlanV1` 的 compiler source 或授权证明。`brief/content-lock.md`、`brief/form-lock.md`、`brief/composition-lock.md` 和 `brief/visual-contract.md` 仍是现有流程的人可读编辑源。交互式流程继续以用户点击确认写入 `confirmed.ready`，再由 guard 写入 `guard-passed.ready` 作为 standalone generation 信号。
+
+BPS-governed PPTX 使用独立边界：完整且结构化的 confirmed Director lock packet 与 BPS governance binding 组成严格的 production input，经确定性 producer 生成 canonical Plan V1；任何缺字段、unknown field、非 canonical set 或 legacy brief 形状都必须 fail closed。lock packet 的 `confirmation_state` 只表示流程状态，不证明 actor 真实性；正式执行还必须验证绑定 exact canonical Plan SHA-256 的外部 trusted Plan-confirmation event。
 
 ### Research Strategy Gate
 

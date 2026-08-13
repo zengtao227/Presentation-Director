@@ -1,0 +1,51 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "presentation-director"
+version = "1.0.0"
+description = "Presentation Director workflow and provider-neutral presentation plan contracts"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "pydantic==2.13.4",
+  "rfc8785==0.1.4",
+]
+
+[project.optional-dependencies]
+workflow = [
+  "playwright==1.62.0",
+]
+dev = [
+  "hatchling>=1.27,<2",
+  "mypy>=1.17,<2",
+  "pytest>=8.4,<10",
+  "ruff>=0.12,<1",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/presentation_director_contracts"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "/README.md",
+  "/pyproject.toml",
+  "/src/presentation_director_contracts",
+]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+packages = ["presentation_director_contracts"]

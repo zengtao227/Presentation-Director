@@ -1,0 +1,385 @@
+{
+  "identity": {
+    "schema_id": "presentation-director-plan-production-input",
+    "schema_version": "1.0.0"
+  },
+  "governance": {
+    "constraint_view_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "resolved_job_id": "job-001",
+    "resolved_job_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "lock_packet": {
+    "identity": {
+      "schema_id": "presentation-director-lock-packet",
+      "schema_version": "1.0.0"
+    },
+    "lock_packet_id": "lock-packet-001",
+    "confirmation_state": "confirmed",
+    "plan_id": "plan-001",
+    "task_slug": "bilingual-review",
+    "output_format": "pptx",
+    "content_lock": {
+      "content_language": "zh-CN",
+      "audience": {
+        "audience": "Executive review",
+        "desired_outcome": "Approve architecture",
+        "familiarity": "Mixed"
+      },
+      "goal": "Explain the governed PPTX flow.",
+      "thesis": "Governed intent stays provider-neutral.",
+      "narrative_arc": [
+        "Frame",
+        "Govern",
+        "Prove editability",
+        "Prove provider boundary",
+        "Recommend",
+        "Stress-test"
+      ],
+      "length": {
+        "slide_count_range": null,
+        "target_duration_minutes": 12,
+        "target_slide_count": 6
+      },
+      "appendix_notes": [
+        "Execution provenance stays outside Plan."
+      ],
+      "deck_omissions": [
+        "Do not add unapproved facts.",
+        "Do not claim provider eligibility."
+      ],
+      "omitted_content": [
+        {
+          "content_kind": "fact",
+          "content_id": "fact-omitted",
+          "value_sha256": "9999999999999999999999999999999999999999999999999999999999999999",
+          "source_ids": [
+            "src-1"
+          ],
+          "omission_reason": "Not needed for the approved narrative."
+        }
+      ]
+    },
+    "form_lock": {
+      "treatment": {
+        "definition_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "treatment_id": "pptx-treatment",
+        "version": "1.0.0"
+      },
+      "direction": {
+        "background_strategy": "Light",
+        "chart_diagram_grammar": "Native objects",
+        "forbidden_patterns": [
+          "invented metrics",
+          "rasterized text"
+        ],
+        "image_strategy": "Approved assets",
+        "motion_policy": "None required",
+        "name": "Editorial",
+        "palette_role_intent": "Approved roles",
+        "tone": "Precise",
+        "typography_intent": "Editable hierarchy"
+      }
+    },
+    "composition_lock": {
+      "reference_only_inspiration": [
+        {
+          "reference_id": "editorial-rhythm",
+          "label": "Editorial rhythm reference",
+          "locator": "reference://editorial-rhythm",
+          "influence": "layout_rhythm",
+          "reference_only": true,
+          "non_governing": true,
+          "not_artifact_input": true
+        }
+      ],
+      "slides": [
+        {
+          "assets": [],
+          "layout_family": "hero",
+          "primary_claim": null,
+          "proof_object": {
+            "kind": "text",
+            "source_ids": [
+              "src-1"
+            ]
+          },
+          "purpose": "Frame the decision.",
+          "required_capabilities": [
+            "editable_text",
+            "font_family_assignment"
+          ],
+          "slide_id": "s01",
+          "speaker_notes": [],
+          "supporting_content": [],
+          "title": "Governed Presentation",
+          "visual_treatment": "editorial",
+          "task_source_ids": [
+            "task-notes"
+          ],
+          "font_families": [
+            "Inter"
+          ],
+          "brand_token_ids": [
+            "accent",
+            "background",
+            "text"
+          ],
+          "reference_ids": [
+            "editorial-rhythm"
+          ],
+          "slide_kind": "cover"
+        },
+        {
+          "assets": [],
+          "layout_family": "summary",
+          "primary_claim": {
+            "content_id": "claim-2",
+            "content_kind": "claim",
+            "source_ids": [
+              "src-1"
+            ],
+            "value_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+          },
+          "proof_object": {
+            "kind": "text",
+            "source_ids": [
+              "src-1"
+            ]
+          },
+          "purpose": "Summarize the recommendation.",
+          "required_capabilities": [
+            "editable_text",
+            "font_family_assignment"
+          ],
+          "slide_id": "s02",
+          "speaker_notes": [],
+          "supporting_content": [
+            {
+              "content_id": "claim-1",
+              "content_kind": "claim",
+              "source_ids": [
+                "src-1"
+              ],
+              "value_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+            },
+            {
+              "content_id": "fact-1",
+              "content_kind": "fact",
+              "source_ids": [
+                "src-1"
+              ],
+              "value_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+            }
+          ],
+          "title": "Executive Summary",
+          "visual_treatment": "executive",
+          "task_source_ids": [],
+          "font_families": [
+            "Inter"
+          ],
+          "brand_token_ids": [
+            "accent",
+            "background",
+            "text"
+          ],
+          "reference_ids": [],
+          "slide_kind": "content"
+        },
+        {
+          "assets": [],
+          "layout_family": "table",
+          "primary_claim": {
+            "content_id": "claim-3",
+            "content_kind": "claim",
+            "source_ids": [
+              "src-1"
+            ],
+            "value_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          "proof_object": {
+            "kind": "table",
+            "source_ids": [
+              "src-1"
+            ]
+          },
+          "purpose": "Require a native table.",
+          "required_capabilities": [
+            "editable_text",
+            "font_family_assignment",
+            "native_table"
+          ],
+          "slide_id": "s03",
+          "speaker_notes": [],
+          "supporting_content": [
+            {
+              "content_id": "fact-1",
+              "content_kind": "fact",
+              "source_ids": [
+                "src-1"
+              ],
+              "value_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+            }
+          ],
+          "title": "Editable table",
+          "visual_treatment": "data",
+          "task_source_ids": [],
+          "font_families": [
+            "Inter"
+          ],
+          "brand_token_ids": [
+            "accent",
+            "background",
+            "text"
+          ],
+          "reference_ids": [],
+          "slide_kind": "content"
+        },
+        {
+          "assets": [],
+          "layout_family": "chart",
+          "primary_claim": {
+            "content_id": "claim-4",
+            "content_kind": "claim",
+            "source_ids": [
+              "src-1"
+            ],
+            "value_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+          },
+          "proof_object": {
+            "kind": "chart",
+            "source_ids": [
+              "src-1"
+            ]
+          },
+          "purpose": "Require an editable native chart.",
+          "required_capabilities": [
+            "editable_chart_data",
+            "editable_text",
+            "font_family_assignment",
+            "native_chart"
+          ],
+          "slide_id": "s04",
+          "speaker_notes": [],
+          "supporting_content": [
+            {
+              "content_id": "fact-1",
+              "content_kind": "fact",
+              "source_ids": [
+                "src-1"
+              ],
+              "value_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+            }
+          ],
+          "title": "Editable chart",
+          "visual_treatment": "data",
+          "task_source_ids": [],
+          "font_families": [
+            "Inter"
+          ],
+          "brand_token_ids": [
+            "accent",
+            "background",
+            "text"
+          ],
+          "reference_ids": [],
+          "slide_kind": "content"
+        },
+        {
+          "assets": [],
+          "layout_family": "architecture",
+          "primary_claim": {
+            "content_id": "claim-5",
+            "content_kind": "claim",
+            "source_ids": [
+              "src-1"
+            ],
+            "value_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          "proof_object": {
+            "kind": "architecture_map",
+            "source_ids": [
+              "src-1"
+            ]
+          },
+          "purpose": "Require native shapes and connectors.",
+          "required_capabilities": [
+            "attached_connectors",
+            "editable_text",
+            "font_family_assignment",
+            "native_shapes"
+          ],
+          "slide_id": "s05",
+          "speaker_notes": [],
+          "supporting_content": [],
+          "title": "Architecture",
+          "visual_treatment": "blueprint",
+          "task_source_ids": [],
+          "font_families": [
+            "Inter"
+          ],
+          "brand_token_ids": [
+            "accent",
+            "background",
+            "text"
+          ],
+          "reference_ids": [],
+          "slide_kind": "content"
+        },
+        {
+          "assets": [
+            {
+              "asset_id": "image-1",
+              "roles": [
+                "supporting_image"
+              ],
+              "sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+            }
+          ],
+          "layout_family": "dense",
+          "primary_claim": {
+            "content_id": "claim-6",
+            "content_kind": "claim",
+            "source_ids": [
+              "src-1"
+            ],
+            "value_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          "proof_object": {
+            "kind": "image",
+            "source_ids": [
+              "src-1"
+            ]
+          },
+          "purpose": "Test image, density, and notes.",
+          "required_capabilities": [
+            "editable_text",
+            "embedded_images",
+            "font_family_assignment",
+            "speaker_notes"
+          ],
+          "slide_id": "s06",
+          "speaker_notes": [
+            "Native speaker note."
+          ],
+          "supporting_content": [],
+          "title": "双语压力页 / Stress",
+          "visual_treatment": "bilingual",
+          "task_source_ids": [
+            "task-notes"
+          ],
+          "font_families": [
+            "Inter",
+            "Noto Sans CJK SC"
+          ],
+          "brand_token_ids": [
+            "accent",
+            "background",
+            "text"
+          ],
+          "reference_ids": [],
+          "slide_kind": "content"
+        }
+      ]
+    }
+  }
+}
