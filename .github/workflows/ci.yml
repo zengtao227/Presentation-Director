@@ -99,4 +99,4 @@ jobs:
       - name: Run Plan contract tests
         run: >-
           uv run --locked --python ${{ matrix.python-version }} --extra dev
-          pytest -q tests/test_plan_v1_*.py
+          pytest -ra tests/test_plan_v1_*.py
