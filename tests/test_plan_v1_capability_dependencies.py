@@ -37,7 +37,7 @@ def test_editable_chart_data_requires_native_chart() -> None:
     get_slide(payload, 3)["required_capabilities"] = [
         "editable_chart_data",
         "editable_text",
-        "theme_fonts",
+        "font_family_assignment",
     ]
     with pytest.raises(ValidationError, match="requires native_chart"):
         PresentationDirectorPlanV1.model_validate(payload)
@@ -48,7 +48,7 @@ def test_attached_connectors_require_native_shapes() -> None:
     get_slide(payload, 4)["required_capabilities"] = [
         "attached_connectors",
         "editable_text",
-        "theme_fonts",
+        "font_family_assignment",
     ]
     with pytest.raises(ValidationError, match="requires native_shapes"):
         PresentationDirectorPlanV1.model_validate(payload)
@@ -56,7 +56,10 @@ def test_attached_connectors_require_native_shapes() -> None:
 
 def test_table_proof_requires_native_table() -> None:
     payload = load_fixture()
-    get_slide(payload, 2)["required_capabilities"] = ["editable_text", "theme_fonts"]
+    get_slide(payload, 2)["required_capabilities"] = [
+        "editable_text",
+        "font_family_assignment",
+    ]
     with pytest.raises(ValidationError, match="table proof object requires native_table"):
         PresentationDirectorPlanV1.model_validate(payload)
 
@@ -65,8 +68,42 @@ def test_assets_require_embedded_images() -> None:
     payload = load_fixture()
     get_slide(payload, 5)["required_capabilities"] = [
         "editable_text",
+        "font_family_assignment",
         "speaker_notes",
-        "theme_fonts",
     ]
     with pytest.raises(ValidationError, match="assets require embedded_images"):
+        PresentationDirectorPlanV1.model_validate(payload)
+
+
+def test_image_proof_requires_approved_asset() -> None:
+    payload = load_fixture()
+    get_slide(payload, 5)["assets"] = []
+    with pytest.raises(ValidationError, match="require at least one approved asset"):
+        PresentationDirectorPlanV1.model_validate(payload)
+
+
+def test_screenshot_proof_requires_approved_asset() -> None:
+    payload = load_fixture()
+    slide = get_slide(payload, 5)
+    proof = slide["proof_object"]
+    assert isinstance(proof, dict)
+    proof["kind"] = "screenshot"
+    slide["assets"] = []
+    with pytest.raises(ValidationError, match="require at least one approved asset"):
+        PresentationDirectorPlanV1.model_validate(payload)
+
+
+def test_chart_proof_requires_governed_supporting_fact() -> None:
+    payload = load_fixture()
+    get_slide(payload, 3)["supporting_content"] = []
+    with pytest.raises(ValidationError, match="require governed supporting facts"):
+        PresentationDirectorPlanV1.model_validate(payload)
+
+
+def test_chart_sources_must_equal_supporting_fact_sources() -> None:
+    payload = load_fixture()
+    proof = get_slide(payload, 3)["proof_object"]
+    assert isinstance(proof, dict)
+    proof["source_ids"] = ["different-source"]
+    with pytest.raises(ValidationError, match="must equal governed supporting fact sources"):
         PresentationDirectorPlanV1.model_validate(payload)

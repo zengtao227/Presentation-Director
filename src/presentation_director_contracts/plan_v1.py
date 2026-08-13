@@ -173,9 +173,8 @@ class AssetBinding(StrictModel):
 class ProofObject(StrictModel):
     kind: ProofObjectKind
     source_ids: list[StableId]
-    dataset_ids: list[StableId]
 
-    @field_validator("source_ids", "dataset_ids")
+    @field_validator("source_ids")
     @classmethod
     def validate_ids(cls, values: list[str]) -> list[str]:
         return _sorted_unique(values, label="proof object ids")
@@ -269,8 +268,8 @@ class PresentationPlanSlideV1(StrictModel):
         capabilities = set(self.required_capabilities)
         if PresentationCapability.EDITABLE_TEXT not in capabilities:
             raise ValueError("every slide requires editable_text capability")
-        if PresentationCapability.THEME_FONTS not in capabilities:
-            raise ValueError("non-empty font_families require theme_fonts capability")
+        if PresentationCapability.FONT_FAMILY_ASSIGNMENT not in capabilities:
+            raise ValueError("non-empty font_families require font_family_assignment capability")
         if self.speaker_notes and PresentationCapability.SPEAKER_NOTES not in capabilities:
             raise ValueError("non-empty speaker_notes require speaker_notes capability")
         if self.assets and PresentationCapability.EMBEDDED_IMAGES not in capabilities:
@@ -299,6 +298,24 @@ class PresentationPlanSlideV1(StrictModel):
                 f"{self.proof_object.kind.value} proof object requires "
                 f"{proof_capability.value} capability"
             )
+
+        if self.proof_object.kind in {ProofObjectKind.TABLE, ProofObjectKind.CHART}:
+            facts = [
+                item for item in self.supporting_content if item.content_kind is ContentKind.FACT
+            ]
+            if not facts:
+                raise ValueError("chart/table proof objects require governed supporting facts")
+            fact_source_ids = sorted({source_id for fact in facts for source_id in fact.source_ids})
+            if self.proof_object.source_ids != fact_source_ids:
+                raise ValueError(
+                    "chart/table proof sources must equal governed supporting fact sources"
+                )
+
+        if (
+            self.proof_object.kind in {ProofObjectKind.IMAGE, ProofObjectKind.SCREENSHOT}
+            and not self.assets
+        ):
+            raise ValueError("image/screenshot proof objects require at least one approved asset")
         return self
 
 

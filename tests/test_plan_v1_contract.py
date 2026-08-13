@@ -65,14 +65,28 @@ def test_unknown_fields_fail_closed() -> None:
         PresentationDirectorPlanV1.model_validate(payload)
 
 
-def test_unknown_capability_is_rejected() -> None:
+@pytest.mark.parametrize("capability", ["implementation_helper", "theme_fonts"])
+def test_unknown_capability_is_rejected(capability: str) -> None:
     payload = load_fixture()
     slides = payload["slides"]
     assert isinstance(slides, list)
     first = slides[0]
     assert isinstance(first, dict)
-    first["required_capabilities"] = ["implementation_helper"]
+    first["required_capabilities"] = [capability]
     with pytest.raises(ValidationError):
+        PresentationDirectorPlanV1.model_validate(payload)
+
+
+def test_free_floating_dataset_namespace_is_rejected() -> None:
+    payload = load_fixture()
+    slides = payload["slides"]
+    assert isinstance(slides, list)
+    chart = slides[3]
+    assert isinstance(chart, dict)
+    proof = chart["proof_object"]
+    assert isinstance(proof, dict)
+    proof["dataset_ids"] = ["unapproved-dataset"]
+    with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
         PresentationDirectorPlanV1.model_validate(payload)
 
 

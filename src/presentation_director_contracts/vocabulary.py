@@ -18,4 +18,4 @@ class PresentationCapability(str, Enum):
     ATTACHED_CONNECTORS = "attached_connectors"
     SPEAKER_NOTES = "speaker_notes"
     EMBEDDED_IMAGES = "embedded_images"
-    THEME_FONTS = "theme_fonts"
+    FONT_FAMILY_ASSIGNMENT = "font_family_assignment"

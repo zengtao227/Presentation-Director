@@ -396,7 +396,6 @@ name = "presentation-director"
 version = "1.0.0"
 source = { editable = "." }
 dependencies = [
-    { name = "playwright" },
     { name = "pydantic" },
     { name = "rfc8785" },
 ]
@@ -408,18 +407,21 @@ dev = [
     { name = "pytest" },
     { name = "ruff" },
 ]
+workflow = [
+    { name = "playwright" },
+]
 
 [package.metadata]
 requires-dist = [
     { name = "hatchling", marker = "extra == 'dev'", specifier = ">=1.27,<2" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.17,<2" },
-    { name = "playwright", specifier = "==1.62.0" },
+    { name = "playwright", marker = "extra == 'workflow'", specifier = "==1.62.0" },
     { name = "pydantic", specifier = "==2.13.4" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.4,<10" },
     { name = "rfc8785", specifier = "==0.1.4" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.12,<1" },
 ]
-provides-extras = ["dev"]
+provides-extras = ["workflow", "dev"]
 
 [[package]]
 name = "pydantic"

@@ -13,6 +13,11 @@
 - [x] Checked-in JSON Schema and RFC 8785 golden digest match the implementation.
 - [x] A committed `uv.lock` and pinned CI run the full existing and Plan-specific verification suite.
 - [x] Existing standalone Presentation Director behavior remains green.
+- [x] Chart/table proof contains no free-floating dataset namespace and binds governed facts plus governed sources.
+- [x] Image/screenshot proof fails closed unless at least one approved asset is bound.
+- [x] Font capability means exact editable-object font-family assignment, not PowerPoint theme-scheme authoring.
+- [x] The contract-only wheel does not require Playwright at runtime.
+- [x] Pinned CI exercises the declared Python 3.10 floor and every minor version through the primary Python 3.12 job.
 
 ## Verification
 - Command: `uv run --locked pytest -ra`
@@ -38,11 +43,12 @@
 ## Result
 - Status: PASS
 - Evidence:
-  - `uv run --locked pytest -ra`: 79 passed, 0 skipped.
-  - Schema and golden `--check`: PASS; Plan is 6,615 RFC 8785 bytes, SHA-256 `4b09c4dce18983ce1e548158cd6ad71e80dfa05be578834753933b8337f90f1d`.
+  - `uv run --locked pytest -ra`: 85 passed, 0 skipped.
+  - Python 3.10.18 and 3.11.13 isolated locked Plan suites: 43 passed on each version; pinned matrix jobs are committed alongside the primary exact Python 3.12.9 job.
+  - Schema and golden `--check`: PASS; Plan is 6,866 RFC 8785 bytes, SHA-256 `5768c81519b3d18ada5c62bb14afb8565cc35b5b6b9706388c1a2be53c3eb1bc`.
   - Contract-surface Ruff/format: PASS; strict mypy: PASS.
   - Full compileall and installer syntax checks: PASS.
   - `uv build --no-build-isolation`: sdist and wheel built; clean temporary wheel import smoke passed.
-  - Built archives contain only the contract package and packaging metadata; no `skills/` subtree is distributed.
+  - Built archives contain only the contract package and packaging metadata; no `skills/` subtree is distributed and Playwright is not a default runtime requirement.
 - Remaining risks:
   - Formal cross-repository BPS compatibility review remains required before the candidate is declared frozen.

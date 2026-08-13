@@ -3,6 +3,8 @@
 ## Completed
 - Closed the governed-expression, deterministic producer, and locked-CI implementation blockers on Draft PR #12.
 - Added strict production input and Plan schemas, regenerated the six-slide RFC 8785 golden Plan, and recorded negative tests for legacy/malformed input.
+- Removed the ungoverned dataset namespace, closed image/screenshot inputs to approved assets, and defined object-level font-family assignment semantics.
+- Kept Playwright out of the contract wheel's default runtime and added exact Python 3.10/3.11 contract compatibility jobs beside the primary 3.12 verification.
 
 ## Current State
 - Branch: `codex/presentation-plan-v1-freeze`.

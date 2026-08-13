@@ -9,12 +9,14 @@ description = "Presentation Director workflow and provider-neutral presentation 
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-  "playwright==1.62.0",
   "pydantic==2.13.4",
   "rfc8785==0.1.4",
 ]
 
 [project.optional-dependencies]
+workflow = [
+  "playwright==1.62.0",
+]
 dev = [
   "hatchling>=1.27,<2",
   "mypy>=1.17,<2",

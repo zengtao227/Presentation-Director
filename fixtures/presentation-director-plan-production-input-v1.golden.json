@@ -98,7 +98,6 @@
           "layout_family": "hero",
           "primary_claim": null,
           "proof_object": {
-            "dataset_ids": [],
             "kind": "text",
             "source_ids": [
               "src-1"
@@ -107,7 +106,7 @@
           "purpose": "Frame the decision.",
           "required_capabilities": [
             "editable_text",
-            "theme_fonts"
+            "font_family_assignment"
           ],
           "slide_id": "s01",
           "speaker_notes": [],
@@ -142,7 +141,6 @@
             "value_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
           },
           "proof_object": {
-            "dataset_ids": [],
             "kind": "text",
             "source_ids": [
               "src-1"
@@ -151,7 +149,7 @@
           "purpose": "Summarize the recommendation.",
           "required_capabilities": [
             "editable_text",
-            "theme_fonts"
+            "font_family_assignment"
           ],
           "slide_id": "s02",
           "speaker_notes": [],
@@ -199,9 +197,6 @@
             "value_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
           },
           "proof_object": {
-            "dataset_ids": [
-              "data-table"
-            ],
             "kind": "table",
             "source_ids": [
               "src-1"
@@ -210,12 +205,21 @@
           "purpose": "Require a native table.",
           "required_capabilities": [
             "editable_text",
-            "native_table",
-            "theme_fonts"
+            "font_family_assignment",
+            "native_table"
           ],
           "slide_id": "s03",
           "speaker_notes": [],
-          "supporting_content": [],
+          "supporting_content": [
+            {
+              "content_id": "fact-1",
+              "content_kind": "fact",
+              "source_ids": [
+                "src-1"
+              ],
+              "value_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+            }
+          ],
           "title": "Editable table",
           "visual_treatment": "data",
           "task_source_ids": [],
@@ -242,9 +246,6 @@
             "value_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
           },
           "proof_object": {
-            "dataset_ids": [
-              "data-chart"
-            ],
             "kind": "chart",
             "source_ids": [
               "src-1"
@@ -254,12 +255,21 @@
           "required_capabilities": [
             "editable_chart_data",
             "editable_text",
-            "native_chart",
-            "theme_fonts"
+            "font_family_assignment",
+            "native_chart"
           ],
           "slide_id": "s04",
           "speaker_notes": [],
-          "supporting_content": [],
+          "supporting_content": [
+            {
+              "content_id": "fact-1",
+              "content_kind": "fact",
+              "source_ids": [
+                "src-1"
+              ],
+              "value_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+            }
+          ],
           "title": "Editable chart",
           "visual_treatment": "data",
           "task_source_ids": [],
@@ -286,7 +296,6 @@
             "value_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
           },
           "proof_object": {
-            "dataset_ids": [],
             "kind": "architecture_map",
             "source_ids": [
               "src-1"
@@ -296,8 +305,8 @@
           "required_capabilities": [
             "attached_connectors",
             "editable_text",
-            "native_shapes",
-            "theme_fonts"
+            "font_family_assignment",
+            "native_shapes"
           ],
           "slide_id": "s05",
           "speaker_notes": [],
@@ -336,7 +345,6 @@
             "value_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
           },
           "proof_object": {
-            "dataset_ids": [],
             "kind": "image",
             "source_ids": [
               "src-1"
@@ -346,8 +354,8 @@
           "required_capabilities": [
             "editable_text",
             "embedded_images",
-            "speaker_notes",
-            "theme_fonts"
+            "font_family_assignment",
+            "speaker_notes"
           ],
           "slide_id": "s06",
           "speaker_notes": [

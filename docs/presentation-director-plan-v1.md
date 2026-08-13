@@ -16,7 +16,7 @@ The Plan must not contain Provider identity, routing preference, executable/cach
 
 - **Content Lock** supplies audience, goal, thesis, narrative arc, governed content coverage, slide claims, proof objects, omissions, language, and length intent.
 - **Form Lock** supplies the selected Director-owned form direction and forbidden patterns.
-- **Composition Lock** supplies semantic slide sequence, per-slide layout family, visual treatment, assets/data, task-source usage, font/token selections, reference-only influence, speaker notes, omissions, and required artifact capabilities.
+- **Composition Lock** supplies semantic slide sequence, per-slide layout family, visual treatment, approved assets, governed fact/source bindings for charts and tables, task-source usage, font/token selections, reference-only influence, speaker notes, omissions, and required artifact capabilities.
 
 Human-readable locks remain editing sources. Plan V1 is the cross-repository persisted IR for the governed PPTX path.
 
@@ -54,11 +54,17 @@ These fields preserve the fail-closed semantics already proven by the BPS presen
 
 Cover/section-divider/closing slides may legitimately have no governed primary claim. Slides declared as `content` must carry one. Content-bearing claims remain exact governed content bindings; a Provider may not invent a claim to satisfy a schema requirement.
 
+### Data and image input closure
+
+V1 has no independent governed-dataset namespace, so it deliberately carries no free-form `dataset_ids`. A chart or table must bind at least one exact governed fact through `supporting_content`, and its proof-object `source_ids` must equal the union of those fact sources. This prevents a Provider from selecting or inventing post-resolution chart data. A future independently normalized dataset requires its own BPS-verifiable binding and a versioned contract change.
+
+An `image` or `screenshot` proof must bind at least one approved `AssetBinding`. V1 does not yet support source-derived screenshots. A future use case such as a deterministic capture of an approved PDF page requires an explicit governed derivation contract; source prose alone is not permission for a Provider to choose or generate an image.
+
 ## Semantic order and canonical sets
 
 Array order is semantic for `narrative_arc`, `slides`, `speaker_notes`, and `appendix_notes`. **Slides are never sorted by `slide_id`.** Reordering slides changes Plan meaning and digest.
 
-Set-like collections must already be sorted and unique. Examples are source IDs, dataset IDs, asset roles, font families, brand-token IDs, reference IDs, supporting governed-content bindings, slide assets, capabilities, omissions, and forbidden patterns. Validation rejects non-canonical input rather than silently rewriting it.
+Set-like collections must already be sorted and unique. Examples are source IDs, asset roles, font families, brand-token IDs, reference IDs, supporting governed-content bindings, slide assets, capabilities, omissions, and forbidden patterns. Validation rejects non-canonical input rather than silently rewriting it.
 
 ## Length
 
@@ -76,9 +82,11 @@ V1 capabilities describe artifact semantics:
 - `attached_connectors`
 - `speaker_notes`
 - `embedded_images`
-- `theme_fonts`
+- `font_family_assignment`
 
 Per-slide requirements are explicit. Top-level `required_capabilities` must equal their union. Capability dependencies fail closed: for example, editable chart data requires a native chart, attached connectors require native shapes, and non-empty speaker notes require speaker-note support. A proof object declared as a native table/chart/diagram/image must not silently degrade to rasterized or flattened output merely because a Provider lacks the corresponding capability.
+
+`font_family_assignment` means the Provider can apply every Plan-selected family to the corresponding editable text objects and preserve that assignment in the PPTX. It does **not** imply PowerPoint theme font-scheme authoring, font-file embedding, font licensing, or runtime font availability; those are separate policies/capabilities if later required. Every V1 slide has governed `font_families`, so every eligible V1 Provider must support exact object-level family assignment.
 
 ### Clean-room rule
 
@@ -88,7 +96,7 @@ Vocabulary evolution is driven only by Presentation Director business semantics,
 
 A fully validated Plan uses RFC 8785 JSON Canonicalization Scheme; the Plan digest is SHA-256 over those exact UTF-8 bytes. The checked-in six-slide golden fixture covers a cover, executive summary, native table, native chart, native shapes/connectors, and bilingual density/image/speaker-note stress slide.
 
-Any schema or serialization change that changes golden bytes requires an explicit compatibility decision. Silent digest drift is forbidden. The current six-slide fixture is 6,615 canonical bytes with SHA-256 `4b09c4dce18983ce1e548158cd6ad71e80dfa05be578834753933b8337f90f1d`.
+Any schema or serialization change that changes golden bytes requires an explicit compatibility decision. Silent digest drift is forbidden. The current six-slide fixture is 6,866 canonical bytes with SHA-256 `5768c81519b3d18ada5c62bb14afb8565cc35b5b6b9706388c1a2be53c3eb1bc`.
 
 ## Ownership
 
@@ -107,6 +115,8 @@ The branch now closes the three implementation groups identified by the adversar
 This remains a **freeze candidate** until the new head passes CI and independent cross-repository review. Implementation completeness does not self-approve the schema.
 
 The Ruff/format gate is intentionally scoped to the independent contract package, artifact exporters, and Plan tests. The legacy 346 KB UI/state module, duplicated standalone scripts, HTML-heavy sources, and vendored skills predate this candidate and are not silently reformatted in a schema-freeze PR; they remain covered by the complete test suite and compileall. Expanding lint coverage is separate technical-debt work.
+
+The contract wheel depends only on Pydantic and RFC 8785. Playwright remains an optional standalone workflow dependency. Exact Python 3.10.18 and 3.11.13 compatibility jobs complement the primary pinned Python 3.12.9 locked verification, exercising the declared Python 3.10 floor and every minor version through the primary runtime.
 
 ## Freeze gate
 
