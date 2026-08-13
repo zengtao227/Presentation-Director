@@ -1,8 +1,9 @@
 # PresentationDirectorPlanV1
 
-Status: **freeze candidate — not freeze-ready**  
+Status: **frozen** (independent cross-repository Freeze Review verdict GO, 2026-08-13)  
 Schema: `presentation-director-plan@1.0.0`  
-Capability vocabulary: `presentation-artifact-capabilities@1.0.0`
+Capability vocabulary: `presentation-artifact-capabilities@1.0.0`  
+Freeze provenance: reviewed head `3f838b6d79cb69a40e22e86770cbcd2c7fd1a812`, merged as `6c1333735718e38034f0053da7c03433c4d7a4f0` (PR #12, tree-identical squash merge), tag `presentation-director-plan-v1.0.0`
 
 ## Purpose and scope
 
@@ -104,23 +105,23 @@ Presentation Director owns the Plan schema/version, capability vocabulary, compi
 
 BPS's current proof-level `PresentationDirectorPlan` schema `0.1` is not the formal V1 contract and must not be renamed or treated as byte-compatible. BPS support for formal Plan V1 is a separate compatibility implementation after this freeze review.
 
-## Freeze-candidate implementation status
+## Freeze implementation status
 
-The branch now closes the three implementation groups identified by the adversarial review:
+The frozen head closed the three implementation groups identified by the adversarial review:
 
 1. governance-visible expression fields are present in the model, schema, production input, golden fixture, and positive/negative tests;
 2. pinned Python/uv CI installs from committed `uv.lock` and runs the complete existing and Plan-specific test suite, full Python compileall, and contract-surface Ruff, format, strict mypy, schema/golden parity, installer syntax, and package build;
 3. the strict governed producer boundary rejects incomplete, draft, unknown, and legacy brief-shaped input.
 
-This remains a **freeze candidate** until the new head passes CI and independent cross-repository review. Implementation completeness does not self-approve the schema.
+This closed the freeze candidacy: the reviewed head passed CI and an independent cross-repository Freeze Review with verdict GO (see Status above). Implementation completeness did not by itself approve the schema — the independent review did.
 
 The Ruff/format gate is intentionally scoped to the independent contract package, artifact exporters, and Plan tests. The legacy 346 KB UI/state module, duplicated standalone scripts, HTML-heavy sources, and vendored skills predate this candidate and are not silently reformatted in a schema-freeze PR; they remain covered by the complete test suite and compileall. Expanding lint coverage is separate technical-debt work.
 
 The contract wheel depends only on Pydantic and RFC 8785. Playwright remains an optional standalone workflow dependency. Exact Python 3.10.18 and 3.11.13 compatibility jobs complement the primary pinned Python 3.12.9 locked verification, exercising the declared Python 3.10 floor and every minor version through the primary runtime.
 
-## Freeze gate
+## Freeze gate — closed
 
-V1 is ready to freeze only when strict unknown-field rejection, semantic ordering, sorted-set validation, slide-count invariants, governance-visible expression closure, capability vocabulary closure, capability dependencies/union validation, schema export parity, golden digest stability, pinned/locked CI, and the existing Presentation Director test suite are all green.
+V1 froze once strict unknown-field rejection, semantic ordering, sorted-set validation, slide-count invariants, governance-visible expression closure, capability vocabulary closure, capability dependencies/union validation, schema export parity, golden digest stability, pinned/locked CI, and the existing Presentation Director test suite were all green, and an independent cross-repository Freeze Review gave verdict GO on the exact reviewed head (see Status above). Any change to schema/version identity, capability vocabulary identity, or golden bytes/digest requires an explicit new compatibility decision and a new freeze tag; this frozen head and tag are not to be moved.
 
 ## Explicit non-goals
 
