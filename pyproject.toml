@@ -25,6 +25,13 @@ dev = [
 [tool.hatch.build.targets.wheel]
 packages = ["src/presentation_director_contracts"]
 
+[tool.hatch.build.targets.sdist]
+include = [
+  "/README.md",
+  "/pyproject.toml",
+  "/src/presentation_director_contracts",
+]
+
 [tool.pytest.ini_options]
 addopts = "-q"
 testpaths = ["tests"]

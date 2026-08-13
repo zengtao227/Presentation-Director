@@ -14,10 +14,6 @@ from .vocabulary import PresentationCapability
 
 PLAN_SCHEMA_ID: Literal["presentation-director-plan"] = "presentation-director-plan"
 PLAN_SCHEMA_VERSION: Literal["1.0.0"] = "1.0.0"
-CAPABILITY_VOCABULARY_ID: Literal["presentation-artifact-capabilities"] = (
-    "presentation-artifact-capabilities"
-)
-CAPABILITY_VOCABULARY_VERSION: Literal["1.0.0"] = "1.0.0"
 PPTX_MEDIA_TYPE: Literal[
     "application/vnd.openxmlformats-officedocument.presentationml.presentation"
 ] = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
@@ -64,6 +60,19 @@ class ProofObjectKind(str, Enum):
     CASE = "case"
     DIAGRAM = "diagram"
     IMAGE = "image"
+
+
+class ReferenceInfluence(str, Enum):
+    COMPOSITION_PATTERN = "composition_pattern"
+    LAYOUT_RHYTHM = "layout_rhythm"
+    SPACING = "spacing"
+
+
+class SlideKind(str, Enum):
+    COVER = "cover"
+    SECTION_DIVIDER = "section_divider"
+    CONTENT = "content"
+    CLOSING = "closing"
 
 
 class PlanIdentity(StrictModel):
@@ -146,6 +155,10 @@ class ContentBinding(StrictModel):
         return _sorted_unique(values, label="content source_ids")
 
 
+class ContentOmission(ContentBinding):
+    omission_reason: NonEmptyText
+
+
 class AssetBinding(StrictModel):
     asset_id: StableId
     sha256: Sha256
@@ -168,21 +181,45 @@ class ProofObject(StrictModel):
         return _sorted_unique(values, label="proof object ids")
 
 
+class ReferenceOnlyInspiration(StrictModel):
+    reference_id: StableId
+    label: NonEmptyText
+    locator: NonEmptyText
+    influence: ReferenceInfluence
+    reference_only: Literal[True]
+    non_governing: Literal[True]
+    not_artifact_input: Literal[True]
+
+
 class PresentationPlanSlideV1(StrictModel):
     """One slide in semantic deck order; list position is part of Plan meaning."""
 
     slide_id: StableId
+    slide_kind: SlideKind
     title: NonEmptyText
     purpose: NonEmptyText
-    primary_claim: ContentBinding
+    primary_claim: ContentBinding | None = None
     supporting_content: list[ContentBinding]
     proof_object: ProofObject
     layout_family: StableId
     visual_treatment: NonEmptyText
     assets: list[AssetBinding]
+    task_source_ids: list[StableId]
+    font_families: list[NonEmptyText] = Field(min_length=1)
+    brand_token_ids: list[StableId] = Field(min_length=1)
+    reference_ids: list[StableId]
     speaker_notes: list[NonEmptyText]
-    omissions: list[NonEmptyText]
     required_capabilities: list[PresentationCapability] = Field(min_length=1)
+
+    @field_validator(
+        "task_source_ids",
+        "font_families",
+        "brand_token_ids",
+        "reference_ids",
+    )
+    @classmethod
+    def validate_governed_expression_ids(cls, values: list[str]) -> list[str]:
+        return _sorted_unique(values, label="governed expression ids")
 
     @field_validator("supporting_content")
     @classmethod
@@ -204,11 +241,6 @@ class PresentationPlanSlideV1(StrictModel):
             raise ValueError("assets must use canonical sorted order")
         return values
 
-    @field_validator("omissions")
-    @classmethod
-    def validate_omissions(cls, values: list[str]) -> list[str]:
-        return _sorted_unique(values, label="slide omissions")
-
     @field_validator("required_capabilities")
     @classmethod
     def validate_capabilities(
@@ -219,18 +251,30 @@ class PresentationPlanSlideV1(StrictModel):
 
     @model_validator(mode="after")
     def validate_semantics(self) -> PresentationPlanSlideV1:
-        if self.primary_claim.content_kind is not ContentKind.CLAIM:
-            raise ValueError("primary_claim.content_kind must be claim")
-        primary_key = (self.primary_claim.content_kind.value, self.primary_claim.content_id)
-        if any(
-            (item.content_kind.value, item.content_id) == primary_key
-            for item in self.supporting_content
+        if self.slide_kind is SlideKind.CONTENT and self.primary_claim is None:
+            raise ValueError("content slides require a governed primary_claim")
+        if (
+            self.primary_claim is not None
+            and self.primary_claim.content_kind is not ContentKind.CLAIM
         ):
-            raise ValueError("primary_claim must not be duplicated in supporting_content")
+            raise ValueError("primary_claim.content_kind must be claim")
+        if self.primary_claim is not None:
+            primary_key = (self.primary_claim.content_kind.value, self.primary_claim.content_id)
+            if any(
+                (item.content_kind.value, item.content_id) == primary_key
+                for item in self.supporting_content
+            ):
+                raise ValueError("primary_claim must not be duplicated in supporting_content")
 
         capabilities = set(self.required_capabilities)
+        if PresentationCapability.EDITABLE_TEXT not in capabilities:
+            raise ValueError("every slide requires editable_text capability")
+        if PresentationCapability.THEME_FONTS not in capabilities:
+            raise ValueError("non-empty font_families require theme_fonts capability")
         if self.speaker_notes and PresentationCapability.SPEAKER_NOTES not in capabilities:
             raise ValueError("non-empty speaker_notes require speaker_notes capability")
+        if self.assets and PresentationCapability.EMBEDDED_IMAGES not in capabilities:
+            raise ValueError("non-empty assets require embedded_images capability")
         if (
             PresentationCapability.EDITABLE_CHART_DATA in capabilities
             and PresentationCapability.NATIVE_CHART not in capabilities
@@ -241,6 +285,20 @@ class PresentationPlanSlideV1(StrictModel):
             and PresentationCapability.NATIVE_SHAPES not in capabilities
         ):
             raise ValueError("attached_connectors capability requires native_shapes")
+
+        proof_capability = {
+            ProofObjectKind.TABLE: PresentationCapability.NATIVE_TABLE,
+            ProofObjectKind.CHART: PresentationCapability.NATIVE_CHART,
+            ProofObjectKind.ARCHITECTURE_MAP: PresentationCapability.NATIVE_SHAPES,
+            ProofObjectKind.DIAGRAM: PresentationCapability.NATIVE_SHAPES,
+            ProofObjectKind.IMAGE: PresentationCapability.EMBEDDED_IMAGES,
+            ProofObjectKind.SCREENSHOT: PresentationCapability.EMBEDDED_IMAGES,
+        }.get(self.proof_object.kind)
+        if proof_capability is not None and proof_capability not in capabilities:
+            raise ValueError(
+                f"{self.proof_object.kind.value} proof object requires "
+                f"{proof_capability.value} capability"
+            )
         return self
 
 
@@ -263,6 +321,8 @@ class PresentationDirectorPlanV1(StrictModel):
     length: LengthIntent
     form: FormDirection
     slides: list[PresentationPlanSlideV1] = Field(min_length=1)
+    omitted_content: list[ContentOmission]
+    reference_only_inspiration: list[ReferenceOnlyInspiration]
     required_capabilities: list[PresentationCapability] = Field(min_length=1)
     appendix_notes: list[NonEmptyText]
     deck_omissions: list[NonEmptyText]
@@ -279,6 +339,22 @@ class PresentationDirectorPlanV1(StrictModel):
     @classmethod
     def validate_deck_omissions(cls, values: list[str]) -> list[str]:
         return _sorted_unique(values, label="deck_omissions")
+
+    @field_validator("omitted_content")
+    @classmethod
+    def validate_omitted_content(cls, values: list[ContentOmission]) -> list[ContentOmission]:
+        keys = [f"{item.content_kind.value}:{item.content_id}" for item in values]
+        _sorted_unique(keys, label="omitted_content")
+        return values
+
+    @field_validator("reference_only_inspiration")
+    @classmethod
+    def validate_references(
+        cls, values: list[ReferenceOnlyInspiration]
+    ) -> list[ReferenceOnlyInspiration]:
+        ids = [item.reference_id for item in values]
+        _sorted_unique(ids, label="reference_only_inspiration")
+        return values
 
     @model_validator(mode="after")
     def validate_deck(self) -> PresentationDirectorPlanV1:
@@ -306,6 +382,42 @@ class PresentationDirectorPlanV1(StrictModel):
         if required != slide_required:
             raise ValueError(
                 "required_capabilities must equal the union of slide required_capabilities"
+            )
+
+        used_content = {
+            (item.content_kind, item.content_id)
+            for slide in self.slides
+            for item in (
+                ([slide.primary_claim] if slide.primary_claim is not None else [])
+                + slide.supporting_content
+            )
+        }
+        omitted_content = {(item.content_kind, item.content_id) for item in self.omitted_content}
+        conflicts = sorted(
+            f"{kind.value}:{content_id}" for kind, content_id in used_content & omitted_content
+        )
+        if conflicts:
+            raise ValueError(
+                "governed content cannot be both used and omitted: " + ", ".join(conflicts)
+            )
+
+        declared_references = {
+            reference.reference_id for reference in self.reference_only_inspiration
+        }
+        used_references = {
+            reference_id for slide in self.slides for reference_id in slide.reference_ids
+        }
+        if used_references != declared_references:
+            unknown = sorted(used_references - declared_references)
+            unused = sorted(declared_references - used_references)
+            details: list[str] = []
+            if unknown:
+                details.append("unknown=" + ",".join(unknown))
+            if unused:
+                details.append("unused=" + ",".join(unused))
+            raise ValueError(
+                "reference_only_inspiration must exactly cover slide reference_ids: "
+                + "; ".join(details)
             )
         return self
 

@@ -24,7 +24,9 @@ Human-readable locks remain editing sources. Plan V1 is the cross-repository per
 
 The existing `brief-confirmed.json` must **not** be treated as the direct source for Plan V1. In the current workflow `/api/confirm` copies intake/visual-selection state into that file and marks it confirmed, while later image-style work can mutate the same file without a new human confirmation. It also does not contain the complete machine-readable Content/Form/Composition Locks or the BPS governance binding.
 
-Therefore a governed Plan producer must eventually consume an explicit complete lock packet plus the BPS governance binding and fail closed on missing fields. It must never infer or invent missing Plan fields from the legacy interactive brief.
+The candidate now implements this boundary as `GovernedPlanProductionInputV1`: an explicit complete `ConfirmedDirectorLockPacketV1` plus the BPS governance binding. `compile_presentation_director_plan_v1()` revalidates that strict input, derives only the canonical top-level capability union, and never infers or invents missing Plan fields. The legacy interactive brief shape cannot validate as production input.
+
+The lock packet's `confirmation_state = confirmed` records workflow state only. It is not actor authentication. Trusted Plan confirmation remains an external event bound to the compiled canonical Plan digest.
 
 ## Authority binding
 
@@ -36,9 +38,10 @@ Director-authored title, purpose, thesis, narrative, and other connective wordin
 
 ## Governance-visible presentation choices
 
-Formal Plan V1 must preserve the presentation choices that BPS must independently validate, rather than reducing them to prose. Before freeze the schema must carry, at minimum:
+Formal Plan V1 preserves the presentation choices that BPS must independently validate, rather than reducing them to prose. The candidate schema now carries:
 
 - governed fact/claim/disclaimer bindings and explicit governed-content omissions with reasons;
+- explicit slide kind so content slides require a governed primary claim while cover/structural slides may omit one;
 - per-slide approved asset usage and digests;
 - per-slide task-source IDs;
 - per-slide selected font families;
@@ -49,7 +52,7 @@ Formal Plan V1 must preserve the presentation choices that BPS must independentl
 
 These fields preserve the fail-closed semantics already proven by the BPS presentation conformance proof for unknown content, sources, assets, fonts, brand tokens, references, treatment choices, and missing content coverage.
 
-Cover/structural slides may legitimately have no governed primary claim. Content-bearing claims remain exact governed content bindings; a Provider may not invent a claim to satisfy a schema requirement.
+Cover/section-divider/closing slides may legitimately have no governed primary claim. Slides declared as `content` must carry one. Content-bearing claims remain exact governed content bindings; a Provider may not invent a claim to satisfy a schema requirement.
 
 ## Semantic order and canonical sets
 
@@ -73,6 +76,7 @@ V1 capabilities describe artifact semantics:
 - `attached_connectors`
 - `speaker_notes`
 - `embedded_images`
+- `theme_fonts`
 
 Per-slide requirements are explicit. Top-level `required_capabilities` must equal their union. Capability dependencies fail closed: for example, editable chart data requires a native chart, attached connectors require native shapes, and non-empty speaker notes require speaker-note support. A proof object declared as a native table/chart/diagram/image must not silently degrade to rasterized or flattened output merely because a Provider lacks the corresponding capability.
 
@@ -84,7 +88,7 @@ Vocabulary evolution is driven only by Presentation Director business semantics,
 
 A fully validated Plan uses RFC 8785 JSON Canonicalization Scheme; the Plan digest is SHA-256 over those exact UTF-8 bytes. The checked-in six-slide golden fixture covers a cover, executive summary, native table, native chart, native shapes/connectors, and bilingual density/image/speaker-note stress slide.
 
-Any schema or serialization change that changes golden bytes requires an explicit compatibility decision. Silent digest drift is forbidden.
+Any schema or serialization change that changes golden bytes requires an explicit compatibility decision. Silent digest drift is forbidden. The current six-slide fixture is 6,615 canonical bytes with SHA-256 `4b09c4dce18983ce1e548158cd6ad71e80dfa05be578834753933b8337f90f1d`.
 
 ## Ownership
 
@@ -92,14 +96,17 @@ Presentation Director owns the Plan schema/version, capability vocabulary, compi
 
 BPS's current proof-level `PresentationDirectorPlan` schema `0.1` is not the formal V1 contract and must not be renamed or treated as byte-compatible. BPS support for formal Plan V1 is a separate compatibility implementation after this freeze review.
 
-## Freeze blockers
+## Freeze-candidate implementation status
 
-The current branch is deliberately still a candidate. It must not be marked frozen until all of the following are closed:
+The branch now closes the three implementation groups identified by the adversarial review:
 
-1. the formal schema restores the governance-visible fields listed above and the golden fixture/tests are regenerated;
-2. pinned/locked CI exists with a committed dependency lock and full existing Presentation Director tests;
-3. schema-export parity and golden digest are verified using the real RFC 8785 implementation in CI;
-4. the Plan production boundary is documented such that legacy mutable `brief-confirmed.json` cannot be mistaken for a trusted governed Plan source.
+1. governance-visible expression fields are present in the model, schema, production input, golden fixture, and positive/negative tests;
+2. pinned Python/uv CI installs from committed `uv.lock` and runs the complete existing and Plan-specific test suite, full Python compileall, and contract-surface Ruff, format, strict mypy, schema/golden parity, installer syntax, and package build;
+3. the strict governed producer boundary rejects incomplete, draft, unknown, and legacy brief-shaped input.
+
+This remains a **freeze candidate** until the new head passes CI and independent cross-repository review. Implementation completeness does not self-approve the schema.
+
+The Ruff/format gate is intentionally scoped to the independent contract package, artifact exporters, and Plan tests. The legacy 346 KB UI/state module, duplicated standalone scripts, HTML-heavy sources, and vendored skills predate this candidate and are not silently reformatted in a schema-freeze PR; they remain covered by the complete test suite and compileall. Expanding lint coverage is separate technical-debt work.
 
 ## Freeze gate
 

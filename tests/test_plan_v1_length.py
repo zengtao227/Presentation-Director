@@ -8,7 +8,9 @@ from pydantic import ValidationError
 
 from presentation_director_contracts.plan_v1 import PresentationDirectorPlanV1
 
-FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "presentation-director-plan-v1.golden.json"
+FIXTURE = (
+    Path(__file__).resolve().parents[1] / "fixtures" / "presentation-director-plan-v1.golden.json"
+)
 
 
 def load_fixture() -> dict[str, object]:

@@ -53,3 +53,32 @@
 - Pause / kill signal: The page implies a real Figma file was read when only a built-in packet was used, or the flow can still bypass `figma-source-packet.json` silently.
 - Degraded fallback: User selects “跳过 Figma”; the workflow continues with existing design-locks, ui-ux-pro-max, and pakco themes.
 - Owner and review cadence: Review after the next teacher-facing deck run; decide whether to add real Figma API/MCP fetch after the click flow proves useful.
+
+---
+
+# Agent Demand Gate: Governed Presentation Plan V1 Freeze
+
+## 1. Friction Point
+- Current user friction: Presentation Director can collect and confirm deck intent, but it does not yet persist one complete, canonical, cross-repository Plan that BPS can validate without trusting mutable UI state or Provider behavior.
+- Who experiences it: The maintainer integrating Presentation Director with Brand Production Studio and reviewers deciding whether a governed PPTX task is safe to route.
+- Why fixed rules or normal automation are insufficient: Fixed rules are sufficient. This milestone needs a deterministic contract, compiler boundary, and CI; it does not need an autonomous Agent.
+- Evidence source: BPS presentation conformance proof, Draft PR #12 adversarial review, and the current post-confirmation mutation of `brief-confirmed.json`.
+
+## 2. Quantified Gap
+- Baseline metric: 0 freeze-ready Plan schemas, 0 governed producer inputs, and 0 locked CI runs proving schema/golden parity in this repository.
+- Target metric: 1 strict PPTX Plan V1 candidate whose six-slide golden fixture, exported JSON Schema, RFC 8785 digest, full test suite, Ruff, mypy, compileall, and package build all pass from a committed lock.
+- Failure or exit point: Stop before Eligibility if any BPS-governed expression cannot be represented, mutable `brief-confirmed.json` is accepted as authority, canonical bytes drift silently, or CI is not reproducible from the lock.
+- Acceptable error / misclassification rate: 0 unknown governed inputs accepted; 0 missing required content silently omitted; 0 Provider-specific implementation terms admitted into the capability vocabulary.
+- Measurement window: Draft PR #12 freeze review and its next independent cross-repository review.
+
+## 3. Solution Choice
+- Recommended path: non-agent-automation.
+- Why this path fits current data and change frequency: The required behavior is closed-schema validation, deterministic compilation, canonical serialization, and fail-closed policy checks.
+- Why the rejected paths are weaker: Prompt chains or autonomous agents cannot establish authorization authenticity or byte-level reproducibility, and would add nondeterminism at the trust boundary.
+- Smallest useful prototype: Complete the Plan expression closure, define a strict governed lock packet input, produce one canonical golden Plan, and enforce all parity checks in locked CI.
+
+## 4. Success Preview And Risk Plan
+- Success standard: The same complete lock packet and BPS governance binding always produce identical Plan bytes/digest, and malformed, incomplete, unknown, or legacy mutable input is rejected before persistence.
+- Pause / kill signal: The implementation starts routing Providers, derives capability names from restricted `skills/pptx`, rewrites Plan requirements for compatibility, or requires changing BPS frozen v1 contracts.
+- Degraded fallback: Keep the current Presentation Director standalone workflow and the BPS proof-level Plan separate; do not start Eligibility.
+- Owner and review cadence: Presentation Director owns schema/compiler changes; BPS performs an independent compatibility and authority review before Eligibility begins.

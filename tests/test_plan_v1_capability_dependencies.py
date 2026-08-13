@@ -8,7 +8,9 @@ from pydantic import ValidationError
 
 from presentation_director_contracts.plan_v1 import PresentationDirectorPlanV1
 
-FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "presentation-director-plan-v1.golden.json"
+FIXTURE = (
+    Path(__file__).resolve().parents[1] / "fixtures" / "presentation-director-plan-v1.golden.json"
+)
 
 
 def load_fixture() -> dict[str, object]:
@@ -32,13 +34,39 @@ def test_speaker_notes_require_capability() -> None:
 
 def test_editable_chart_data_requires_native_chart() -> None:
     payload = load_fixture()
-    get_slide(payload, 3)["required_capabilities"] = ["editable_chart_data", "editable_text"]
+    get_slide(payload, 3)["required_capabilities"] = [
+        "editable_chart_data",
+        "editable_text",
+        "theme_fonts",
+    ]
     with pytest.raises(ValidationError, match="requires native_chart"):
         PresentationDirectorPlanV1.model_validate(payload)
 
 
 def test_attached_connectors_require_native_shapes() -> None:
     payload = load_fixture()
-    get_slide(payload, 4)["required_capabilities"] = ["attached_connectors", "editable_text"]
+    get_slide(payload, 4)["required_capabilities"] = [
+        "attached_connectors",
+        "editable_text",
+        "theme_fonts",
+    ]
     with pytest.raises(ValidationError, match="requires native_shapes"):
+        PresentationDirectorPlanV1.model_validate(payload)
+
+
+def test_table_proof_requires_native_table() -> None:
+    payload = load_fixture()
+    get_slide(payload, 2)["required_capabilities"] = ["editable_text", "theme_fonts"]
+    with pytest.raises(ValidationError, match="table proof object requires native_table"):
+        PresentationDirectorPlanV1.model_validate(payload)
+
+
+def test_assets_require_embedded_images() -> None:
+    payload = load_fixture()
+    get_slide(payload, 5)["required_capabilities"] = [
+        "editable_text",
+        "speaker_notes",
+        "theme_fonts",
+    ]
+    with pytest.raises(ValidationError, match="assets require embedded_images"):
         PresentationDirectorPlanV1.model_validate(payload)

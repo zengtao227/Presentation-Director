@@ -9,7 +9,9 @@ from presentation_director_contracts.plan_v1 import (
     presentation_director_plan_v1_sha256,
 )
 
-FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "presentation-director-plan-v1.golden.json"
+FIXTURE = (
+    Path(__file__).resolve().parents[1] / "fixtures" / "presentation-director-plan-v1.golden.json"
+)
 
 
 def load_fixture() -> dict[str, object]:
@@ -25,7 +27,9 @@ def test_slide_order_is_semantic_and_not_sorted_by_id() -> None:
     slides[0], slides[1] = slides[1], slides[0]
     changed = PresentationDirectorPlanV1.model_validate(changed_payload)
     assert [slide.slide_id for slide in changed.slides[:2]] == ["s02", "s01"]
-    assert presentation_director_plan_v1_sha256(original) != presentation_director_plan_v1_sha256(changed)
+    assert presentation_director_plan_v1_sha256(original) != presentation_director_plan_v1_sha256(
+        changed
+    )
 
 
 def test_narrative_arc_order_is_semantic() -> None:
@@ -36,4 +40,6 @@ def test_narrative_arc_order_is_semantic() -> None:
     assert isinstance(arc, list)
     arc[0], arc[1] = arc[1], arc[0]
     changed = PresentationDirectorPlanV1.model_validate(changed_payload)
-    assert presentation_director_plan_v1_sha256(original) != presentation_director_plan_v1_sha256(changed)
+    assert presentation_director_plan_v1_sha256(original) != presentation_director_plan_v1_sha256(
+        changed
+    )

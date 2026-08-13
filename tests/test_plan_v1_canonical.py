@@ -8,7 +8,9 @@ from pydantic import ValidationError
 
 from presentation_director_contracts.plan_v1 import PresentationDirectorPlanV1
 
-FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "presentation-director-plan-v1.golden.json"
+FIXTURE = (
+    Path(__file__).resolve().parents[1] / "fixtures" / "presentation-director-plan-v1.golden.json"
+)
 
 
 def load_fixture() -> dict[str, object]:
@@ -19,9 +21,9 @@ def test_set_like_source_ids_require_canonical_order() -> None:
     payload = load_fixture()
     slides = payload["slides"]
     assert isinstance(slides, list)
-    first = slides[0]
-    assert isinstance(first, dict)
-    primary = first["primary_claim"]
+    second = slides[1]
+    assert isinstance(second, dict)
+    primary = second["primary_claim"]
     assert isinstance(primary, dict)
     primary["source_ids"] = ["z-source", "a-source"]
     with pytest.raises(ValidationError, match="canonical sorted order"):
