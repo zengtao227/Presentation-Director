@@ -27,6 +27,7 @@ from urllib.parse import parse_qs, urlparse
 
 import rfc8785
 
+from .lock_semantics_v1 import validate_confirmed_lock_packet_deck_semantics
 from .producer_v1 import ConfirmedDirectorLockPacketV1
 
 JsonObject = dict[str, Any]
@@ -126,6 +127,7 @@ def _snapshot_candidate(path: Path) -> _CandidateSnapshot:
     material["confirmation_state"] = "confirmed"
     try:
         packet = ConfirmedDirectorLockPacketV1.model_validate(material)
+        validate_confirmed_lock_packet_deck_semantics(packet)
     except ValueError as exc:
         raise LockConfirmationError(f"invalid Director lock candidate: {exc}") from exc
 
