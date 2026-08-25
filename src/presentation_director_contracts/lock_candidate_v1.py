@@ -544,9 +544,7 @@ def build_director_lock_candidate_v1(
                     f"{usage.asset_id}"
                 )
             if not set(usage.roles) <= set(constraint.roles):
-                _fail(
-                    f"slide {decision.slide_id} uses unapproved roles for asset {usage.asset_id}"
-                )
+                _fail(f"slide {decision.slide_id} uses unapproved roles for asset {usage.asset_id}")
             from .plan_v1 import AssetBinding
 
             slide_assets.append(
