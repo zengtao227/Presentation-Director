@@ -30,9 +30,7 @@ def validate_confirmed_lock_packet_deck_semantics(
     else:
         assert length.slide_count_range is not None
         if not (
-            length.slide_count_range.minimum
-            <= slide_count
-            <= length.slide_count_range.maximum
+            length.slide_count_range.minimum <= slide_count <= length.slide_count_range.maximum
         ):
             raise ValueError("persisted slide count must fall inside slide_count_range")
 
