@@ -14,6 +14,7 @@ dependencies = [
 ]
 
 [project.scripts]
+presentation-director-build-lock-candidate = "presentation_director_contracts.lock_candidate_v1:main"
 presentation-director-confirm-lock = "presentation_director_contracts.interactive_lock_v1:main"
 
 [project.optional-dependencies]
