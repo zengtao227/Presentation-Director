@@ -569,6 +569,66 @@ def test_malformed_content_length_cannot_confirm(tmp_path: Path) -> None:
     assert not output_path.exists()
 
 
+def test_truncated_content_length_cannot_confirm(tmp_path: Path) -> None:
+    candidate_path = tmp_path / "candidate.json"
+    output_path = tmp_path / "confirmed.json"
+    _write_candidate(candidate_path, _candidate_data())
+    threads: list[threading.Thread] = []
+    failures: list[BaseException] = []
+
+    def opener(url: str) -> bool:
+        def worker() -> None:
+            try:
+                with urlopen(url, timeout=5) as response:
+                    page = response.read().decode("utf-8")
+                match = _TOKEN_RE.search(page)
+                assert match is not None
+                token = match.group(1)
+                parsed = urlparse(url)
+                assert parsed.hostname is not None
+                assert parsed.port is not None
+                body = urlencode({"token": token, "decision": "confirm"}).encode("utf-8")
+                request_bytes = (
+                    f"POST /decision HTTP/1.1\r\n"
+                    f"Host: {parsed.hostname}:{parsed.port}\r\n"
+                    f"Origin: http://{parsed.hostname}:{parsed.port}\r\n"
+                    "Content-Type: application/x-www-form-urlencoded\r\n"
+                    f"Content-Length: {len(body) + 17}\r\n"
+                    "Connection: close\r\n\r\n"
+                ).encode("ascii") + body
+                with socket.create_connection((parsed.hostname, parsed.port), timeout=5) as client:
+                    client.sendall(request_bytes)
+                    client.shutdown(socket.SHUT_WR)
+                    response_bytes = client.recv(4096)
+                assert b" 400 " in response_bytes
+
+                cancel_body = urlencode({"token": token, "decision": "cancel"}).encode("utf-8")
+                cancel_request = Request(
+                    url.rstrip("/") + "/decision",
+                    data=cancel_body,
+                    method="POST",
+                )
+                with urlopen(cancel_request, timeout=5) as response:
+                    response.read()
+            except BaseException as exc:
+                failures.append(exc)
+
+        thread = threading.Thread(target=worker, daemon=True)
+        threads.append(thread)
+        thread.start()
+        return True
+
+    with pytest.raises(LockConfirmationCancelled):
+        confirm_lock_candidate_interactively(
+            candidate_path,
+            output_path,
+            timeout_seconds=5,
+            browser_opener=opener,
+        )
+    _join_workers(threads, failures)
+    assert not output_path.exists()
+
+
 def test_noncanonical_integer_float_candidate_fails_before_browser(tmp_path: Path) -> None:
     candidate_data = _candidate_data()
     content_lock = candidate_data["content_lock"]
