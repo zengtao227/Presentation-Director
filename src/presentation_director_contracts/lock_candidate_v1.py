@@ -21,6 +21,7 @@ from typing import Annotated, Any, Literal, NoReturn
 import rfc8785
 from pydantic import Field, field_validator, model_validator
 
+from .lock_semantics_v1 import validate_confirmed_lock_packet_deck_semantics
 from .plan_v1 import (
     AudienceIntent,
     CanonicalLocale,
@@ -655,10 +656,12 @@ def build_director_lock_candidate_v1(
         ),
     )
 
-    # Reuse the frozen confirmed-packet validator for every lock semantic except the human state.
-    ConfirmedDirectorLockPacketV1.model_validate(
-        {**candidate.model_dump(mode="json"), "confirmation_state": "confirmed"}
-    )
+    material = {**candidate.model_dump(mode="json"), "confirmation_state": "confirmed"}
+    try:
+        packet = ConfirmedDirectorLockPacketV1.model_validate(material)
+        validate_confirmed_lock_packet_deck_semantics(packet)
+    except ValueError as exc:
+        raise LockCandidateError(f"Director lock candidate violates deck semantics: {exc}") from exc
     return candidate
 
 
