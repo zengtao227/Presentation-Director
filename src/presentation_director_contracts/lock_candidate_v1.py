@@ -34,6 +34,7 @@ from .plan_v1 import (
     ProofObject,
     ReferenceOnlyInspiration,
     Sha256,
+    SlideKind,
     StableId,
     StrictModel,
     TreatmentBinding,
@@ -559,7 +560,7 @@ def build_director_lock_candidate_v1(
         slides.append(
             PresentationPlanSlideV1(
                 slide_id=decision.slide_id,
-                slide_kind=decision.slide_kind,
+                slide_kind=SlideKind(decision.slide_kind),
                 title=decision.title,
                 purpose=decision.purpose,
                 primary_claim=primary_claim,
