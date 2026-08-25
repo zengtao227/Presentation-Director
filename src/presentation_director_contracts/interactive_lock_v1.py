@@ -372,8 +372,12 @@ def confirm_lock_candidate_interactively(
             if content_length <= 0 or content_length > MAX_FORM_BODY_BYTES:
                 self.send_error(HTTPStatus.BAD_REQUEST, "Invalid form body size")
                 return
+            body_bytes = self.rfile.read(content_length)
+            if len(body_bytes) != content_length:
+                self.send_error(HTTPStatus.BAD_REQUEST, "Incomplete form body")
+                return
             try:
-                body = self.rfile.read(content_length).decode("utf-8", errors="strict")
+                body = body_bytes.decode("utf-8", errors="strict")
             except UnicodeDecodeError:
                 self.send_error(HTTPStatus.BAD_REQUEST, "Invalid UTF-8 form body")
                 return
