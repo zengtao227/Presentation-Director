@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "presentation-director"
-version = "1.0.0"
+version = "1.1.0"
 description = "Presentation Director workflow and provider-neutral presentation plan contracts"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -12,6 +12,9 @@ dependencies = [
   "pydantic==2.13.4",
   "rfc8785==0.1.4",
 ]
+
+[project.scripts]
+presentation-director-confirm-lock = "presentation_director_contracts.interactive_lock_v1:main"
 
 [project.optional-dependencies]
 workflow = [
