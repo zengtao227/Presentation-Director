@@ -259,27 +259,19 @@ def test_builds_complete_unconfirmed_candidate_from_governed_view() -> None:
     ("mutation", "match"),
     [
         (
-            lambda data: data["slides"][0].__setitem__(
-                "layout_family", "unknown-layout"
-            ),
+            lambda data: data["slides"][0].__setitem__("layout_family", "unknown-layout"),
             "unapproved layout",
         ),
         (
-            lambda data: data["slides"][0].__setitem__(
-                "font_families", ["Unknown Sans"]
-            ),
+            lambda data: data["slides"][0].__setitem__("font_families", ["Unknown Sans"]),
             "unapproved fonts",
         ),
         (
-            lambda data: data["slides"][0].__setitem__(
-                "brand_token_ids", ["unknown-token"]
-            ),
+            lambda data: data["slides"][0].__setitem__("brand_token_ids", ["unknown-token"]),
             "unknown brand tokens",
         ),
         (
-            lambda data: data["slides"][1].__setitem__(
-                "primary_claim_id", "unknown-claim"
-            ),
+            lambda data: data["slides"][1].__setitem__("primary_claim_id", "unknown-claim"),
             "content outside Constraint View",
         ),
         (
@@ -290,9 +282,7 @@ def test_builds_complete_unconfirmed_candidate_from_governed_view() -> None:
             "asset outside Constraint View",
         ),
         (
-            lambda data: data["slides"][1]["assets"][0].__setitem__(
-                "roles", ["unapproved_role"]
-            ),
+            lambda data: data["slides"][1]["assets"][0].__setitem__("roles", ["unapproved_role"]),
             "unapproved roles",
         ),
     ],
