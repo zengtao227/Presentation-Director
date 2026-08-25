@@ -16,7 +16,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
-from typing import Annotated, Any, Literal, NoReturn, Union
+from typing import Annotated, Any, Literal, NoReturn
 
 import rfc8785
 from pydantic import Field, field_validator, model_validator
@@ -160,7 +160,7 @@ class BpsMonetaryFact(StrictModel):
 
 
 BpsFact = Annotated[
-    Union[BpsTextFact, BpsNumberFact, BpsMonetaryFact],
+    BpsTextFact | BpsNumberFact | BpsMonetaryFact,
     Field(discriminator="fact_type"),
 ]
 
@@ -465,7 +465,10 @@ def _bind_content(
 ) -> ContentBinding:
     value = lookup.get((kind, content_id))
     if value is None:
-        _fail(f"Director decision references content outside Constraint View: {kind.value}:{content_id}")
+        _fail(
+            "Director decision references content outside Constraint View: "
+            f"{kind.value}:{content_id}"
+        )
     return ContentBinding(
         content_kind=kind,
         content_id=content_id,
@@ -504,7 +507,8 @@ def build_director_lock_candidate_v1(
         unknown_tokens = sorted(set(decision.brand_token_ids) - allowed_tokens)
         if unknown_tokens:
             _fail(
-                f"slide {decision.slide_id} selects unknown brand tokens: {', '.join(unknown_tokens)}"
+                f"slide {decision.slide_id} selects unknown brand tokens: "
+                + ", ".join(unknown_tokens)
             )
         unknown_task_sources = sorted(set(decision.task_source_ids) - known_task_sources)
         if unknown_task_sources:
@@ -607,7 +611,9 @@ def build_director_lock_candidate_v1(
     if missing:
         _fail("Director decisions do not account for governed content: " + ", ".join(missing))
 
-    required_assets = {asset.asset_id for asset in constraint_view.assets if asset.treatment_required}
+    required_assets = {
+        asset.asset_id for asset in constraint_view.assets if asset.treatment_required
+    }
     missing_assets = sorted(required_assets - used_assets)
     if missing_assets:
         _fail("Director decisions omit treatment-required assets: " + ", ".join(missing_assets))
