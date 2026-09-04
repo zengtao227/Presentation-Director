@@ -217,7 +217,12 @@ def _validated_loopback_host(host: str) -> str:
 
 
 def _ui_locale(packet: ConfirmedDirectorLockPacketV1) -> UiLocale:
-    return "zh-CN" if packet.content_lock.content_language.startswith("zh") else "en"
+    content_language = packet.content_lock.content_language
+    if content_language.startswith("zh"):
+        return "zh-CN"
+    if content_language.startswith("en"):
+        return "en"
+    _fail(f"unsupported confirmation UI locale: {content_language}")
 
 
 def _label(locale: UiLocale, chinese: str, english: str) -> str:
@@ -347,6 +352,10 @@ def _candidate_page(snapshot: _CandidateSnapshot, token: str) -> str:
             (_label(locale, "核心论点", "Thesis"), content.thesis),
             (_label(locale, "叙事顺序", "Narrative arc"), _joined(content.narrative_arc, locale)),
             (_label(locale, "篇幅", "Length"), length_text),
+            (
+                _label(locale, "实际幻灯片数", "Actual slide count"),
+                str(len(composition.slides)),
+            ),
             (_label(locale, "附录说明", "Appendix notes"), _joined(content.appendix_notes, locale)),
             (
                 _label(locale, "明确不包含", "Deck omissions"),
@@ -363,6 +372,10 @@ def _candidate_page(snapshot: _CandidateSnapshot, token: str) -> str:
         (
             (_label(locale, "版式方案", "Treatment"), form.treatment.treatment_id),
             (_label(locale, "版式版本", "Treatment version"), form.treatment.version),
+            (
+                _label(locale, "版式定义 SHA-256", "Treatment definition SHA-256"),
+                form.treatment.definition_sha256,
+            ),
             (_label(locale, "形式方向", "Direction"), direction.name),
             (_label(locale, "语气", "Tone"), direction.tone),
             (_label(locale, "背景策略", "Background strategy"), direction.background_strategy),

@@ -267,6 +267,10 @@ def test_chinese_confirmation_page_is_human_readable_and_exact_payload_is_collap
     assert "1. 内容锁定" in page
     assert "2. 形式锁定" in page
     assert "3. 逐页组成锁定" in page
+    assert f"实际幻灯片数</dt><dd>{len(slides)}" in page
+    treatment = form_lock["treatment"]
+    assert isinstance(treatment, dict)
+    assert treatment["definition_sha256"] in page
     assert "准备留学的学生家长" in page
     assert "介绍留学咨询服务的价值与边界。" in page
     assert "清晰流程与透明边界帮助家庭作出审慎决定。" in page
@@ -280,6 +284,9 @@ def test_chinese_confirmation_page_is_human_readable_and_exact_payload_is_collap
     assert "<details>" in page
     assert "<details open" not in page
     assert page.index("<details>") < page.index("<pre><code>")
+    for slide in slides:
+        assert isinstance(slide, dict)
+        assert slide["title"] in page
 
 
 def test_english_confirmation_page_remains_human_readable(tmp_path: Path) -> None:
@@ -313,6 +320,31 @@ def test_english_confirmation_page_remains_human_readable(tmp_path: Path) -> Non
     assert "3. Per-slide composition lock" in page
     assert "Confirm exact lock" in page
     assert "Cancel and return to edit" in page
+
+
+def test_confirmation_page_rejects_locale_without_ui_copy_before_browser(
+    tmp_path: Path,
+) -> None:
+    candidate_data = _candidate_data()
+    content_lock = candidate_data["content_lock"]
+    assert isinstance(content_lock, dict)
+    content_lock["content_language"] = "fr-FR"
+    candidate_path = tmp_path / "candidate.json"
+    output_path = tmp_path / "confirmed.json"
+    _write_candidate(candidate_path, candidate_data)
+
+    def must_not_open(_: str) -> bool:
+        raise AssertionError("browser must not open without supported UI wording")
+
+    with pytest.raises(LockConfirmationError, match="unsupported confirmation UI locale"):
+        confirm_lock_candidate_interactively(
+            candidate_path,
+            output_path,
+            timeout_seconds=5,
+            browser_opener=must_not_open,
+        )
+
+    assert not output_path.exists()
 
 
 def test_confirmation_page_escapes_untrusted_candidate_text(tmp_path: Path) -> None:
