@@ -44,6 +44,7 @@ def _browser_opener(
     before_post: Callable[[], None] | None = None,
     first_origin: str | None = None,
     expected_first_status: int | None = None,
+    captured_pages: list[str] | None = None,
 ) -> tuple[Callable[[str], bool], list[threading.Thread], list[BaseException]]:
     threads: list[threading.Thread] = []
     failures: list[BaseException] = []
@@ -53,6 +54,8 @@ def _browser_opener(
             try:
                 with urlopen(url, timeout=5) as response:
                     page = response.read().decode("utf-8")
+                if captured_pages is not None:
+                    captured_pages.append(page)
                 match = _TOKEN_RE.search(page)
                 assert match is not None
                 token = match.group(1)
@@ -203,6 +206,174 @@ def test_cancel_writes_no_confirmed_packet(tmp_path: Path) -> None:
         )
     _join_workers(threads, failures)
     assert not output_path.exists()
+
+
+def test_chinese_confirmation_page_is_human_readable_and_exact_payload_is_collapsed(
+    tmp_path: Path,
+) -> None:
+    candidate_data = _candidate_data()
+    content_lock = candidate_data["content_lock"]
+    assert isinstance(content_lock, dict)
+    content_lock["content_language"] = "zh-CN"
+    audience = content_lock["audience"]
+    assert isinstance(audience, dict)
+    audience["audience"] = "准备留学的学生家长"
+    audience["familiarity"] = "首次了解服务"
+    audience["desired_outcome"] = "理解服务范围并预约咨询"
+    content_lock["goal"] = "介绍留学咨询服务的价值与边界。"
+    content_lock["thesis"] = "清晰流程与透明边界帮助家庭作出审慎决定。"
+    content_lock["narrative_arc"] = ["家庭关切", "服务流程", "风险边界"]
+
+    form_lock = candidate_data["form_lock"]
+    assert isinstance(form_lock, dict)
+    direction = form_lock["direction"]
+    assert isinstance(direction, dict)
+    direction["name"] = "克制、可信的编辑风格"
+    direction["tone"] = "清晰、温和、专业"
+
+    composition_lock = candidate_data["composition_lock"]
+    assert isinstance(composition_lock, dict)
+    slides = composition_lock["slides"]
+    assert isinstance(slides, list)
+    first_slide = slides[0]
+    assert isinstance(first_slide, dict)
+    first_slide["title"] = "为家庭建立清晰的留学决策路径"
+    first_slide["purpose"] = "说明本次介绍希望帮助家长解决什么问题。"
+    first_slide["visual_treatment"] = "留白充分的编辑式封面"
+
+    candidate_path = tmp_path / "candidate.json"
+    output_path = tmp_path / "confirmed.json"
+    _write_candidate(candidate_path, candidate_data)
+    captured_pages: list[str] = []
+    opener, threads, failures = _browser_opener(
+        decision="cancel",
+        captured_pages=captured_pages,
+    )
+
+    with pytest.raises(LockConfirmationCancelled):
+        confirm_lock_candidate_interactively(
+            candidate_path,
+            output_path,
+            timeout_seconds=5,
+            browser_opener=opener,
+        )
+    _join_workers(threads, failures)
+
+    assert not output_path.exists()
+    assert len(captured_pages) == 1
+    page = captured_pages[0]
+    assert '<html lang="zh-CN">' in page
+    assert "确认 Director 内容、形式与逐页组成" in page
+    assert "1. 内容锁定" in page
+    assert "2. 形式锁定" in page
+    assert "3. 逐页组成锁定" in page
+    assert f"实际幻灯片数</dt><dd>{len(slides)}" in page
+    treatment = form_lock["treatment"]
+    assert isinstance(treatment, dict)
+    assert treatment["definition_sha256"] in page
+    assert "准备留学的学生家长" in page
+    assert "介绍留学咨询服务的价值与边界。" in page
+    assert "清晰流程与透明边界帮助家庭作出审慎决定。" in page
+    assert "为家庭建立清晰的留学决策路径" in page
+    assert "此页面只用于确认, 不能直接修改内容" in page
+    assert "调整版式或逐页组成" in page
+    assert "创建新的 job 与 Task draft" in page
+    assert "取消并返回修改" in page
+    assert "确认这份精确锁定" in page
+    assert "精确的机器可读载荷 (技术审计)" in page
+    assert "<details>" in page
+    assert "<details open" not in page
+    assert page.index("<details>") < page.index("<pre><code>")
+    for slide in slides:
+        assert isinstance(slide, dict)
+        assert slide["title"] in page
+
+
+def test_english_confirmation_page_remains_human_readable(tmp_path: Path) -> None:
+    candidate_data = _candidate_data()
+    content_lock = candidate_data["content_lock"]
+    assert isinstance(content_lock, dict)
+    content_lock["content_language"] = "en-US"
+    candidate_path = tmp_path / "candidate.json"
+    output_path = tmp_path / "confirmed.json"
+    _write_candidate(candidate_path, candidate_data)
+    captured_pages: list[str] = []
+    opener, threads, failures = _browser_opener(
+        decision="cancel",
+        captured_pages=captured_pages,
+    )
+
+    with pytest.raises(LockConfirmationCancelled):
+        confirm_lock_candidate_interactively(
+            candidate_path,
+            output_path,
+            timeout_seconds=5,
+            browser_opener=opener,
+        )
+    _join_workers(threads, failures)
+
+    assert not output_path.exists()
+    page = captured_pages[0]
+    assert '<html lang="en">' in page
+    assert "1. Content lock" in page
+    assert "2. Form lock" in page
+    assert "3. Per-slide composition lock" in page
+    assert "Confirm exact lock" in page
+    assert "Cancel and return to edit" in page
+
+
+def test_confirmation_page_rejects_locale_without_ui_copy_before_browser(
+    tmp_path: Path,
+) -> None:
+    candidate_data = _candidate_data()
+    content_lock = candidate_data["content_lock"]
+    assert isinstance(content_lock, dict)
+    content_lock["content_language"] = "fr-FR"
+    candidate_path = tmp_path / "candidate.json"
+    output_path = tmp_path / "confirmed.json"
+    _write_candidate(candidate_path, candidate_data)
+
+    def must_not_open(_: str) -> bool:
+        raise AssertionError("browser must not open without supported UI wording")
+
+    with pytest.raises(LockConfirmationError, match="unsupported confirmation UI locale"):
+        confirm_lock_candidate_interactively(
+            candidate_path,
+            output_path,
+            timeout_seconds=5,
+            browser_opener=must_not_open,
+        )
+
+    assert not output_path.exists()
+
+
+def test_confirmation_page_escapes_untrusted_candidate_text(tmp_path: Path) -> None:
+    candidate_data = _candidate_data()
+    content_lock = candidate_data["content_lock"]
+    assert isinstance(content_lock, dict)
+    content_lock["goal"] = '</section><script>alert("candidate")</script>'
+    candidate_path = tmp_path / "candidate.json"
+    output_path = tmp_path / "confirmed.json"
+    _write_candidate(candidate_path, candidate_data)
+    captured_pages: list[str] = []
+    opener, threads, failures = _browser_opener(
+        decision="cancel",
+        captured_pages=captured_pages,
+    )
+
+    with pytest.raises(LockConfirmationCancelled):
+        confirm_lock_candidate_interactively(
+            candidate_path,
+            output_path,
+            timeout_seconds=5,
+            browser_opener=opener,
+        )
+    _join_workers(threads, failures)
+
+    assert not output_path.exists()
+    page = captured_pages[0]
+    assert '<script>alert("candidate")</script>' not in page
+    assert "&lt;/section&gt;&lt;script&gt;alert(&quot;candidate&quot;)&lt;/script&gt;" in page
 
 
 def test_concurrent_confirm_cancel_accepts_one_terminal_decision(tmp_path: Path) -> None:
