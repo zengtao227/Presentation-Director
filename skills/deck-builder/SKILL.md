@@ -17,7 +17,18 @@ This skill does NOT generate slides directly. It routes to the correct generatio
 
 ## Request Boundary Check
 
-> **DEFAULT RULE — when in doubt, use Presentation Director.** Any request involving a presentation, slide deck, PPT/PPTX, or "把这些内容做成演示文稿/HTML" goes through the Director pipeline (intake → research strategy → visual inspiration → brief confirmation → image gate → generation → preview-review → style-review). This explicitly includes **beautifying an existing PPTX, converting a PPTX to an HTML deck, restyling, or porting slides to a new format.** Do NOT hand-write an HTML deck or call a generator directly just because a source PPTX already exists — an existing PPTX is *source material*, and the user still needs the confirmation gates and the preview/revision loop. The only requests that skip the pipeline are the narrow "Handle directly" rows below.
+Select one environment branch and one request type; do not concatenate the Codex and Claude workflows. This routing is part of Presentation Director even when it selects targeted editing or read-only work. Reuse supplied intake fields and existing approvals for the same gate, object, and unchanged scope. Never reuse a different gate's approval or omit an explicitly required second confirmation.
+
+| Request / environment | Required route and approval boundary |
+|---|---|
+| New deck, whole-deck restyle, or format conversion in Codex | Codex Director intake and applicable research/visual/brief/image/review gates; no additional Claude slide-plan/palette/structure gates |
+| New deck or whole-deck transformation outside Codex | Claude/offline branch and its explicit plan, palette, structure and generation confirmations; do not merge independent gates |
+| Existing deck's bounded text/style edit | Targeted-edit branch using the accepted baseline; do not restart net-new intake. Reconfirm only an affected existing gate when its approved object or scope changes; preserve any project-specific extra approval |
+| Read-only plan/review/QA | Produce the requested plan or findings without generation or confirmation-state writes. A plan review is not permission to generate |
+
+For each applicable gate, track its object, confirmed scope, genuine user signal, and any scope change in the existing task record. A changed source boundary, target, visual direction, image permission, or selected version invalidates the affected gate only. Awaiting a gate blocks its dependent operation, not independent authorized preparation. Silence, timeout, process exit, or a generic “continue” is not approval. Do not create another approval round for an unchanged, already satisfied gate.
+
+> **DEFAULT RULE — use Presentation Director routing.** New decks, whole-deck beautification/restyling, and format conversions use the full applicable pipeline (intake → research strategy → visual inspiration → brief confirmation → image gate → generation → preview-review → style-review). A source PPTX does not by itself exempt a transformation from its gates. Bounded edits, read-only planning, and QA use their scoped branches below; they do not restart the full generation pipeline.
 
 Before starting this pipeline, verify the request actually needs a new deck:
 
@@ -28,13 +39,13 @@ Before starting this pipeline, verify the request actually needs a new deck:
 | **Beautify / restyle / reformat an existing PPTX** | **Run Presentation Director — PPTX is source material** |
 | **Convert an existing PPTX to an HTML deck** | **Run Presentation Director — PPTX is source material** |
 | New deck from an existing deck as a template/base | **Run Presentation Director (source_boundary = existing-doc)** |
-| Slide plan review or deck.md revision | **Proceed with this pipeline** |
+| Read-only slide plan review / bounded deck.md revision | Review or revise the authorized plan; preserve accepted fields and relevant gates, do not start generation |
 | Single-slide text fix in existing deck | Handle directly — skip this pipeline |
 | QA pass on an existing generated deck | Handle directly — skip this pipeline |
 | Quick Marp / reveal.js preview | Handle directly — skip this pipeline |
-| Format-only change (color, font size) on an already-Director-generated deck | Handle directly — skip this pipeline |
+| Bounded format-only change (color, font size) on an existing deck | Use targeted-edit with the accepted baseline; do not restart net-new intake |
 
-If in doubt: does this produce or transform a presentation the user will show to an audience? If yes, use Presentation Director. A pre-existing PPTX does not exempt the request — it is source material, not a reason to skip the gates. In Codex, start with Presentation Director. Outside Codex, also start with Presentation Director, then continue with the deck.md-centered path.
+If the request is ambiguous, inspect the accepted baseline and classify the actual change before selecting a branch. Ask only when the missing scope would change the route or an approval boundary; continue independent authorized inspection. A pre-existing PPTX does not exempt a whole-deck transformation, and its existence does not turn a local edit into a new-deck request.
 
 ---
 
@@ -51,7 +62,7 @@ If in doubt: does this produce or transform a presentation the user will show to
 **Do NOT trigger when:**
 - Fixing a typo or rewriting a single slide in an existing deck
 - Creating a quick Marp or reveal.js preview file
-- The user only asks to change one formatting value (e.g. a single color/font size) in a deck this pipeline already generated
+- The user only asks to change one formatting value (e.g. a single color/font size) in an existing deck
 - No new deck planning is required
 
 A pre-existing PPTX is NOT a reason to skip this skill. "Make this PPTX prettier" and "turn this PPTX into HTML" are full pipeline requests: the user still needs format/language confirmation, visual direction, and the preview → revision loop.
@@ -70,14 +81,7 @@ Presentation Director/skills/deck-builder/         ← canonical source
 
 VS Code agent support depends on the specific agent extension — check its skill loading config separately.
 
-Sync command after edits to canonical:
-```bash
-# Run from the Presentation Director repository root.
-mkdir -p "$HOME/.claude/skills" "$HOME/.codex/skills"
-rm -rf "$HOME/.claude/skills/deck-builder" "$HOME/.codex/skills/deck-builder"
-cp -R "$(pwd)/skills/deck-builder" "$HOME/.claude/skills/"
-cp -R "$(pwd)/skills/deck-builder" "$HOME/.codex/skills/"
-```
+After an authorized canonical edit, compare the intended installed files with the source, preserve local differences, and sync only reviewed files. Verify hashes and compatibility with the selected helper. Do not delete and replace whole installed skill folders or modify model caches. Resolve the actual home directory; a project folder literally named `$HOME` is a historical copy, not an installation target. Mark such snapshots non-executable rather than treating them as live guidance.
 
 ---
 
@@ -89,7 +93,7 @@ Resolve dependencies in this order:
 
 | Dependency | Resolution |
 |------------|------------|
-| Presentation Director | Use `scripts/presentation_director.py` in the current repo if present; otherwise use `scripts/presentation_director.py` beside this SKILL.md. In Codex net-new PPTX requests, this is the first step before Presentations unless the user explicitly skips it or a user-confirmed brief already exists. |
+| Presentation Director | Use the project's explicitly registered canonical Presentation Director helper first. In this installation it is `/Users/zengtao/Doc/My code/Presentation-Director/scripts/presentation_director.py`; keep the task project as `--base-dir`. Otherwise use the current repo's helper or the helper beside this SKILL.md after verifying it supports the required commands. An old bundled helper must not silently replace a newer canonical one. In Codex net-new requests, run Director first unless the user explicitly skips it or the same gate has a valid user confirmation for the unchanged scope. |
 | Codex Presentations runtime | First use the active Presentations skill / plugin if exposed. If it is not exposed, resolve `$HOME/.codex/plugins/cache/openai-primary-runtime/presentations/*/skills/presentations`, set `SKILL_DIR` to that directory, run `node "$SKILL_DIR/scripts/check_presentation_runtime.mjs" --workspace "$WORKSPACE"`, then export net-new PPTX with `node "$SKILL_DIR/scripts/build_artifact_deck.mjs"`. Plugin UI absence is not a missing-runtime signal. |
 | `design-consultant` | Use the current repo's `skills/ui-ux-pro-max/scripts/search.py` if present; otherwise try `$HOME/.claude/skills/ui-ux-pro-max/scripts/search.py`, then `$HOME/.codex/skills/ui-ux-pro-max/scripts/search.py`. If none exists, synthesize a short design intelligence brief from the source and mark the tool as unavailable. |
 | `design-locks/` | Use the current repo's `design-locks/` if present. Otherwise look for `design-locks/` inside the directory containing this SKILL.md (bundled by install.sh). If neither exists, use a lightweight visual contract written directly in `deck.md` and do not cite a missing lock file. |
@@ -103,7 +107,11 @@ Never include file paths in a generation prompt unless those files actually exis
 
 ## Deck Workspace Rule
 
-For any project, keep all user-facing deck artifacts in one project-local folder. New tasks use `Decks/<task-slug>/`; existing legacy `PPTX/<task-slug>/` folders remain readable for compatibility:
+For any project, resolve one task directory from project instructions and existing task state. Use that directory for intake, signals, generation, QA, and final outputs. `Decks/<task-slug>/` is only the default when the project does not specify a location; `PPTX/<task-slug>/` remains supported. Every `Decks/` path below is an example to substitute with the resolved task directory, not an override of project rules.
+
+For a project requiring `PPTX/`, the current helper selects an existing `PPTX/<task-slug>/` on `init` when no same-slug `Decks/` exists. During an authorized new task, create that empty task directory before `init`, and pass the actual project root as `--base-dir`. If both locations exist, inspect their provenance and signals before any dependent operation; do not auto-merge, migrate, or wait on the default directory. Do not initialize any task during a read-only review.
+
+Default example:
 
 ```text
 Decks/<task-slug>/
@@ -519,6 +527,8 @@ For this Codex path, do not pre-lock `design-locks/`, palette, or per-slide layo
 
 In interactive Codex sessions, the confirmation gate is a real user-action gate: the agent must not POST `/api/confirm`, write `brief-confirmed.json`, or touch `confirmed.ready` on the user's behalf. Use the local Director server, open the confirm page, wait for the user's click, then let `serve-wait --then-guard` run the generation guard. Start generation only after `status/guard-passed.ready` exists or `GUARD_PASSED` is visible in flushed output. The only exception is an explicit user instruction to skip confirmation or generate directly.
 
+If the local server fails, diagnose and attempt bounded recovery within scope while keeping the gate pending. If it cannot run, use the Workflow's explicitly marked degraded static/chat confirmation covering the same fields and requiring a genuine user decision; never self-confirm. Tool recovery does not authorize changes to shared scripts, dependencies, or permissions. Keep independent preparation moving and report any remaining blocked gate.
+
 ### Claude / Offline / HTML Path
 
 ```
@@ -557,7 +567,7 @@ In interactive Codex sessions, the confirmation gate is a real user-action gate:
          → HTML uses gradients/animation; PPTX uses solid-color equivalent
         ↓
 [7] Render QA
-    Contact sheet + layout JSON + at least one fix-and-reverify cycle
+    Contact sheet + layout JSON + fix-and-reverify only when a defect is found
         ↓
 PPTX route:
   Decks/<task-slug>/final/<task-slug>.pptx   ← editable primary output
@@ -999,10 +1009,10 @@ Produce `slide-plan.md` containing:
 In an interactive session (human is present):
 1. Present the slide plan as a readable list: slide number, title, one-line claim, layout intent
 2. Ask explicitly: "这个大纲符合你的想法吗？有需要调整的幻灯片顺序、数量或重点吗？确认后我继续下一步。"
-3. **STOP. Do not write deck.md, do not run ui-ux-pro-max, do not call any tool until the user replies.**
-4. Only proceed to Step 3 after the user sends an explicit confirmation (e.g., "好的"、"继续"、"looks good", or change instructions).
+3. **STOP dependent work: do not write deck.md or run design selection before the required plan confirmation. Independent, already authorized source inspection or preparation may continue.**
+4. Only proceed to Step 3 after the user explicitly approves the presented plan. A reply such as "继续" must clearly approve that plan in context; requested revisions require updating the plan and satisfying the affected gate, not assuming approval.
 
-Rationale: skipping this confirmation forces an expensive full-rerun if the structure is wrong. The cost of pausing here is near zero.
+This explicit Claude/offline plan gate protects the slide structure; reuse its confirmation only for the same unchanged plan. It does not apply as an additional gate to the Codex branch.
 
 In a batch / automated / non-interactive context: write `slide-plan.md`, log "slide-plan.md written — proceeding to deck.md", then continue without waiting.
 
@@ -1116,7 +1126,7 @@ python3 scripts/preview_locks.py
 python3 ~/.claude/skills/deck-builder/scripts/preview_locks.py
 ```
 
-运行后自动打开 `assets/locks-preview.html`。用户只应在 HTML UI 中点击确认结构层；不要要求用户把选择粘贴回聊天。如果旧预览脚本不能写入状态文件，应先补齐等价的本地端点/文件信号，再作为主流程使用。
+运行后自动打开 `assets/locks-preview.html`。用户只应在 HTML UI 中点击确认结构层；不要要求用户把选择粘贴回聊天。如果旧预览脚本不能写入状态文件，先在已有授权内诊断；只有共享脚本修复属于本轮范围时才补齐端点/信号，否则保持门禁、报告阻塞并使用既定的降级确认路径，不自动扩大修改范围。
 
 同时给出文字推荐（作为辅助说明，不替代 HTML 预览）：
 

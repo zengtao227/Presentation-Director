@@ -351,6 +351,41 @@ class PreviewReviewGateTest(unittest.TestCase):
             self.assertTrue((task_dir / "v2" / "final.html").exists())
             self.assertFalse((task_dir / "v1" / "final.html").exists())
 
+    def test_finalize_promotes_legacy_task_in_place(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            base_dir: Path = Path(tmp_dir)
+            task_dir: Path = base_dir / "PPTX" / "bad-task"
+            draft_dir: Path = task_dir / "v2" / ".draft"
+            draft_dir.mkdir(parents=True)
+            (draft_dir / "final.html").write_text(GOOD_HTML, encoding="utf-8")
+            args: Namespace = command_args(base_dir, "finalize", version="v2")
+            with patch.object(PD.webbrowser, "open"), patch.object(
+                PD, "playwright_visual_qa", return_value=[]
+            ):
+                PD.cmd_finalize(args)
+            self.assertEqual(
+                GOOD_HTML, (task_dir / "v2" / "final.html").read_text(encoding="utf-8")
+            )
+            self.assertTrue((PD.status_dir(task_dir) / PD.STATUS_FILES["preview-review"]).exists())
+            self.assertFalse((base_dir / "Decks").exists())
+
+    def test_finalize_legacy_task_preserves_failed_qa_gate(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            base_dir: Path = Path(tmp_dir)
+            task_dir: Path = base_dir / "PPTX" / "bad-task"
+            draft_dir: Path = task_dir / "v2" / ".draft"
+            draft_dir.mkdir(parents=True)
+            (draft_dir / "final.html").write_text(GOOD_HTML, encoding="utf-8")
+            args: Namespace = command_args(base_dir, "finalize", version="v2")
+            with patch.object(PD.webbrowser, "open") as browser_open, patch.object(
+                PD, "playwright_visual_qa", return_value=["test overflow"]
+            ), self.assertRaises(SystemExit) as raised:
+                PD.cmd_finalize(args)
+            self.assertEqual(2, raised.exception.code)
+            self.assertFalse((task_dir / "v2" / "final.html").exists())
+            self.assertFalse((PD.status_dir(task_dir) / PD.STATUS_FILES["preview-review"]).exists())
+            browser_open.assert_not_called()
+
     def test_visual_qa_rejects_top_heavy_mobile_blank_space(self) -> None:
         html_text: str = """<!doctype html>
 <html data-preview-as="mobile">

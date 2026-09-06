@@ -2998,8 +2998,7 @@ def cmd_finalize(args: argparse.Namespace) -> None:
       3. On pass: copy .draft/final.html -> vN/final.html, touch preview-reviewed.ready
       4. Open the promoted file in the default browser
     """
-    base_dir: Path = Path(args.base_dir)
-    task_dir: Path = base_dir / "Decks" / args.task
+    task_dir: Path = resolve_task_dir(args)
     version_name: str = resolve_version_dir(task_dir, str(args.version), must_exist=False).name
     draft_path: Path = task_dir / version_name / ".draft" / "final.html"
     final_path: Path = task_dir / version_name / "final.html"

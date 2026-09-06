@@ -6,6 +6,14 @@
 >
 > Prototype entrypoint: `scripts/presentation_director.py`, a thin wrapper around `skills/deck-builder/scripts/presentation_director.py` so the same helper can ship with the global `deck-builder` skill.
 
+## Routing and Task Directory Contract
+
+Use the maintained `skills/deck-builder/SKILL.md` request/environment routing table. Codex and Claude branches are alternatives, not cumulative gates. New decks and whole-deck transformations keep all applicable confirmation gates; bounded edits reuse the accepted baseline and reconfirm only affected gates when their scope changes. Read-only planning or QA produces findings without generation. Independent explicit approvals, real user confirmation signals, and rendering QA remain required.
+
+Resolve one task directory from the task project's instructions and existing state. This document's `PPTX/<task-slug>/` paths illustrate a project that selects `PPTX/`; they are not a global default or a migration instruction. The helper's default for unspecified new tasks is `Decks/`. For a project explicitly requiring `PPTX/`, create the empty task directory during an authorized new task before `init`, and use the actual project root as `--base-dir`; the current helper reuses it when no same-slug `Decks/` exists. If both exist, inspect provenance before continuing; never mix approval signals and outputs across folders.
+
+Reuse confirmation only for the same gate, object, and unchanged approved scope. A change invalidates the affected gate; it does not erase unrelated approvals. While waiting, continue independent authorized preparation. No timeout, silence, process exit, or generic “continue” substitutes for the required user action, and no additional confirmation is needed for an unchanged gate already satisfied.
+
 ## First-Principles Analysis
 
 ### 1. 问题本质
