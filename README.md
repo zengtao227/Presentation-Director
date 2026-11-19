@@ -13,7 +13,7 @@ Presentation Director 是一套面向高质量演示文稿生成和修改的工�
 1. 先走 [专业可编辑 PPTX 主流程](docs/pptx-master-workflow.md)。
 2. 用 Presentation Director 完成 intake、资料路径/网页/Google Drive 地址录入、资料研究策略选择和 visual inspiration 候选选择。
 3. 通过 brief confirmation 锁定内容边界、研究策略、视觉方向和输出限制。
-4. 交给 Codex `Presentations` 生成 v1，并完成 render QA、style-review、final compare；如果插件 UI 中看不到 `Presentations`，先使用 Codex primary runtime bundled Presentations 脚本，而不是降级到其他 PPTX 工具。
+4. 交给 Codex `Presentations` 生成 v1，并完成 render QA、style-review、final compare；按 Presentations 技能的本地 PPTX 路径导出并经其 finalizer 校验（不走 Spaces 交付，原因见 CONTEXT.md「Codex Presentations」）；插件 UI 中看不到 `Presentations` 时，使用 bundled 目录里的同一技能，而不是降级到其他 PPTX 工具。
 5. 输出到 `Decks/<task-slug>/final/`。
 
 ### 2. Claude Code / 本地代理（次选）
@@ -70,7 +70,7 @@ Presentation Director 是一套面向高质量演示文稿生成和修改的工�
 
 仓库内置了 `skills/ui-ux-pro-max` 作为本地设计知识库。做路演、比赛答辩、项目方案类 PPT 前，先用它检索合适的产品类型、视觉风格、字体、配色和 UX 检查项，再进入 Markdown 或 PPTX 生成。
 
-如果目标是专业、可编辑的 `.pptx`，优先按 [专业可编辑 PPTX 主流程](docs/pptx-master-workflow.md) 使用 Codex `Presentations` 能力。若 Codex 插件列表里搜不到 `Presentations`，检查 bundled runtime：`$HOME/.codex/plugins/cache/openai-primary-runtime/presentations/*/skills/presentations`，并用其中的 `scripts/check_presentation_runtime.mjs` + `scripts/build_artifact_deck.mjs` 生成。Claude Code / 本地代理的备用路径是 `skills/pptx` + pptxgenjs。Marp / VS Code 只保留给快速写作、预览、PDF 和放映版输出，不作为默认的专业 PPTX 路径。
+如果目标是专业、可编辑的 `.pptx`，优先按 [专业可编辑 PPTX 主流程](docs/pptx-master-workflow.md) 使用 Codex `Presentations` 能力。若 Codex 插件列表里搜不到 `Presentations`，检查 bundled 目录：`$HOME/.codex/plugins/cache/openai-primary-runtime/presentations/*/skills/presentations`，按其本地 PPTX 路径导出并用 finalizer 校验（详见 `skills/deck-builder/SKILL.md` 工具表）。Claude Code / 本地代理的备用路径是 `skills/pptx` + pptxgenjs。Marp / VS Code 只保留给快速写作、预览、PDF 和放映版输出，不作为默认的专业 PPTX 路径。
 
 常用命令示例：
 

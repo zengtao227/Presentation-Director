@@ -7,7 +7,7 @@ description: Orchestrates professional presentation creation from source materia
 
 A workflow orchestration skill for building professional presentations.
 
-In Codex, this skill is the front door for net-new presentation requests: run `Presentation Director` first, confirm output format, research strategy and visual inspiration, open the confirmation page, automatically wait for the click confirmation signal, then route the confirmed brief by `output_format`. Use pakco-compatible HTML direct writing for `html-revealjs`, Codex Presentations for `pptx`, and both paths for `both`. If `pptx` is selected in Codex, do not decide Presentations is missing only because it is absent from plugin UI or tool search; first resolve the bundled runtime under `$HOME/.codex/plugins/cache/openai-primary-runtime/presentations/*/skills/presentations`, run its runtime check, then use its artifact-tool build script for PPTX export. If neither the plugin nor bundled runtime is available, stop and report that the required Codex Presentations runtime is missing; do not silently fall back to `python-pptx`, pptxgenjs, Google Slides, Keynote, or PowerPoint automation. The user must only click in the HTML UI; do not ask them to copy/paste, report choices in chat, or reply "confirmed". Do not let generation start from an unconfirmed prompt unless the user explicitly asks to skip the director.
+In Codex, this skill is the front door for net-new presentation requests: run `Presentation Director` first, confirm output format, research strategy and visual inspiration, open the confirmation page, automatically wait for the click confirmation signal, then route the confirmed brief by `output_format`. Use pakco-compatible HTML direct writing for `html-revealjs`, Codex Presentations for `pptx`, and both paths for `both`. If `pptx` is selected in Codex, do not decide Presentations is missing only because it is absent from plugin UI or tool search; first resolve the bundled runtime under `$HOME/.codex/plugins/cache/openai-primary-runtime/presentations/*/skills/presentations`, then produce a local PPTX through its permitted local-PPTX route and finalizer (see the "Codex Presentations runtime" row below). If neither the plugin nor bundled runtime is available, stop and report that the required Codex Presentations runtime is missing; do not silently fall back to `python-pptx`, pptxgenjs, Google Slides, Keynote, or PowerPoint automation. The user must only click in the HTML UI; do not ask them to copy/paste, report choices in chat, or reply "confirmed". Do not let generation start from an unconfirmed prompt unless the user explicitly asks to skip the director.
 
 Outside Codex, this skill coordinates the fuller deck.md-centered workflow: source material through slide planning, design intelligence, visual contract, and verified PPTX or HTML output.
 
@@ -94,10 +94,10 @@ Resolve dependencies in this order:
 | Dependency | Resolution |
 |------------|------------|
 | Presentation Director | Use the project's explicitly registered canonical Presentation Director helper first. In this installation it is `/Users/zengtao/Doc/My code/Presentation-Director/scripts/presentation_director.py`; keep the task project as `--base-dir`. Otherwise use the current repo's helper or the helper beside this SKILL.md after verifying it supports the required commands. An old bundled helper must not silently replace a newer canonical one. In Codex net-new requests, run Director first unless the user explicitly skips it or the same gate has a valid user confirmation for the unchanged scope. |
-| Codex Presentations runtime | First use the active Presentations skill / plugin if exposed. If it is not exposed, resolve `$HOME/.codex/plugins/cache/openai-primary-runtime/presentations/*/skills/presentations`, set `SKILL_DIR` to that directory, run `node "$SKILL_DIR/scripts/check_presentation_runtime.mjs" --workspace "$WORKSPACE"`, then export net-new PPTX with `node "$SKILL_DIR/scripts/build_artifact_deck.mjs"`. Plugin UI absence is not a missing-runtime signal. |
+| Codex Presentations runtime | First use the active Presentations skill / plugin if exposed. If it is not exposed, resolve `$HOME/.codex/plugins/cache/openai-primary-runtime/presentations/*/skills/presentations` and set `SKILL_DIR` to it. Plugin UI absence is not a missing-runtime signal. **Director uses that skill's permitted local-PPTX route, not its default Spaces delivery**, because preview-review, style-review and final selection all read the local file (owner decision 2026-11-19). Author either in an Artifact Session and export with `presentation.export({ format: "pptx" })`, or locally with `@oai/artifact-tool` per `$SKILL_DIR/references/implementation.md`. Either way validate with the finalizer in `$SKILL_DIR/references/finalization.md`, using runtime paths from `load_workspace_dependencies` (including `RUNTIME_NODE_MODULES`). Keep the private build directory and finalizer report in `Decks/<task-slug>/.build/vN/`; the finalizer output is `Decks/<task-slug>/vN/final.pptx`. Render every slide to `vN/slides/` and the overview montage to `vN/contact-sheet.png`. Deliver only the local PPTX, not an additional Spaces link. Verified 2026-11-19: session export → finalizer (one-slide smoke test). Standalone local authoring is not yet verified. |
 | `design-consultant` | Use the current repo's `skills/ui-ux-pro-max/scripts/search.py` if present; otherwise try `$HOME/.claude/skills/ui-ux-pro-max/scripts/search.py`, then `$HOME/.codex/skills/ui-ux-pro-max/scripts/search.py`. If none exists, synthesize a short design intelligence brief from the source and mark the tool as unavailable. |
 | `design-locks/` | Use the current repo's `design-locks/` if present. Otherwise look for `design-locks/` inside the directory containing this SKILL.md (bundled by install.sh). If neither exists, use a lightweight visual contract written directly in `deck.md` and do not cite a missing lock file. |
-| PPTX fallback | Use `skills/pptx/SKILL.md` only outside Codex, or when the user explicitly asks to bypass Codex Presentations. In Codex `pptx` / `both` mode, missing Presentations means active plugin and bundled runtime are both unavailable or the runtime check failed; it is a blocker, not a reason to run fallback tooling. |
+| PPTX fallback | Use `skills/pptx/SKILL.md` only outside Codex, or when the user explicitly asks to bypass Codex Presentations. In Codex `pptx` / `both` mode, missing Presentations means active plugin and bundled path are both unavailable or its runtime cannot be loaded; it is a blocker, not a reason to run fallback tooling. |
 | HTML deck runtime | Native HTML output path. When `output_format` is `html-revealjs` or `both`, write a pakco-compatible HTML deck using the bundled `skills/html-deck/pakco-html/` assets plus `references/html-theme-catalog.md`, `references/html-layout-catalog.md`, and `references/html-animation-catalog.md`. `html-revealjs` remains the legacy output-format name. |
 | Presentation Director docs | Treat `docs/pptx-master-workflow.md` and `docs/quality-gates.md` as optional project-level context. Outside Presentation Director, rely on this skill's reference files and the minimum QA checklist below instead. |
 
@@ -139,6 +139,7 @@ Decks/<task-slug>/
   revision-request.json
   compare.html
   final-selection.json
+  .build/vN/              # Codex PPTX build dir + finalizer report (not delivered)
   v1/
     final.pptx
     final.html             # if output_format is html-revealjs or both
@@ -494,8 +495,8 @@ Use this path when the user asks for a new presentation in Codex. `output_format
     │    → Run finalize --version v1; only QA pass promotes to Decks/<task-slug>/v1/final.html
     │
     ├─ output_format = "pptx"
-    │    → Codex Presentations capability (active plugin or bundled runtime scripts)
-    │    → Runtime check before PPTX work; build_artifact_deck.mjs for net-new PPTX export
+    │    → Codex Presentations skill (active plugin or bundled path), local-PPTX route + finalizer
+    │    → See "Codex Presentations runtime" in the tool table above
     │    → If no runtime is available, STOP instead of using fallback tooling
     │    → Save version to Decks/<task-slug>/v1/final.pptx
     │
@@ -598,7 +599,7 @@ Claude Code and offline agents follow the same confirmation principle as Codex. 
 - `ui-ux-pro-max` = design intelligence tool, NOT a PPTX generator
 - `design-locks/` = visual contracts, NOT slide templates or generation engines
 - pptxgenjs = Claude Code fallback only, NOT the Codex primary path
-- In Codex `pptx` or `both` mode, missing Presentations means both active plugin and bundled runtime are unavailable or the runtime check fails. Plugin UI absence alone is not enough. Do not use `python-pptx`, pptxgenjs, Google Slides, Keynote, or PowerPoint automation as a substitute unless the user explicitly asks to bypass Presentations.
+- In Codex `pptx` or `both` mode, missing Presentations means both active plugin and bundled path are unavailable or its runtime cannot be loaded. Plugin UI absence alone is not enough. Do not use `python-pptx`, pptxgenjs, Google Slides, Keynote, or PowerPoint automation as a substitute unless the user explicitly asks to bypass Presentations.
 - HTML deck = first-class browser presentation output when selected, NOT a PPTX replacement
 - Marp output = NOT a professional editable PPTX
 
@@ -940,8 +941,8 @@ The `serve-wait --then-guard` run reports `GUARD_FAILED` while pre-v1 images are
 
 7. Route generation by `output_format` in the confirmed brief:
    - `html-revealjs`: write pakco-compatible HTML directly to `Decks/<task-slug>/v1/.draft/final.html`, then run `finalize --version v1`; do NOT call Presentations plugin.
-   - `pptx`: verify Codex Presentations / `artifact-tool presentation-jsx` through active plugin or bundled runtime, run the runtime check, then export the net-new PPTX with `build_artifact_deck.mjs` to `Decks/<task-slug>/v1/final.pptx`. If unavailable, stop and report the missing runtime.
-   - `both`: verify Codex Presentations / `artifact-tool presentation-jsx` through active plugin or bundled runtime, export PPTX with `build_artifact_deck.mjs`, then write pakco-compatible HTML directly to `v1/.draft/final.html` and run `finalize --version v1`. If Presentations runtime is unavailable, stop before generating either output unless the user explicitly changes output format.
+   - `pptx`: use Codex Presentations (active plugin or bundled path) through its local-PPTX route and finalizer, as described in the "Codex Presentations runtime" row of the tool table, writing `Decks/<task-slug>/v1/final.pptx`, `v1/slides/` and `v1/contact-sheet.png`. If unavailable, stop and report the missing runtime.
+   - `both`: produce the PPTX the same way as `pptx`, then write pakco-compatible HTML directly to `v1/.draft/final.html` and run `finalize --version v1`. If Presentations runtime is unavailable, stop before generating either output unless the user explicitly changes output format.
 
 If `image_generation_mode` is `post-v1-slot-review` or `hybrid`, after v1 exists run:
 

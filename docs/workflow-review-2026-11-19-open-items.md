@@ -117,3 +117,8 @@ Codex 的第一步建议（NECTO 只做资料交接，制稿仍走现有 Directo
 - 但当前官方 Presentations 规则（`26.1118.11504/skills/presentations/SKILL.md:23`、`:260`；`references/artifact_sessions.md:79-83`）：SharePoint、Google Slides 以外一律交付 **Spaces 演示**，“即使用户要离线 PPTX 也给 Spaces 链接，让用户在查看器里下载”；`presentation.export` 只用于 SharePoint 或“允许的 PPTX 后备”，Spaces 路径“不附 PPT/PPTX 副本”。
 - Director 的 PPTX 路径整体建立在本地 `Decks/<任务>/vN/final.pptx` + `contact-sheet.png` 上（预览审阅、风格审阅、终选复制都依赖它）。
 - 所以 C1 不是单纯改文档：要么 Director 改为接受 Spaces 演示（链接 + 会话渲染图）作为 PPTX 路径的产物，要么明确把本地导出定为“允许的后备”并说明依据。两条都会改变用户可见行为，需 owner 决定后再改 CONTEXT.md:47、SKILL.md 第 7 步、README 第 4 步。Spaces 页面创建、连接、界面下载仍未验收。
+
+## 六、owner 决定（2026-11-19）
+
+- **R3**：接受作为观察项，不加 brief 版本绑定。
+- **C1**：选 B——Director 固定使用 Presentations 技能“允许的本地 PPTX 后备”路径，不走 Spaces 交付。已统一 CONTEXT.md、SKILL.md（工具表、流程图、第 7 步、工作区结构）、`prompt-templates.md`、Director 生成的初版/修订提示词、README、MANUAL 及 `docs/` 下三份流程文档；旧脚本名不再作为指令出现。仍待验收：本地独立 `@oai/artifact-tool` 生成路径、完整多页任务走通预览审阅与终选。

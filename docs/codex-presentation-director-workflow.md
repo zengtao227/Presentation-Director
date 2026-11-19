@@ -341,10 +341,10 @@ Runtime resolution is mandatory for Codex PPTX output:
 
 1. Use the active Codex `Presentations` skill / plugin if it is exposed in the current session.
 2. If it is not exposed, resolve the bundled runtime under `$HOME/.codex/plugins/cache/openai-primary-runtime/presentations/*/skills/presentations`.
-3. Set `SKILL_DIR` to the resolved directory and run `node "$SKILL_DIR/scripts/check_presentation_runtime.mjs" --workspace "$WORKSPACE"`.
-4. For net-new PPTX export, call `node "$SKILL_DIR/scripts/build_artifact_deck.mjs" --workspace "$WORKSPACE" --slides-dir "$SLIDES_DIR" --out "PPTX/<task-slug>/v1/final.pptx" --preview-dir "PPTX/<task-slug>/v1/slides" --layout-dir "$WORKSPACE/layout" --contact-sheet "PPTX/<task-slug>/v1/contact-sheet.png"`.
+3. Set `SKILL_DIR` to the resolved directory.
+4. For PPTX export, use that skill's permitted local-PPTX route (Artifact Session `presentation.export({ format: "pptx" })` or local `@oai/artifact-tool` per `references/implementation.md`) and validate with the finalizer in `references/finalization.md`; Director delivers the local file, not a Spaces link (see `skills/deck-builder/SKILL.md`, "Codex Presentations runtime").
 
-If neither an active plugin nor the bundled runtime exists, or the runtime check fails, stop and report the missing Codex Presentations runtime. Do not use pptxgenjs, python-pptx, Google Slides, Keynote, PowerPoint automation, QuickLook, or Marp as a substitute unless the user explicitly asks to bypass Codex Presentations.
+If neither an active plugin nor the bundled runtime exists, or its runtime cannot be loaded, stop and report the missing Codex Presentations runtime. Do not use pptxgenjs, python-pptx, Google Slides, Keynote, PowerPoint automation, QuickLook, or Marp as a substitute unless the user explicitly asks to bypass Codex Presentations.
 
 Important instruction to Presentations:
 
@@ -1141,8 +1141,7 @@ Rules:
 
 Output:
 - Use the Presentations internal scratch workspace as required by the plugin/runtime.
-- Before building, run `node "$SKILL_DIR/scripts/check_presentation_runtime.mjs" --workspace "$WORKSPACE"` and keep the result in QA notes.
-- For net-new PPTX export, the final PPTX must be produced by `node "$SKILL_DIR/scripts/build_artifact_deck.mjs" --workspace "$WORKSPACE" --slides-dir "$SLIDES_DIR" --out "PPTX/<task-slug>/v1/final.pptx" --preview-dir "PPTX/<task-slug>/v1/slides" --layout-dir "$WORKSPACE/layout" --contact-sheet "PPTX/<task-slug>/v1/contact-sheet.png"`.
+- For PPTX export, use that skill's permitted local-PPTX route (Artifact Session `presentation.export({ format: "pptx" })` or local `@oai/artifact-tool` per `references/implementation.md`) and validate with the finalizer in `references/finalization.md`; Director delivers the local file, not a Spaces link (see `skills/deck-builder/SKILL.md`, "Codex Presentations runtime").
 - Copy editable PPTX to `PPTX/<task-slug>/v1/final.pptx`.
 - Copy per-slide preview PNGs to `PPTX/<task-slug>/v1/slides/`.
 - Copy contact sheet and concise QA summary to `PPTX/<task-slug>/v1/`.

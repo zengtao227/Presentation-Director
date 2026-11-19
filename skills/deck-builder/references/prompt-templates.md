@@ -105,7 +105,7 @@ Use this after Template A0 has produced a confirmed brief, or when the task is a
 I want to generate a high-quality, editable PowerPoint deck.
 
 Use the Codex Presentations skill / plugin as the primary workflow. If the plugin is not visible in Codex UI, resolve the bundled runtime at `$HOME/.codex/plugins/cache/openai-primary-runtime/presentations/*/skills/presentations`.
-Generation engine: artifact-tool presentation JSX. Before PPTX work, run `scripts/check_presentation_runtime.mjs`; for net-new PPTX export, call `scripts/build_artifact_deck.mjs`.
+Generation engine: artifact-tool presentation JSX via the Presentations skill's permitted local-PPTX route (Artifact Session `presentation.export({ format: "pptx" })` or local `@oai/artifact-tool`), validated by its finalizer (`references/finalization.md`). Director needs the local file `Decks/<task-slug>/vN/final.pptx`, not a Spaces link.
 Do NOT use pptxgenjs, Marp, or Google Slides as the primary generation path.
 
 [Input Files]

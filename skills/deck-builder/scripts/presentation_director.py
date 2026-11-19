@@ -5540,11 +5540,11 @@ Rules:
 - Before writing or rendering any PPTX, verify Codex Presentations / artifact-tool `presentation-jsx`. Do not treat plugin UI or tool-search absence as missing by itself.
 - Resolve Presentations in this order:
   1. Active Codex Presentations skill / plugin if exposed in the current session.
-  2. Bundled runtime at `$HOME/.codex/plugins/cache/openai-primary-runtime/presentations/*/skills/presentations`; set `SKILL_DIR` to that resolved directory.
-- Before PPTX work, run `node "$SKILL_DIR/scripts/check_presentation_runtime.mjs" --workspace "$WORKSPACE"` and include the runtime report in QA notes.
-- For net-new PPTX export, the final build must call:
-  `node "$SKILL_DIR/scripts/build_artifact_deck.mjs" --workspace "$WORKSPACE" --slides-dir "$SLIDES_DIR" --out "{pptx_output}" --preview-dir "{task_dir / "v1" / "slides"}" --layout-dir "$WORKSPACE/layout" --contact-sheet "{task_dir / "v1" / "contact-sheet.png"}"`
-- If neither active plugin nor bundled runtime is available, or the runtime check fails, STOP and report that the required Codex Presentations runtime is missing. Do not create a fallback PPTX.
+  2. Bundled skill at `$HOME/.codex/plugins/cache/openai-primary-runtime/presentations/*/skills/presentations`; set `SKILL_DIR` to that resolved directory.
+- Director uses that skill's permitted local-PPTX route, not its default Spaces delivery (preview-review and final selection read the local file). Author in an Artifact Session and export with `presentation.export({{ format: "pptx" }})`, or locally with `@oai/artifact-tool` per `$SKILL_DIR/references/implementation.md`.
+- Validate with the finalizer in `$SKILL_DIR/references/finalization.md` (runtime paths from `load_workspace_dependencies`, including `RUNTIME_NODE_MODULES`). Keep the build directory and finalizer report in `{task_dir / ".build" / "v1"}`; the finalizer output is `{pptx_output}`.
+- Render every slide to `{task_dir / "v1" / "slides"}` and the overview montage to `{task_dir / "v1" / "contact-sheet.png"}`. Deliver only the local PPTX, not an additional Spaces link.
+- If neither active plugin nor bundled skill is available, or its runtime cannot be loaded, STOP and report that the required Codex Presentations runtime is missing. Do not create a fallback PPTX with other tools.
 - Do not use `python-pptx`, pptxgenjs, Google Slides, Keynote, Microsoft PowerPoint automation, QuickLook, Marp, or unrelated local scripts as substitutes for PPTX generation.
 - PPTX brief-field boundary: ignore HTML-only fields such as `html_config`, `html_motion_level`, `html_motion_profile`, `html_animation`, `html_transition`, and `html_gradient` when deciding PPTX mechanics. Use solid-color PPTX equivalents from the selected visual candidate instead of HTML gradients or HTML animations.
 - The only exception is an explicit user request to bypass Presentations after you report the missing runtime."""
@@ -5807,9 +5807,8 @@ Revision action:
 Codex PPTX hard requirement:
 - Before writing or rendering any PPTX, verify Codex Presentations / artifact-tool `presentation-jsx`. Do not treat plugin UI or tool-search absence as missing by itself.
 - Resolve Presentations in this order: active Codex Presentations skill / plugin if exposed, then bundled runtime at `$HOME/.codex/plugins/cache/openai-primary-runtime/presentations/*/skills/presentations`.
-- Set `SKILL_DIR` to the resolved runtime directory and run `node "$SKILL_DIR/scripts/check_presentation_runtime.mjs" --workspace "$WORKSPACE"` before PPTX work; include the runtime report in QA notes.
-- For generated revised decks, use the same Presentations runtime and artifact-tool build/export path; when rebuilding slide modules, call `node "$SKILL_DIR/scripts/build_artifact_deck.mjs"` for the final PPTX export.
-- If neither active plugin nor bundled runtime is available, or the runtime check fails, STOP and report that the required Codex Presentations runtime is missing. Do not create a fallback PPTX.
+- Set `SKILL_DIR` to the resolved directory. For revised decks use the same local-PPTX route as v1: Artifact Session `presentation.export({{ format: "pptx" }})` or local `@oai/artifact-tool`, then the finalizer in `$SKILL_DIR/references/finalization.md`, writing a new `vN/final.pptx` (the finalizer never overwrites) with `vN/slides/` and `vN/contact-sheet.png`.
+- If neither active plugin nor bundled skill is available, or its runtime cannot be loaded, STOP and report that the required Codex Presentations runtime is missing. Do not create a fallback PPTX.
 - Do not use `python-pptx`, pptxgenjs, Google Slides, Keynote, Microsoft PowerPoint automation, QuickLook, Marp, or unrelated local scripts as substitutes for PPTX generation.
 - The only exception is an explicit user request to bypass Presentations after you report the missing runtime.
 

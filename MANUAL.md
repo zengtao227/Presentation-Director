@@ -51,7 +51,7 @@ PPTX 模式**必须**在 Codex 环境下使用 Presentations 插件，不支持 
 ### 前提条件
 
 - Python 3.10+
-- Node.js（用于 PPTX 生成路径的 `build_artifact_deck.mjs`）
+- Codex Presentations 自带的 Node.js 运行时（PPTX 路径；由 `load_workspace_dependencies` 提供，无需另装）
 - Codex Desktop（PPTX 路径）或普通终端（HTML 路径）
 
 ### 本地安装
@@ -580,13 +580,9 @@ Guard 失败的常见原因：
 ls $HOME/.codex/plugins/cache/openai-primary-runtime/presentations/*/skills/presentations
 ```
 
-如果路径存在，设置 `SKILL_DIR` 指向它，然后运行：
+如果路径存在，设置 `SKILL_DIR` 指向它，按其中的本地 PPTX 路径导出并用 finalizer 校验（`references/implementation.md`、`references/finalization.md`；Director 的具体要求见 `skills/deck-builder/SKILL.md` 工具表“Codex Presentations runtime”）。旧的 `check_presentation_runtime.mjs` / `build_artifact_deck.mjs` 已不在当前包中。
 
-```bash
-node "$SKILL_DIR/scripts/check_presentation_runtime.mjs" --workspace "$WORKSPACE"
-```
-
-只有 UI 不可见不代表 Presentations 不存在。只有 `check_presentation_runtime.mjs` 报告缺失，才允许停止并告知用户。**不要降级到 python-pptx、pptxgenjs 或 Google Slides。**
+只有 UI 不可见不代表 Presentations 不存在。只有 bundled 目录也不存在，或其运行时无法加载，才允许停止并告知用户。**不要降级到 python-pptx、pptxgenjs 或 Google Slides。**
 
 ### Q：没有 HF_TOKEN，也不想付费
 

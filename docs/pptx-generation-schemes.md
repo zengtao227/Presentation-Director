@@ -20,7 +20,7 @@
 - 输出是可编辑 PowerPoint。
 - 能把 `ui-ux-pro-max` 的设计情报和 `design-locks/` 的 Open Design 视觉合同结合起来。
 - 比单纯 pptxgenjs 脚本更适合生成有专业叙事和视觉节奏的 deck。
-- 在 Codex Desktop 插件 UI 搜不到 `Presentations` 时，仍应检查 bundled runtime：`$HOME/.codex/plugins/cache/openai-primary-runtime/presentations/*/skills/presentations`。存在则用其中的 `scripts/check_presentation_runtime.mjs` 和 `scripts/build_artifact_deck.mjs`，不得直接降级到 fallback。
+- 在 Codex Desktop 插件 UI 搜不到 `Presentations` 时，仍应检查 bundled runtime：`$HOME/.codex/plugins/cache/openai-primary-runtime/presentations/*/skills/presentations`。存在则按该技能的本地 PPTX 路径（Artifact Session `presentation.export({ format: "pptx" })` 或按 `references/implementation.md` 用本地 `@oai/artifact-tool`）导出，并用 `references/finalization.md` 的 finalizer 校验；Director 交付本地文件、不交 Spaces 链接（详见 `skills/deck-builder/SKILL.md` 工具表“Codex Presentations runtime”），不得直接降级到 fallback。
 
 本仓库 `skills/pptx` + pptxgenjs 保留为 Claude Code / 离线备用路径。Marp 保留为快速写作、预览和提交 PDF 的路径。
 
@@ -30,7 +30,7 @@
 
 | 方案 | 预览 / QA | PPTX 可编辑 | 中文字体 | 推荐度 | 定位 |
 |------|-----------|-------------|----------|--------|------|
-| Codex `Presentations` | artifact-tool 渲染、contact sheet、layout JSON、rubric；插件 UI 不显示时使用 bundled runtime scripts | ✅ | ✅ 需检查本机字体 | ⭐⭐⭐⭐⭐ **当前首选** | 高质量可编辑 PPTX |
+| Codex `Presentations` | artifact-tool 渲染、contact sheet、layout JSON、rubric；插件 UI 不显示时使用 bundled 目录中的同一技能 | ✅ | ✅ 需检查本机字体 | ⭐⭐⭐⭐⭐ **当前首选** | 高质量可编辑 PPTX |
 | 本地 `skills/pptx` + pptxgenjs | LibreOffice/Poppler 缩略图 | ✅ | ✅ 需检查字体 | ⭐⭐⭐⭐ | Claude/离线备用 |
 | Marp CLI 直接导出 | VS Code Marp Preview | ❌ 更接近截图/视觉成品 | ✅ | ⭐⭐⭐ | 快速草稿、PDF、放映 |
 | Google Slides 导入 | 浏览器 Google Slides | ✅ | ⚠️ 导出后可能替换 | ⭐⭐⭐ | 需要协作或原生 Slides |
@@ -52,7 +52,7 @@ claim spine → design system → contact-sheet plan
         ↓
 artifact-tool presentation JSX 构建可编辑 slides
         ↓
-build_artifact_deck.mjs 导出 PPTX / 预览 / contact sheet
+本地 PPTX 导出 + finalizer 校验 / 每页渲染 / contact sheet
         ↓
 渲染 PNG / contact sheet / layout JSON
         ↓
@@ -194,7 +194,7 @@ thumbnail.py 生成缩略图
         ↓
 Codex Prompt 明确：
 使用 Presentations + artifact-tool presentation JSX
-插件 UI 不显示时解析 bundled runtime scripts
+插件 UI 不显示时解析 bundled 目录
 不要使用 pptxgenjs 作为主路径
         ↓
 生成 claim spine / design system / contact-sheet plan

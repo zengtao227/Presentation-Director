@@ -54,7 +54,11 @@ Codex 中生成专业可编辑 PPTX 的主路径。它应使用 artifact-tool `p
 $HOME/.codex/plugins/cache/openai-primary-runtime/presentations/*/skills/presentations
 ```
 
-只要该 bundled runtime 存在，就视为 Codex Presentations 可用。PPTX 生成必须设置 `SKILL_DIR` 指向该目录，先运行 `scripts/check_presentation_runtime.mjs` 验证 `@oai/artifact-tool/presentation-jsx` 和 `PresentationFile.exportPptx` 可用，再通过 `scripts/build_artifact_deck.mjs` 完成 net-new PPTX 的最终导出、预览 PNG、layout JSON 和 contact sheet。插件 UI 不可见不是降级到 pptxgenjs、python-pptx、Google Slides、Keynote 或 PowerPoint 自动化的理由。
+只要该 bundled 目录存在，就视为 Codex Presentations 可用，设置 `SKILL_DIR` 指向它。插件 UI 不可见不是降级到 pptxgenjs、python-pptx、Google Slides、Keynote 或 PowerPoint 自动化的理由。
+
+**交付方式（owner 2026-11-19 决定）：Director 使用 Presentations 技能中“允许的本地 PPTX 后备”路径，不走它默认的 Spaces 交付。** 当前官方规则（`26.1118.11504` 的 `SKILL.md` 第 17–23、260 行）在 SharePoint / Google Slides 之外默认交付 Spaces 演示；Director 的预览审阅、风格审阅、终选复制都读取本地 `Decks/<task-slug>/vN/final.pptx` 和 `contact-sheet.png`，项目目标也是“可在 PowerPoint 中继续编辑、有渲染预览和 QA 证据的 `.pptx`”，所以固定采用本地导出。按官方说法，后备 PPTX 取代原交付物：只交本地文件，不再另给 Spaces 链接。
+
+做法以官方文档为准：在 Artifact Session 中 `presentation.export({ format: "pptx" })`，或按 `references/implementation.md` 用本地 `@oai/artifact-tool` 生成；两种都必须经 `references/finalization.md` 的 finalizer 校验（运行时路径取自 `load_workspace_dependencies`，含 `RUNTIME_NODE_MODULES`）。构建目录与校验报告放 `Decks/<task-slug>/.build/vN/`，finalizer 输出为 `vN/final.pptx`，每页渲染图放 `vN/slides/`，总览拼图为 `vN/contact-sheet.png`。旧的 `scripts/check_presentation_runtime.mjs`、`scripts/build_artifact_deck.mjs` 在当前包中已不存在，不再使用。验收现状：Artifact Session 导出 → finalizer 已于 2026-11-19 实测通过（一页冒烟）；本地独立生成路径和完整多页任务尚未验收。可执行细节以 `skills/deck-builder/SKILL.md` 工具表“Codex Presentations runtime”一行为准。
 
 ### Presentation Director
 
@@ -342,7 +346,7 @@ pre-v1 图片默认使用 `skills/deck-builder/scripts/generate_images.py show` 
 
 本地 `skills/pptx` + pptxgenjs 路径。只用于 Claude Code、本地离线代理，或用户在 Codex 中明确要求绕过 `Presentations` 插件的特殊情况。
 
-在 Codex 环境中，只要 `output_format` 是 `"pptx"` 或 `"both"`，就必须使用 Codex `Presentations` 能力 / `artifact-tool presentation-jsx` 生成 PPTX。可用性判断顺序是：当前 session 暴露的 Presentations skill / plugin → Codex primary runtime bundled Presentations path。只有两者都不存在，或 `scripts/check_presentation_runtime.mjs` 验证失败，agent 才能停止并说明“缺少 Codex Presentations runtime”。不得因为插件 UI 不显示就自动改用 `python-pptx`、pptxgenjs、Google Slides、Keynote、Microsoft PowerPoint 自动化或 QuickLook 等 fallback 路径。
+在 Codex 环境中，只要 `output_format` 是 `"pptx"` 或 `"both"`，就必须使用 Codex `Presentations` 能力 / `artifact-tool presentation-jsx` 生成 PPTX。可用性判断顺序是：当前 session 暴露的 Presentations skill / plugin → Codex primary runtime bundled Presentations path。只有两者都不存在，或其运行时无法加载（`load_workspace_dependencies` 失败），agent 才能停止并说明“缺少 Codex Presentations runtime”。不得因为插件 UI 不显示就自动改用 `python-pptx`、pptxgenjs、Google Slides、Keynote、Microsoft PowerPoint 自动化或 QuickLook 等 fallback 路径。
 
 Claude Code / 本地代理也要遵守同一套前置确认原则：内容语言和页数/时长分开收集；如果本地可用 Presentation Director helper，应先跑 intake / confirmation 并通过 `guard` 后再用 pptxgenjs 或 HTML 工具生成；如果 helper 不可用，必须在聊天或静态 HTML 中做等价确认，不能直接生成全新 deck。
 
@@ -381,7 +385,7 @@ Image Style Gate（如需要，作为 late lock supplement 补写 image_generati
     ↓
 Generation — route by output_format
     ├─ html-revealjs → Claude/Codex writes HTML deck to v1/.draft/final.html → finalize promotes to v1/final.html
-    ├─ pptx → Codex Presentations runtime 写 v1/final.pptx（先查 session plugin，再查 bundled runtime；缺 runtime 则停止）
+    ├─ pptx → Codex Presentations 本地 PPTX 路径 + finalizer 写 v1/final.pptx（先查 session plugin，再查 bundled 目录；缺 runtime 则停止）
     └─ both → PPTX first via Codex Presentations runtime, then HTML to v1/.draft/final.html → finalize promotes to v1/final.html（缺 runtime 则停止）
     ↓
 Post-v1 Image Placement Gate（仅 post-v1-slot-review / hybrid；写 v2）
