@@ -85,7 +85,7 @@ Codex 的第一步建议（NECTO 只做资料交接，制稿仍走现有 Directo
 
 1. **挂载什么**：挂载做稿的项目文件夹（含 `Decks/<任务名>/`），打开写入开关。NECTO 的 `open_workspace/read/write/edit` 只能访问已挂载目录。用途是写 `Decks/<任务名>/sources/`（SKILL.md:126 已有该约定）和读回 `final/`。
 2. **不必挂载 Presentation-Director 仓库**：NECTO 扩展中没有任何加载 Skill 的代码，侧边栏网页模型（ChatGPT/DeepSeek 等）用不了 deck-builder 技能。
-3. **NECTO 目前无法驱动 Director 运行**：命令只能走 `host_command`，需要“临时完全主机访问（高信任）”；普通运行上限 100 秒，`start` 后台上限 300 秒（necto `development/host-control/native/host/host-command.js:20-23`）。`serve-wait` 需要等用户点完资料→视觉→确认，通常超过 5 分钟，本机确认服务会被中途终止。`finalize` 还要求本机有 python3 与 Playwright。
+3. **（已被第七节实测更正：NECTO 能驱动 Director 走完全程，卡点只在等人点击的那一步）** NECTO 目前无法驱动 Director 运行：命令只能走 `host_command`，需要“临时完全主机访问（高信任）”；普通运行上限 100 秒，`start` 后台上限 300 秒（necto `development/host-control/native/host/host-command.js:20-23`）。`serve-wait` 需要等用户点完资料→视觉→确认，通常超过 5 分钟，本机确认服务会被中途终止。`finalize` 还要求本机有 python3 与 Playwright。
 4. **`application_mcp` 窄接口**：同样需要高信任授权；服务进程的存活时长未验证。若试用证明瓶颈在启动/查状态，第一个要解决的是上面这个时长限制。
 
 - **待决**：Codex 是否同意第 3 点是接入前提；“启动 + 查状态 + 取产物路径”的窄接口是否应设计成“启动后立即返回、状态靠读挂载目录里的 `status/*.ready`”，从而绕开长时间阻塞？
@@ -121,4 +121,25 @@ Codex 的第一步建议（NECTO 只做资料交接，制稿仍走现有 Directo
 ## 六、owner 决定（2026-11-19）
 
 - **R3**：接受作为观察项，不加 brief 版本绑定。
-- **C1**：选 B——Director 固定使用 Presentations 技能“允许的本地 PPTX 后备”路径，不走 Spaces 交付。已统一 CONTEXT.md、SKILL.md（工具表、流程图、第 7 步、工作区结构）、`prompt-templates.md`、Director 生成的初版/修订提示词、README、MANUAL 及 `docs/` 下三份流程文档；旧脚本名不再作为指令出现。仍待验收：本地独立 `@oai/artifact-tool` 生成路径、完整多页任务走通预览审阅与终选。
+- **C1**：选 B——Director 固定使用 Presentations 技能“允许的本地 PPTX 后备”路径，不走 Spaces 交付。已统一 CONTEXT.md、SKILL.md（工具表、流程图、第 7 步、工作区结构）、`prompt-templates.md`、Director 生成的初版/修订提示词、README、MANUAL 及 `docs/` 下三份流程文档；旧脚本名不再作为指令出现。本地独立生成路径与完整多页任务已于同日验收，见第七节。
+
+## 七、多页 PPTX 实机验收（2026-11-19，任务 `necto-trial-1`）
+
+执行方：第 1 步资料交接、第 2 步制稿都在 NECTO 侧边栏完成。工作目录 `~/Doc/deck-trials`，执行记录在 `Decks/necto-trial-1/.build/v1/acceptance-audit.md`。
+
+**通过（Claude 读回成品核对）**
+
+- `final/necto-trial-1.pptx` 与通过 finalizer 的 `v1/final.pptx` SHA-256 一致（`3c8ff6a4…`）。
+- 解压后 8 页，每页中文都是可编辑文本；第 5 页是原生柱状图，带嵌入数据表；没有贴图。
+- 第 5、6 页的数字逐一对照 `sources/02-trading-flow.md`，都有原文。
+- 总览拼图里没有文字出框或互相遮盖；没有创建 Spaces 页面；仓库未被改动。
+- 耗时：init 到确认通过 3 分 10 秒（含一次重新确认），从确认通过到 v1 定稿 12 分 55 秒（含 4 次构建失败），之后约 1.5 小时是 owner 外出、未打开预览页。
+
+**已改文档**：SKILL.md 工具表、CONTEXT.md、MANUAL.md 写明本地生成路径已验收，以及没有 `load_workspace_dependencies` 时（例如 NECTO）用本机 `~/.cache/codex-runtimes/codex-primary-runtime/dependencies/` 下的运行环境。
+
+**不处理**：4 次构建失败（字体字段写成 `fontFamily`、原生图表缺数据表、纵轴字段名写错）都是生成脚本没照官方文档写，finalizer 已拦住，Director 不加规则。任务目录留下的 `.chart-data-*` 临时文件夹只记录。
+
+**待处理（有真实发生，待 owner 决定）**
+
+- **P1 预览页的后台服务活不过等待时间**：`serve-wait` 要一直等到用户点击才结束，而 NECTO 单条命令最多 100 秒、后台命令最多 300 秒，到时服务被结束。owner 外出回来点“保留当前版本”时服务已不在，第一次提交丢失，要重启后再点一次。Codex 侧未实测，但同样依赖一个长时间不退出的命令。
+- **P2 确认页不沿用需求里写明的格式和页数**：需求写了 PPTX、8 页、给自己复盘，确认页仍默认 HTML、10–12 页、受众“客户/销售”（`presentation_director.py:1373`、`:1464`）。第一次确认按默认值以 HTML 放行，只能重新确认；最终 brief 的受众仍是“客户/销售”。目前只有界面语言会跟着对话走（`resolve_ui_language`）。

@@ -51,7 +51,7 @@ PPTX 模式**必须**在 Codex 环境下使用 Presentations 插件，不支持 
 ### 前提条件
 
 - Python 3.10+
-- Codex Presentations 自带的 Node.js 运行时（PPTX 路径；由 `load_workspace_dependencies` 提供，无需另装）
+- Codex Presentations 自带的 Node.js 运行时（PPTX 路径；由 `load_workspace_dependencies` 提供，无需另装。不在 Codex 里时用本机已装的 `~/.cache/codex-runtimes/codex-primary-runtime/dependencies/`）
 - Codex Desktop（PPTX 路径）或普通终端（HTML 路径）
 
 ### 本地安装
