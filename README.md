@@ -68,20 +68,20 @@ Presentation Director 是一套面向高质量演示文稿生成和修改的工�
 
 ## 设计支持
 
-仓库内置了 `skills/ui-ux-pro-max` 作为本地设计知识库。做路演、比赛答辩、项目方案类 PPT 前，先用它检索合适的产品类型、视觉风格、字体、配色和 UX 检查项，再进入 Markdown 或 PPTX 生成。
+设计知识库使用全局安装的官方 [ui-ux-pro-max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) skill（`~/.claude/skills/ui-ux-pro-max` 或 `~/.codex/skills/ui-ux-pro-max`），本仓库不再内置副本。做路演、比赛答辩、项目方案类 PPT 前，先用它检索合适的产品类型、视觉风格、字体、配色和 UX 检查项，再进入 Markdown 或 PPTX 生成。
 
 如果目标是专业、可编辑的 `.pptx`，优先按 [专业可编辑 PPTX 主流程](docs/pptx-master-workflow.md) 使用 Codex `Presentations` 能力。若 Codex 插件列表里搜不到 `Presentations`，检查 bundled 目录：`$HOME/.codex/plugins/cache/openai-primary-runtime/presentations/*/skills/presentations`，按其本地 PPTX 路径导出并用 finalizer 校验（详见 `skills/deck-builder/SKILL.md` 工具表）。Claude Code / 本地代理的备用路径是 `skills/pptx` + pptxgenjs。Marp / VS Code 只保留给快速写作、预览、PDF 和放映版输出，不作为默认的专业 PPTX 路径。
 
 常用命令示例：
 
 ```bash
-python3 skills/ui-ux-pro-max/scripts/search.py "AI SaaS investor pitch" --design-system --format markdown --project-name "Demo Deck"
-python3 skills/ui-ux-pro-max/scripts/search.py "professional education service" --domain product
-python3 skills/ui-ux-pro-max/scripts/search.py "minimal professional editorial" --domain style
-python3 skills/ui-ux-pro-max/scripts/search.py "professional modern" --domain typography
-python3 skills/ui-ux-pro-max/scripts/search.py "Noto Sans SC Chinese presentation" --domain google-fonts
-python3 skills/ui-ux-pro-max/scripts/search.py "service education" --domain color
-python3 skills/ui-ux-pro-max/scripts/search.py "accessibility layout spacing contrast" --domain ux
+python3 ~/.claude/skills/ui-ux-pro-max/scripts/search.py "AI SaaS investor pitch" --design-system --format markdown --project-name "Demo Deck"
+python3 ~/.claude/skills/ui-ux-pro-max/scripts/search.py "professional education service" --domain product
+python3 ~/.claude/skills/ui-ux-pro-max/scripts/search.py "minimal professional editorial" --domain style
+python3 ~/.claude/skills/ui-ux-pro-max/scripts/search.py "professional modern" --domain typography
+python3 ~/.claude/skills/ui-ux-pro-max/scripts/search.py "Noto Sans SC Chinese presentation" --domain google-fonts
+python3 ~/.claude/skills/ui-ux-pro-max/scripts/search.py "service education" --domain color
+python3 ~/.claude/skills/ui-ux-pro-max/scripts/search.py "accessibility layout spacing contrast" --domain ux
 ```
 
 ## 适合场景

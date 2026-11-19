@@ -24,9 +24,8 @@ install_local() {
   rm -rf "$dest/deck-builder"
   cp -r "$MD2PPT/skills/deck-builder" "$dest/"
   cp -r "$MD2PPT/design-locks" "$dest/deck-builder/"
-  # ui-ux-pro-max is deliberately not installed from here: the global skill is the official
-  # upstream one (a symlink into ~/.claude/skills-src) and deck-builder runs fine with it.
-  # Copying skills/ui-ux-pro-max over it replaced the official skill with this older fork.
+  # ui-ux-pro-max is never installed from here: deck-builder uses the global official skill,
+  # and this repo keeps no copy of it (an old bundled copy used to overwrite the global one).
   # presentation_director.py resolves pakco-html as <skills>/html-deck/pakco-html.
   rm -rf "$dest/html-deck"
   cp -r "$MD2PPT/skills/html-deck" "$dest/"

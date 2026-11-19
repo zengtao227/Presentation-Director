@@ -8,7 +8,7 @@ This reference covers Steps 4 and 5 of the pipeline: running `ui-ux-pro-max` to 
 
 | Layer | Tool / File | Role | What It Is NOT |
 |-------|-------------|------|----------------|
-| Design Intelligence | `skills/ui-ux-pro-max` | Generates design direction: style, palette, typography, chart grammar, UX risks | NOT a PPTX generator |
+| Design Intelligence | global `ui-ux-pro-max` skill | Generates design direction: style, palette, typography, chart grammar, UX risks | NOT a PPTX generator |
 | Visual Contract | `design-locks/*.md` | Locks the chosen visual language as hard constraints: hex values, fonts, layout rules | NOT a slide template or generation engine |
 | Generation | Codex Presentations / pptxgenjs / HTML engine | Produces the actual PPTX or HTML deck using the above as constraints | Takes both as input |
 
@@ -16,12 +16,10 @@ This reference covers Steps 4 and 5 of the pipeline: running `ui-ux-pro-max` to 
 
 ## Dependency Resolution
 
-Before running commands, resolve the `ui-ux-pro-max` search script:
+Before running commands, resolve the globally installed official `ui-ux-pro-max` search script (this repo bundles no copy):
 
 ```bash
-if [ -f "skills/ui-ux-pro-max/scripts/search.py" ]; then
-  UIUX_SEARCH="skills/ui-ux-pro-max/scripts/search.py"
-elif [ -f "$HOME/.codex/skills/ui-ux-pro-max/scripts/search.py" ]; then
+if [ -f "$HOME/.codex/skills/ui-ux-pro-max/scripts/search.py" ]; then
   UIUX_SEARCH="$HOME/.codex/skills/ui-ux-pro-max/scripts/search.py"
 elif [ -f "$HOME/.claude/skills/ui-ux-pro-max/scripts/search.py" ]; then
   UIUX_SEARCH="$HOME/.claude/skills/ui-ux-pro-max/scripts/search.py"

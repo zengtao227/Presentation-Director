@@ -168,7 +168,7 @@ Codex Presentations 生成 PPTX
 | 层 | 工具 / 文件 | 职责 |
 |----|-------------|------|
 | 内容层 | `deck.md` | 事实、顺序、主张、证据对象、数据来源 |
-| 设计情报层 | `skills/ui-ux-pro-max` | 查适合行业的风格、字体、颜色、图表和 UX 检查项 |
+| 设计情报层 | 全局 `ui-ux-pro-max` skill | 查适合行业的风格、字体、颜色、图表和 UX 检查项 |
 | 视觉合同层 | `design-locks/` | 把 Open Design 的设计语言落成 hex、字体、版式、禁用项 |
 | 生成层 | Codex `Presentations` | 叙事整理、设计系统锁定、JSX 构建、渲染 QA、导出 PPTX |
 | 备用生成层 | `skills/pptx` + pptxgenjs | Claude Code 或离线场景备用 |
@@ -238,7 +238,7 @@ Codex Presentations 生成 PPTX
 新版 `ui-ux-pro-max` 支持 `--design-system` 聚合生成。优先先跑一条总检索，把行业推理规则、风格、语义色板、字体、页面模式和反模式汇总出来：
 
 ```bash
-python3 skills/ui-ux-pro-max/scripts/search.py "<行业 + deck 类型 + 听众>" \
+python3 ~/.claude/skills/ui-ux-pro-max/scripts/search.py "<行业 + deck 类型 + 听众>" \
   --design-system \
   --format markdown \
   --project-name "<演示主题>"
@@ -249,13 +249,13 @@ python3 skills/ui-ux-pro-max/scripts/search.py "<行业 + deck 类型 + 听众>"
 然后根据需要补充定向检索：
 
 ```bash
-python3 skills/ui-ux-pro-max/scripts/search.py "<行业/项目类型>" --domain product
-python3 skills/ui-ux-pro-max/scripts/search.py "<视觉气质>" --domain style
-python3 skills/ui-ux-pro-max/scripts/search.py "<字体气质>" --domain typography
-python3 skills/ui-ux-pro-max/scripts/search.py "<中文字体或英文字体>" --domain google-fonts
-python3 skills/ui-ux-pro-max/scripts/search.py "<行业/场景>" --domain color
-python3 skills/ui-ux-pro-max/scripts/search.py "<证据类型>" --domain chart
-python3 skills/ui-ux-pro-max/scripts/search.py "layout spacing contrast accessibility" --domain ux
+python3 ~/.claude/skills/ui-ux-pro-max/scripts/search.py "<行业/项目类型>" --domain product
+python3 ~/.claude/skills/ui-ux-pro-max/scripts/search.py "<视觉气质>" --domain style
+python3 ~/.claude/skills/ui-ux-pro-max/scripts/search.py "<字体气质>" --domain typography
+python3 ~/.claude/skills/ui-ux-pro-max/scripts/search.py "<中文字体或英文字体>" --domain google-fonts
+python3 ~/.claude/skills/ui-ux-pro-max/scripts/search.py "<行业/场景>" --domain color
+python3 ~/.claude/skills/ui-ux-pro-max/scripts/search.py "<证据类型>" --domain chart
+python3 ~/.claude/skills/ui-ux-pro-max/scripts/search.py "layout spacing contrast accessibility" --domain ux
 ```
 
 常用关键词：

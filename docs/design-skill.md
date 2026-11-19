@@ -1,6 +1,6 @@
 # UI/UX Pro Max 设计支持
 
-`skills/ui-ux-pro-max` 是本仓库用于 PPT 和可视化页面设计的本地 skill。它不是 PPTX 生成器，而是可搜索的设计情报库。新版增加了 `--design-system` 聚合生成器，可以一次性输出行业匹配的风格、语义色板、字体、页面模式、关键效果和反模式。
+全局官方的 `ui-ux-pro-max`（`~/.claude/skills/ui-ux-pro-max`）是本仓库用于 PPT 和可视化页面设计的 skill，仓库不再内置副本。它不是 PPTX 生成器，而是可搜索的设计情报库。新版增加了 `--design-system` 聚合生成器，可以一次性输出行业匹配的风格、语义色板、字体、页面模式、关键效果和反模式。
 
 ## 适用场景
 
@@ -15,7 +15,7 @@
 优先生成总简报：
 
 ```bash
-python3 skills/ui-ux-pro-max/scripts/search.py "<行业 + deck 类型 + 听众>" \
+python3 ~/.claude/skills/ui-ux-pro-max/scripts/search.py "<行业 + deck 类型 + 听众>" \
   --design-system \
   --format markdown \
   --project-name "<项目名>"
@@ -24,13 +24,13 @@ python3 skills/ui-ux-pro-max/scripts/search.py "<行业 + deck 类型 + 听众>"
 再做定向检索：
 
 ```bash
-python3 skills/ui-ux-pro-max/scripts/search.py "<项目类型>" --domain product
-python3 skills/ui-ux-pro-max/scripts/search.py "<风格关键词>" --domain style
-python3 skills/ui-ux-pro-max/scripts/search.py "<字体气质>" --domain typography
-python3 skills/ui-ux-pro-max/scripts/search.py "<中文字体或英文字体>" --domain google-fonts
-python3 skills/ui-ux-pro-max/scripts/search.py "<行业或场景>" --domain color
-python3 skills/ui-ux-pro-max/scripts/search.py "<图表类型>" --domain chart
-python3 skills/ui-ux-pro-max/scripts/search.py "accessibility layout spacing contrast" --domain ux
+python3 ~/.claude/skills/ui-ux-pro-max/scripts/search.py "<项目类型>" --domain product
+python3 ~/.claude/skills/ui-ux-pro-max/scripts/search.py "<风格关键词>" --domain style
+python3 ~/.claude/skills/ui-ux-pro-max/scripts/search.py "<字体气质>" --domain typography
+python3 ~/.claude/skills/ui-ux-pro-max/scripts/search.py "<中文字体或英文字体>" --domain google-fonts
+python3 ~/.claude/skills/ui-ux-pro-max/scripts/search.py "<行业或场景>" --domain color
+python3 ~/.claude/skills/ui-ux-pro-max/scripts/search.py "<图表类型>" --domain chart
+python3 ~/.claude/skills/ui-ux-pro-max/scripts/search.py "accessibility layout spacing contrast" --domain ux
 ```
 
 新版可用增量：

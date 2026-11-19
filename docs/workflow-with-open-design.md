@@ -22,7 +22,7 @@ PPTX/<task-slug>/final/<task-slug>-companion.html
 
 | 层 | 工具 | 作用 |
 |----|------|------|
-| 设计情报 | `skills/ui-ux-pro-max` | 判断行业气质、配色方向、字体、图表和 UX 风险 |
+| 设计情报 | 全局 `ui-ux-pro-max` skill | 判断行业气质、配色方向、字体、图表和 UX 风险 |
 | 视觉合同 | `design-locks/` | 锁定 Open Design 风格的 hex、字体、层级、版式禁用项 |
 | 生成与验证 | Codex `Presentations` | 生成 claim spine、design system、contact sheet、可编辑 PPTX |
 
@@ -57,7 +57,7 @@ PPTX/<task-slug>/final/<task-slug>-companion.html
 先用新版聚合生成器拿到完整 design-system brief：
 
 ```bash
-python3 skills/ui-ux-pro-max/scripts/search.py "<行业 + deck 类型 + 听众>" \
+python3 ~/.claude/skills/ui-ux-pro-max/scripts/search.py "<行业 + deck 类型 + 听众>" \
   --design-system \
   --format markdown \
   --project-name "<演示主题>"
@@ -66,13 +66,13 @@ python3 skills/ui-ux-pro-max/scripts/search.py "<行业 + deck 类型 + 听众>"
 再按需要补查具体域：
 
 ```bash
-python3 skills/ui-ux-pro-max/scripts/search.py "<行业/项目类型>" --domain product
-python3 skills/ui-ux-pro-max/scripts/search.py "<视觉气质>" --domain style
-python3 skills/ui-ux-pro-max/scripts/search.py "<字体气质>" --domain typography
-python3 skills/ui-ux-pro-max/scripts/search.py "<中文字体或英文字体>" --domain google-fonts
-python3 skills/ui-ux-pro-max/scripts/search.py "<行业/场景>" --domain color
-python3 skills/ui-ux-pro-max/scripts/search.py "<图表类型>" --domain chart
-python3 skills/ui-ux-pro-max/scripts/search.py "layout spacing contrast accessibility" --domain ux
+python3 ~/.claude/skills/ui-ux-pro-max/scripts/search.py "<行业/项目类型>" --domain product
+python3 ~/.claude/skills/ui-ux-pro-max/scripts/search.py "<视觉气质>" --domain style
+python3 ~/.claude/skills/ui-ux-pro-max/scripts/search.py "<字体气质>" --domain typography
+python3 ~/.claude/skills/ui-ux-pro-max/scripts/search.py "<中文字体或英文字体>" --domain google-fonts
+python3 ~/.claude/skills/ui-ux-pro-max/scripts/search.py "<行业/场景>" --domain color
+python3 ~/.claude/skills/ui-ux-pro-max/scripts/search.py "<图表类型>" --domain chart
+python3 ~/.claude/skills/ui-ux-pro-max/scripts/search.py "layout spacing contrast accessibility" --domain ux
 ```
 
 输出不需要逐字照抄，整理成设计判断即可：该用浅底还是深底、该走瑞士网格还是叙事编辑感、图表该用趋势线还是横向排名、有哪些对比度和排版风险。`--design-system` 输出偏 Web/UI，PPTX 流程只吸收 style、semantic palette、typography、anti-patterns 和 checklist。
@@ -152,5 +152,5 @@ Claude Code
 - 方案对比：`docs/pptx-generation-schemes.md`
 - Codex 主插件：`Presentations`
 - 本地备用技能：`skills/pptx/SKILL.md`
-- 设计情报：`skills/ui-ux-pro-max/SKILL.md`
+- 设计情报：`~/.claude/skills/ui-ux-pro-max/SKILL.md`
 - Open Design 原始仓库：https://github.com/nexu-io/open-design

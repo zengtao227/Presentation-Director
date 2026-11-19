@@ -61,7 +61,7 @@ PPTX 模式**必须**在 Codex 环境下使用 Presentations 插件，不支持 
 bash install.sh
 ```
 
-这会把 `skills/deck-builder` 和 `skills/ui-ux-pro-max` 复制到：
+这会把 `skills/deck-builder`（含 `design-locks`）和 `skills/html-deck` 复制到下面两处。设计情报用全局官方的 `ui-ux-pro-max` skill，安装脚本不会复制或覆盖它：
 - `~/.claude/skills/`（Claude Code 全局）
 - `~/.codex/skills/`（Codex，如果目录存在）
 

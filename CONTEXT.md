@@ -38,7 +38,7 @@ Presentation Director 是一个把主题、文章、知识文稿、书籍摘要�
 
 ### Design Intelligence
 
-由 `skills/ui-ux-pro-max` 生成的设计情报。新版优先使用 `--design-system` 聚合输出，再按需补查 `style`、`typography`、`google-fonts`、`color`、`chart`、`ux`。
+由全局官方 `ui-ux-pro-max` skill（`~/.claude/skills/ui-ux-pro-max`；本仓库不再内置副本）生成的设计情报。新版优先使用 `--design-system` 聚合输出，再按需补查 `style`、`typography`、`google-fonts`、`color`、`chart`、`ux`。
 
 ### Visual Contract
 
