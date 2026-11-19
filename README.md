@@ -14,7 +14,7 @@ Presentation Director 是一套面向高质量演示文稿生成和修改的工�
 2. 用 Presentation Director 完成 intake、资料路径/网页/Google Drive 地址录入、资料研究策略选择和 visual inspiration 候选选择。
 3. 通过 brief confirmation 锁定内容边界、研究策略、视觉方向和输出限制。
 4. 交给 Codex `Presentations` 生成 v1，并完成 render QA、style-review、final compare；如果插件 UI 中看不到 `Presentations`，先使用 Codex primary runtime bundled Presentations 脚本，而不是降级到其他 PPTX 工具。
-5. 输出到 `PPTX/<task-slug>/final/`。
+5. 输出到 `Decks/<task-slug>/final/`。
 
 ### 2. Claude Code / 本地代理（次选）
 

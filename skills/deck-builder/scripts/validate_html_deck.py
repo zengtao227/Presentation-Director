@@ -61,17 +61,17 @@ def validate(path: str) -> list[str]:
     with open(path, "rb") as f:
         raw = f.read()
 
-    # 1. Smart quote check (binary — catches what text-mode grep misses)
-    left_smart = raw.count(b"\xe2\x80\x9c")
-    right_smart = raw.count(b"\xe2\x80\x9d")
-    if left_smart + right_smart > 0:
-        errors.append(
-            f"SMART QUOTES: {left_smart + right_smart} curly quote(s) found. "
-            "HTML attributes must use ASCII straight quotes only. "
-            "Run: python3 -c \"path='{path}'; open(path,'wb').write(open(path,'rb').read().replace(b'\\xe2\\x80\\x9c',b'\\\"').replace(b'\\xe2\\x80\\x9d',b'\\\"'))\""
-        )
-
     content = raw.decode("utf-8", errors="replace")
+
+    # 1. Curly quotes only break parsing inside tags; Chinese body text uses them legitimately.
+    smart_in_tags = sum(
+        tag.count("“") + tag.count("”") for tag in re.findall(r"<[^<>]*>", content)
+    )
+    if smart_in_tags > 0:
+        errors.append(
+            f"SMART QUOTES: {smart_in_tags} curly quote(s) found inside HTML tags. "
+            "HTML attributes must use ASCII straight quotes only."
+        )
 
     # 2. Slide count: any section whose class list contains slide must match data-total
     section_count = slide_section_count(content)

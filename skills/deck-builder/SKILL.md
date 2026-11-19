@@ -936,6 +936,8 @@ python3 scripts/presentation_director.py serve-wait \
 
 For pre-v1 modes, generate only the targets in `image-plan.json`. In interactive Codex sessions, run `skills/deck-builder/scripts/generate_images.py --task-dir "Decks/<task-slug>" show`, display the prompts to the user, then register user-provided images with `place --source <path> --target-id <id>` or `place --sources '{...}'`. Record every attempt with `image-asset`; `final_status: success` is only valid when the registered file exists and is non-empty. Failed or missing images must not be replaced by CSS gradients or SVG placeholders. Automatic backends such as `--api stub`, `--api dall-e-3`, `--api flux`, and `--api hf` remain available only when explicitly chosen or for testing.
 
+The `serve-wait --then-guard` run reports `GUARD_FAILED` while pre-v1 images are still pending; that is expected. After every pre-v1 target is registered, run `python3 scripts/presentation_director.py guard --task "<short task slug>"`. On pass it writes `status/guard-passed.ready`, which remains the start-generation signal.
+
 7. Route generation by `output_format` in the confirmed brief:
    - `html-revealjs`: write pakco-compatible HTML directly to `Decks/<task-slug>/v1/.draft/final.html`, then run `finalize --version v1`; do NOT call Presentations plugin.
    - `pptx`: verify Codex Presentations / `artifact-tool presentation-jsx` through active plugin or bundled runtime, run the runtime check, then export the net-new PPTX with `build_artifact_deck.mjs` to `Decks/<task-slug>/v1/final.pptx`. If unavailable, stop and report the missing runtime.

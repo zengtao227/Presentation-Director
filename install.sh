@@ -26,6 +26,9 @@ install_local() {
   cp -r "$MD2PPT/design-locks" "$dest/deck-builder/"
   rm -rf "$dest/ui-ux-pro-max"
   cp -r "$MD2PPT/skills/ui-ux-pro-max" "$dest/"
+  # presentation_director.py resolves pakco-html as <skills>/html-deck/pakco-html.
+  rm -rf "$dest/html-deck"
+  cp -r "$MD2PPT/skills/html-deck" "$dest/"
   echo "  ✓  $dest"
 }
 
@@ -36,12 +39,14 @@ install_remote() {
   rsync -a --delete \
     "$CLAUDE_SKILLS/deck-builder" \
     "$CLAUDE_SKILLS/ui-ux-pro-max" \
+    "$CLAUDE_SKILLS/html-deck" \
     "$host:~/.claude/skills/"
   # sync to codex on remote only if the dir already exists
   ssh "$host" "[ -d ~/.codex/skills ] && echo yes || echo no" | grep -q yes && \
     rsync -a --delete \
       "$CLAUDE_SKILLS/deck-builder" \
       "$CLAUDE_SKILLS/ui-ux-pro-max" \
+      "$CLAUDE_SKILLS/html-deck" \
       "$host:~/.codex/skills/" || true
   echo "  ✓  $host"
 }

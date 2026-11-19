@@ -211,7 +211,7 @@ python3 "skills/deck-builder/scripts/presentation_director.py" \
 
 - `v1/final.html` 物理上不存在，直到 `finalize` 通过 → AI 无法交付不存在的文件
 - `finalize` 失败时 `v1/final.html` 不会被创建 → 不可能"意外跳过"
-- `preview-reviewed.ready` 只由 `finalize` 在通过后写入，不可手动创建
+- `preview-reviewed.ready` 只由用户在预览审阅页提交后写入（选“保留当前版本”时，等最终文件复制成功后才写），`finalize` 不写，不可手动创建
 
 #### 严格禁止的行为
 

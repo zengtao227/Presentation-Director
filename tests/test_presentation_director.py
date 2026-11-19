@@ -366,8 +366,71 @@ class PreviewReviewGateTest(unittest.TestCase):
             self.assertEqual(
                 GOOD_HTML, (task_dir / "v2" / "final.html").read_text(encoding="utf-8")
             )
-            self.assertTrue((PD.status_dir(task_dir) / PD.STATUS_FILES["preview-review"]).exists())
+            # QA promotion is not the user's review; only preview-review submission writes it.
+            self.assertFalse((PD.status_dir(task_dir) / PD.STATUS_FILES["preview-review"]).exists())
             self.assertFalse((base_dir / "Decks").exists())
+
+    def test_finalize_promotes_relative_assets_with_html(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            base_dir: Path = Path(tmp_dir)
+            task_dir: Path = base_dir / "Decks" / "bad-task"
+            draft_assets: Path = task_dir / "v1" / ".draft" / "assets"
+            draft_assets.mkdir(parents=True)
+            (draft_assets / "deck.css").write_text(".notes{display:none}", encoding="utf-8")
+            (draft_assets.parent / "final.html").write_text(GOOD_HTML, encoding="utf-8")
+            args: Namespace = command_args(base_dir, "finalize", version="v1")
+            with patch.object(PD.webbrowser, "open"), patch.object(
+                PD, "playwright_visual_qa", return_value=[]
+            ):
+                PD.cmd_finalize(args)
+            self.assertTrue((task_dir / "v1" / "assets" / "deck.css").exists())
+
+    def test_integrity_allows_curly_quotes_in_body_text_only(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            html_path: Path = Path(tmp_dir) / "deck.html"
+            body_quotes: str = GOOD_HTML.replace("<p>Ready</p>", "<p>他说“准备好了”</p>")
+            html_path.write_text(body_quotes, encoding="utf-8")
+            warnings: list[str] = PD.html_deck_integrity_warnings(html_path)
+            self.assertEqual([], [w for w in warnings if "SMART" in w])
+            attr_quotes: str = GOOD_HTML.replace('data-title="One"', "data-title=“One”")
+            html_path.write_text(attr_quotes, encoding="utf-8")
+            self.assertTrue(any("SMART" in w for w in PD.html_deck_integrity_warnings(html_path)))
+            validator: ModuleType = load_script_module(
+                "validate_html_deck_test", MODULE_PATH.parent / "validate_html_deck.py"
+            )
+            self.assertTrue(any("SMART" in e for e in validator.validate(str(html_path))))
+            html_path.write_text(body_quotes, encoding="utf-8")
+            self.assertFalse(any("SMART" in e for e in validator.validate(str(html_path))))
+
+    def test_keep_final_signals_review_only_after_final_copy(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            task_dir: Path = write_task(Path(tmp_dir), GOOD_HTML)
+            signal: Path = PD.status_dir(task_dir) / PD.STATUS_FILES["preview-review"]
+            form: dict[str, list[str]] = {"base_version": ["v1"], "preview_action": ["keep-final"]}
+            with patch.object(
+                PD, "finalize_selected_version", side_effect=OSError("disk full")
+            ), self.assertRaises(OSError):
+                PD.apply_preview_review(task_dir, form)
+            self.assertFalse(signal.exists())
+            with patch.object(PD, "playwright_visual_qa", return_value=[]):
+                PD.apply_preview_review(task_dir, form)
+            self.assertTrue(signal.exists())
+            self.assertTrue((task_dir / "final" / f"{task_dir.name}.html").exists())
+
+    def test_guard_command_mirrors_result_in_start_signal(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            base_dir: Path = Path(tmp_dir)
+            task_dir: Path = write_task(base_dir, GOOD_HTML)
+            signal: Path = PD.status_dir(task_dir) / PD.STATUS_FILES["guard-passed"]
+            args: Namespace = command_args(base_dir, "guard")
+            with patch.object(PD, "validate_generation_guard", return_value=[]):
+                PD.command_guard(args)
+            self.assertTrue(signal.exists())
+            with patch.object(
+                PD, "validate_generation_guard", return_value=["images pending"]
+            ), self.assertRaises(SystemExit):
+                PD.command_guard(args)
+            self.assertFalse(signal.exists())
 
     def test_finalize_legacy_task_preserves_failed_qa_gate(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

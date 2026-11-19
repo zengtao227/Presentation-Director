@@ -2899,16 +2899,18 @@ def html_deck_integrity_warnings(html_path: Path) -> list[str]:
         return []
     raw: bytes = html_path.read_bytes()
     warnings: list[str] = []
+    text: str = raw.decode("utf-8", errors="replace")
 
-    left_smart: int = raw.count(b"\xe2\x80\x9c")
-    right_smart: int = raw.count(b"\xe2\x80\x9d")
-    if left_smart + right_smart > 0:
+    # Curly quotes only break parsing inside tags; Chinese body text uses them legitimately.
+    smart_in_tags: int = sum(
+        tag.count("“") + tag.count("”") for tag in re.findall(r"<[^<>]*>", text)
+    )
+    if smart_in_tags > 0:
         warnings.append(
-            f"SMART QUOTES: {left_smart + right_smart} curly quote(s) found in HTML attributes. "
+            f"SMART QUOTES: {smart_in_tags} curly quote(s) found in HTML attributes. "
             "Browser silently ignores these sections. Replace with ASCII straight quotes."
         )
 
-    text: str = raw.decode("utf-8", errors="replace")
     section_count: int = html_slide_section_count(text)
     total_match = re.search(r"data-total\s*=\s*['\"](\d+)['\"]", text)
     if total_match:
@@ -2995,7 +2997,8 @@ def cmd_finalize(args: argparse.Namespace) -> None:
     Steps:
       1. Static guard (integrity + font-size + structural checks)
       2. Playwright visual QA (overflow + grid-alignment)
-      3. On pass: copy .draft/final.html -> vN/final.html, touch preview-reviewed.ready
+      3. On pass: copy .draft/final.html -> vN/final.html (the promoted file is the result;
+         preview-reviewed.ready is reserved for the user's preview-review submission)
       4. Open the promoted file in the default browser
     """
     task_dir: Path = resolve_task_dir(args)
@@ -3033,10 +3036,8 @@ def cmd_finalize(args: argparse.Namespace) -> None:
 
     final_path.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(draft_path, final_path)
-
-    st_dir: Path = status_dir(task_dir)
-    st_dir.mkdir(parents=True, exist_ok=True)
-    (st_dir / STATUS_FILES["preview-review"]).touch()
+    # Same layout as final selection: relative ./assets/ must travel with the promoted HTML.
+    copy_html_deck_assets(draft_path.parent, final_path.parent)
 
     print(f"\n✅ FINALIZE PASSED — {version_name} is ready for your review")
     print(f"   {final_path}")
@@ -5162,9 +5163,10 @@ def apply_preview_review(task_dir: Path, form: dict[str, list[str]]) -> JsonDict
         "created_at": datetime.now().isoformat(timespec="seconds"),
     }
     write_json(task_dir / "preview-review.json", request)
-    touch_status(task_dir, "preview-review")
     if preview_action == "keep-final":
         finalize_selected_version(task_dir, base_version, notes)
+    # Signal only after the final copy succeeded, so waiters never see a half-done delivery.
+    touch_status(task_dir, "preview-review")
     return request
 
 
@@ -6409,14 +6411,9 @@ def command_serve_wait(args: argparse.Namespace) -> None:
     print_director_urls(task_dir, host, port, target)
     chained_to_image_gate: bool = False
     started: float = time.time()
-    opened_marker: Path = status_dir(task_dir) / f"browser-opened-{args.open_page}.ready"
     try:
         if not args.no_open and args.open_page:
-            if opened_marker.exists():
-                print(f"[director] Browser already opened for {args.open_page!r} — skipping duplicate open.")
-            else:
-                open_director_page_checked(task_dir, host, port, args.open_page)
-                opened_marker.write_text("opened\n", encoding="utf-8")
+            open_director_page_checked(task_dir, host, port, args.open_page)
         while True:
             if target.exists():
                 # After brief confirmation, auto-chain to image style gate if needed
@@ -6516,11 +6513,16 @@ def command_prompt(args: argparse.Namespace) -> None:
 def command_guard(args: argparse.Namespace) -> None:
     task_dir: Path = resolve_task_dir(args)
     errors: list[str] = validate_generation_guard(task_dir)
+    # The signal mirrors the latest guard result, so a resume after image placement
+    # (where serve-wait --then-guard already failed) still yields the start signal.
+    guard_signal: Path = status_dir(task_dir) / STATUS_FILES["guard-passed"]
     if errors:
+        guard_signal.unlink(missing_ok=True)
         print("Presentation Director guard failed:", file=sys.stderr)
         for error in errors:
             print(f"- {error}", file=sys.stderr)
         raise SystemExit(2)
+    touch_status(task_dir, "guard-passed")
     print(f"Presentation Director guard passed: {task_dir}")
 
 

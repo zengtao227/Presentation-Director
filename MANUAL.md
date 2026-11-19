@@ -99,7 +99,7 @@ export HF_TOKEN=hf_your_token_here
         │
         ▼
 ┌─────────────────┐
-│  1. init        │  创建 PPTX/<task-slug>/ 工作区
+│  1. init        │  创建 Decks/<task-slug>/ 工作区
 │                 │  生成 intake HTML 页面
 │                 │  自动打开浏览器
 └────────┬────────┘
@@ -200,7 +200,7 @@ $PD --base-dir "$BASE" prompt \
 python3 presentation_director.py --base-dir <仓库根> <subcommand> --task <slug> [...]
 ```
 
-`--base-dir` 默认为 `.`（当前目录）。任务工作区固定在 `<base-dir>/PPTX/<task-slug>/`。
+`--base-dir` 默认为 `.`（当前目录）。新任务工作区默认在 `<base-dir>/Decks/<task-slug>/`。已有的旧 `<base-dir>/PPTX/<task-slug>/` 工程仍可直接继续使用（新任务才默认建在 `Decks/`）。
 
 ---
 
@@ -220,7 +220,7 @@ python3 presentation_director.py --base-dir . init \
 
 | 参数 | 说明 |
 |------|------|
-| `--task` | 任务标识符，会作为目录名 `PPTX/<task>/` |
+| `--task` | 任务标识符，会作为目录名 `Decks/<task>/` |
 | `--topic` | 可选的初始主题，写入 brief |
 | `--source` | 可重复，资料路径或 URL |
 | `--conversation-text` | 用于自动检测 UI 语言（中/英） |
@@ -337,7 +337,7 @@ python3 presentation_director.py --base-dir . image-asset \
   --task "my-deck" \
   --target-id "cover-background" \
   --prompt "Abstract dark blue texture..." \
-  --output-path "PPTX/my-deck/assets/images/cover-background.png" \
+  --output-path "Decks/my-deck/assets/images/cover-background.png" \
   --status success
 ```
 
@@ -352,20 +352,20 @@ python3 presentation_director.py --base-dir . share-html \
   --task "my-deck" \
   --version v1 \
   --title "年终回顾"
-# 输出到 PPTX/my-deck/final/年终回顾.html
+# 输出到 Decks/my-deck/final/年终回顾.html
 ```
 
 ---
 
 ## 5. AI 图片工作流
 
-`generate_images.py` 负责 AI 图片的生成和注册。它读取 `PPTX/<task>/image-plan.json` 中的 `pre-v1` 目标，生成或注册图片，再通过 `image-asset` 子命令记录到 Director。
+`generate_images.py` 负责 AI 图片的生成和注册。它读取 `Decks/<task>/image-plan.json` 中的 `pre-v1` 目标，生成或注册图片，再通过 `image-asset` 子命令记录到 Director。
 
 ### 自动后端
 
 ```bash
 GI="python3 skills/deck-builder/scripts/generate_images.py"
-TASK_DIR="PPTX/my-deck"
+TASK_DIR="Decks/my-deck"
 
 # Hugging Face FLUX（免费，需 HF_TOKEN）
 $GI --task-dir "$TASK_DIR" --api hf
@@ -434,7 +434,7 @@ Guard 会检查所有 active 目标的 `final_status: success`。通过后才能
 
 ```bash
 $GI --task-dir "$TASK_DIR" --api prompt-only
-# 写入 PPTX/my-deck/image-prompts.md
+# 写入 Decks/my-deck/image-prompts.md
 ```
 
 ---
@@ -594,11 +594,11 @@ node "$SKILL_DIR/scripts/check_presentation_runtime.mjs" --workspace "$WORKSPACE
 
 ```bash
 # 展示 prompt
-python3 generate_images.py --task-dir PPTX/my-deck show
+python3 generate_images.py --task-dir Decks/my-deck show
 
 # 把 prompt 粘贴到 Copilot / Ideogram / Firefly 生成图片
 # 下载后注册
-python3 generate_images.py --task-dir PPTX/my-deck place \
+python3 generate_images.py --task-dir Decks/my-deck place \
   --source ~/Downloads/image.png \
   --target-id cover-background
 ```
@@ -606,8 +606,8 @@ python3 generate_images.py --task-dir PPTX/my-deck place \
 或者导出为 prompt 文件：
 
 ```bash
-python3 generate_images.py --task-dir PPTX/my-deck --api prompt-only
-# 写入 PPTX/my-deck/image-prompts.md
+python3 generate_images.py --task-dir Decks/my-deck --api prompt-only
+# 写入 Decks/my-deck/image-prompts.md
 ```
 
 ### Q：guard 报 "prompt changed — regenerate"
@@ -616,8 +616,8 @@ python3 generate_images.py --task-dir PPTX/my-deck --api prompt-only
 解决方法：删除旧图片，重新生成或重新注册：
 
 ```bash
-rm PPTX/my-deck/assets/images/cover-background.png
-python3 generate_images.py --task-dir PPTX/my-deck place \
+rm Decks/my-deck/assets/images/cover-background.png
+python3 generate_images.py --task-dir Decks/my-deck place \
   --source ~/Downloads/new-image.png \
   --target-id cover-background
 python3 presentation_director.py --base-dir . guard --task my-deck
@@ -641,7 +641,7 @@ place --source a.png --target-id a            # 单张 ✓
 需要先 `place` 注册，guard 检查的是 `image-assets.json` 中的记录，不是文件系统：
 
 ```bash
-python3 generate_images.py --task-dir PPTX/my-deck place
+python3 generate_images.py --task-dir Decks/my-deck place
 # 扫描所有 pre-v1 目标，发现文件则注册
 ```
 
@@ -658,7 +658,7 @@ python3 presentation_director.py --base-dir . guard --task my-deck
 在 Chrome 或 Edge 中打开 `?print-pdf` 参数版本：
 
 ```
-http://127.0.0.1:5500/PPTX/my-deck/v1/final.html?print-pdf
+http://127.0.0.1:5500/Decks/my-deck/v1/final.html?print-pdf
 ```
 
 打印设置：
@@ -681,7 +681,7 @@ python3 presentation_director.py --base-dir . init \
 ## 附录：工作区目录结构
 
 ```
-PPTX/<task-slug>/
+Decks/<task-slug>/
 ├── brief-confirmed.json      # 用户确认的 brief（勿手动编辑）
 ├── status/
 │   ├── confirmed.ready        # 用户点击确认后生成

@@ -80,44 +80,8 @@ cd "$REPO"
 echo ""
 echo "5. Skill sync"
 
-CLAUDE_SKILLS="$HOME/.claude/skills"
-CODEX_SKILLS="$HOME/.codex/skills"
-
-sync_skills() {
-  local dest="$1"
-  [ -d "$dest" ] || return 0
-  rm -rf "$dest/deck-builder"
-  cp -r "$REPO/skills/deck-builder" "$dest/"
-  cp -r "$REPO/design-locks" "$dest/deck-builder/"
-  rm -rf "$dest/ui-ux-pro-max"
-  cp -r "$REPO/skills/ui-ux-pro-max" "$dest/"
-  ok "$dest"
-}
-
-mkdir -p "$CLAUDE_SKILLS"
-sync_skills "$CLAUDE_SKILLS"
-sync_skills "$CODEX_SKILLS"
-
-# Remote sync (optional)
-if [[ "$1" == "--remote" ]]; then
-  echo ""
-  echo "6. Remote sync"
-  REMOTE_HOSTS=(frank)
-  for host in "${REMOTE_HOSTS[@]}"; do
-    info "syncing to $host..."
-    ssh "$host" "mkdir -p ~/.claude/skills ~/.codex/skills"
-    rsync -a --delete \
-      "$CLAUDE_SKILLS/deck-builder" \
-      "$CLAUDE_SKILLS/ui-ux-pro-max" \
-      "$host:~/.claude/skills/"
-    ssh "$host" "[ -d ~/.codex/skills ] && echo yes || echo no" | grep -q yes && \
-      rsync -a --delete \
-        "$CLAUDE_SKILLS/deck-builder" \
-        "$CLAUDE_SKILLS/ui-ux-pro-max" \
-        "$host:~/.codex/skills/" || true
-    ok "$host"
-  done
-fi
+# install.sh is the single copy of the skill-sync logic (local, plus remote with --remote).
+bash "$REPO/install.sh" "$@"
 
 # ── Done ─────────────────────────────────────────────────────────────────────
 echo ""
