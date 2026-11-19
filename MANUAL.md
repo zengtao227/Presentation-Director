@@ -647,7 +647,7 @@ python3 generate_images.py --task-dir Decks/my-deck place
 
 ### Q：修改了 brief 后，generate 报 guard 未通过
 
-每次修改 brief（重新 init 或 serve-wait 后）需要重新运行 guard：
+每次通过 serve-wait 修改 brief 后需要重新运行 guard（已有任务不能重新 init；要从头开始请换一个新的 --task 名）：
 
 ```bash
 python3 presentation_director.py --base-dir . guard --task my-deck

@@ -82,15 +82,17 @@ Checked after generation — mandatory before declaring done.
 | Footer language consistent | Footer text language matches the deck's declared `content_language` | Rewrite mixed-language footers to match deck language |
 | Final HTML at correct path | `Decks/<task-slug>/vN/.draft/final.html` is promoted by `finalize --version vN` to `Decks/<task-slug>/vN/final.html`; final delivery lives under `Decks/<task-slug>/final/` | Run finalize; do not copy draft HTML by hand |
 
-**Mandatory validator — run before declaring any HTML deck done:**
+**Mandatory validation — run before declaring any HTML deck done:**
 
 ```bash
-python3 skills/deck-builder/scripts/validate_html_deck.py <path-to-html>
+python3 skills/deck-builder/scripts/presentation_director.py --base-dir . finalize --task <task-slug> --version vN
+# re-check an already promoted version:
+python3 skills/deck-builder/scripts/presentation_director.py --base-dir . guard --task <task-slug>
 ```
 
-This script catches failures that grep and visual inspection miss (smart/curly quotes in attributes, slide count mismatch, sequence gaps, visible notes). Exit code must be 0. Do not report complete if it fails.
+`finalize` runs the static checks that grep and visual inspection miss (curly quotes inside tags, slide count vs `data-total`, `data-current` gaps, `data-preview-as`, visible notes, small fonts, structure) plus the Playwright overflow/alignment check, and only then promotes the draft. Do not report complete if it fails.
 
-**Minimum evidence:** Validator PASS output + browser screenshot included in completion report.
+**Minimum evidence:** `FINALIZE PASSED` output + browser screenshot included in completion report.
 
 ### Default Safe Area
 

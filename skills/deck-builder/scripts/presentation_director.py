@@ -6284,6 +6284,19 @@ def resolve_task_dir(args: argparse.Namespace) -> Path:
 
 def command_init(args: argparse.Namespace) -> None:
     task_dir: Path = resolve_task_dir(args)
+    # Re-init would mix a new brief with old selections and old vN drafts. A folder that
+    # only holds pre-placed material (e.g. sources/) is still a fresh task.
+    if (task_dir / "brief-draft.json").exists():
+        task_slug_existing: str = slugify(args.task)
+        print(f"A Presentation Director task already exists: {task_dir}", file=sys.stderr)
+        print(
+            "To resume it, skip init and run:\n"
+            f"  python3 skills/deck-builder/scripts/presentation_director.py --base-dir . "
+            f"serve-wait --task {task_slug_existing} --for confirmed --then-guard\n"
+            "To start over, run init with a new --task name.",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
     task_dir.mkdir(parents=True, exist_ok=True)
     enhance_mode: bool = getattr(args, "mode", "new") == "enhance"
     brief: JsonDict = build_draft_brief(
@@ -6303,9 +6316,6 @@ def command_init(args: argparse.Namespace) -> None:
                 print(f"Extracted {len(structure)} slides from {pptx_sources[0]}")
             else:
                 print("Warning: could not extract PPTX structure (python-pptx missing or file unreadable).")
-    # Clear stale status ready files so every init starts with a clean slate.
-    for ready_file in status_dir(task_dir).glob("*.ready"):
-        ready_file.unlink(missing_ok=True)
     write_json(task_dir / "brief-draft.json", brief)
     write_json(task_dir / "brief" / "draft-brief.json", brief)
     render_all_pages(task_dir)

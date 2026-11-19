@@ -16,7 +16,7 @@ Claude 逐条对照代码核实后，**双方一致的部分已修复**；**看�
 | 晋升后丢 `./assets/` | `finalize` 复用最终选择已有的 `copy_html_deck_assets`，把 `.draft/assets` 一起带到 `vN/` | `cmd_finalize` |
 | “浏览器已打开”标记跨进程残留 | 删除持久标记，每次 `serve-wait` 都按 `--open-page` 打开 | `command_serve_wait` |
 | 补图后没有开始信号 | `guard` 命令通过时写 `guard-passed.ready`，失败时删除旧信号；SKILL 第 6 步补一句“先生成图片模式下首次 guard 失败属预期，补图后运行 guard” | `command_guard`、SKILL.md |
-| 中文弯引号被当成错误 | 两份校验都只检查标签内部的 `“”` | `html_deck_integrity_warnings`、`validate_html_deck.py` |
+| 中文弯引号被当成错误 | 两份校验都只检查标签内部的 `“”`（独立脚本第二轮已退役） | `html_deck_integrity_warnings` |
 | 两份安装逻辑、漏装 pakco | `bootstrap.sh` 改为调用 `install.sh`；`install.sh` 本地与远程都带上 `skills/html-deck` | `install.sh`、`bootstrap.sh` |
 | 文档旧路径 | README/MANUAL 改为 `Decks/`，说明旧 `PPTX/` 工程仍可继续 | README.md:17、MANUAL.md |
 
@@ -89,3 +89,31 @@ Codex 的第一步建议（NECTO 只做资料交接，制稿仍走现有 Directo
 4. **`application_mcp` 窄接口**：同样需要高信任授权；服务进程的存活时长未验证。若试用证明瓶颈在启动/查状态，第一个要解决的是上面这个时长限制。
 
 - **待决**：Codex 是否同意第 3 点是接入前提；“启动 + 查状态 + 取产物路径”的窄接口是否应设计成“启动后立即返回、状态靠读挂载目录里的 `status/*.ready`”，从而绕开长时间阻塞？
+
+---
+
+## 五、第二轮结论（Codex 回复后，基线 `cb3fba5`）
+
+| 项 | 结论 | 处理 |
+|---|---|---|
+| R1 | Codex 证据成立：删掉两份 JSON 后旧 `vN/` 仍在，预览仍选中旧版本。采用 Codex 方案。 | **已修**：`init` 遇到已有 `brief-draft.json` 的任务即拒绝，提示用 `serve-wait` 恢复或换新任务名；只放了 `sources/` 的目录仍可初始化（NECTO 交接需要）。原来清 `status/*.ready` 的代码由拒绝接管，已删除。MANUAL Q&A 同步。 |
+| R2 | 一致：不加校验。现有提示已是“Missing or empty preview artifact”，未声称 QA 通过。 | 无需改动。 |
+| R3 | **仍有分歧**，见下。 | 未改。 |
+| R4 | 一致：退役独立校验脚本，保留终选复检。 | **已做**：删除 `validate_html_deck.py`，`docs/quality-gates.md` 改为以 `finalize` / `guard` 为强制校验（Director 自身检查已覆盖原脚本全部项目）。开页前与 GET 的相邻重复检查（实测单次 4.5–5.5 秒）等实际感到停顿再减。 |
+| R5 | 一致：先不合并，先记录真实轮次。 | 无改动。 |
+| R6 | 一致：不加专用状态。 | 无改动。 |
+| C1 | **新发现的冲突，需 owner 决定**，见下。 | 未改文档。 |
+| NECTO | 接受 Codex 更正：“通常超过五分钟”没有实测，撤回；结论改为“`start` 300 秒上限内无法保证覆盖人工确认时长”。接入验收需覆盖等待期间服务存活、授权撤销/关闭后的行为。 | 仅文档结论，无代码。 |
+
+### R3 剩余分歧
+
+- Codex：两个标签页（一个确认页、一个 intake/视觉页）是代码可达路径，确认会保存最新选择而非页面所见；建议绑定表单展示的 brief 版本，变化时要求刷新。
+- Claude：路径存在，但需要用户自己再开第二个标签并在那里改选；被确认的是**同一用户**最新的选择，不是未经授权的内容，生成前还有预览审阅可以纠正。按“被保护的是什么”判断，属观察项，不建议现在加版本绑定。
+- 待 owner 决定：是否接受作为观察项。
+
+### C1 新冲突：官方交付规则 vs Director 的本地 PPTX
+
+- Codex 实测：Artifact Session 内 `presentation.export({format:"pptx"})` 成功，19,464 字节、1 页，官方 finalizer 校验通过。
+- 但当前官方 Presentations 规则（`26.1118.11504/skills/presentations/SKILL.md:23`、`:260`；`references/artifact_sessions.md:79-83`）：SharePoint、Google Slides 以外一律交付 **Spaces 演示**，“即使用户要离线 PPTX 也给 Spaces 链接，让用户在查看器里下载”；`presentation.export` 只用于 SharePoint 或“允许的 PPTX 后备”，Spaces 路径“不附 PPT/PPTX 副本”。
+- Director 的 PPTX 路径整体建立在本地 `Decks/<任务>/vN/final.pptx` + `contact-sheet.png` 上（预览审阅、风格审阅、终选复制都依赖它）。
+- 所以 C1 不是单纯改文档：要么 Director 改为接受 Spaces 演示（链接 + 会话渲染图）作为 PPTX 路径的产物，要么明确把本地导出定为“允许的后备”并说明依据。两条都会改变用户可见行为，需 owner 决定后再改 CONTEXT.md:47、SKILL.md 第 7 步、README 第 4 步。Spaces 页面创建、连接、界面下载仍未验收。

@@ -395,12 +395,31 @@ class PreviewReviewGateTest(unittest.TestCase):
             attr_quotes: str = GOOD_HTML.replace('data-title="One"', "data-title=“One”")
             html_path.write_text(attr_quotes, encoding="utf-8")
             self.assertTrue(any("SMART" in w for w in PD.html_deck_integrity_warnings(html_path)))
-            validator: ModuleType = load_script_module(
-                "validate_html_deck_test", MODULE_PATH.parent / "validate_html_deck.py"
+
+    def test_init_refuses_existing_task_but_accepts_preplaced_sources(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            base_dir: Path = Path(tmp_dir)
+            task_dir: Path = base_dir / "Decks" / "handoff"
+            (task_dir / "sources").mkdir(parents=True)
+            (task_dir / "sources" / "facts.md").write_text("facts", encoding="utf-8")
+            args: Namespace = command_args(
+                base_dir,
+                "init",
+                task="handoff",
+                topic="First topic",
+                source=[str(task_dir / "sources")],
+                ui_language="zh",
+                conversation_text="",
+                mode="new",
             )
-            self.assertTrue(any("SMART" in e for e in validator.validate(str(html_path))))
-            html_path.write_text(body_quotes, encoding="utf-8")
-            self.assertFalse(any("SMART" in e for e in validator.validate(str(html_path))))
+            PD.command_init(args)
+            first_brief: str = (task_dir / "brief-draft.json").read_text(encoding="utf-8")
+            args.topic = "Second topic"
+            with self.assertRaises(SystemExit) as raised:
+                PD.command_init(args)
+            self.assertEqual(1, raised.exception.code)
+            self.assertEqual(first_brief, (task_dir / "brief-draft.json").read_text(encoding="utf-8"))
+            self.assertTrue((task_dir / "sources" / "facts.md").exists())
 
     def test_keep_final_signals_review_only_after_final_copy(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
