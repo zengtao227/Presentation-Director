@@ -24,8 +24,9 @@ install_local() {
   rm -rf "$dest/deck-builder"
   cp -r "$MD2PPT/skills/deck-builder" "$dest/"
   cp -r "$MD2PPT/design-locks" "$dest/deck-builder/"
-  rm -rf "$dest/ui-ux-pro-max"
-  cp -r "$MD2PPT/skills/ui-ux-pro-max" "$dest/"
+  # ui-ux-pro-max is deliberately not installed from here: the global skill is the official
+  # upstream one (a symlink into ~/.claude/skills-src) and deck-builder runs fine with it.
+  # Copying skills/ui-ux-pro-max over it replaced the official skill with this older fork.
   # presentation_director.py resolves pakco-html as <skills>/html-deck/pakco-html.
   rm -rf "$dest/html-deck"
   cp -r "$MD2PPT/skills/html-deck" "$dest/"
@@ -38,14 +39,12 @@ install_remote() {
   ssh "$host" "mkdir -p ~/.claude/skills ~/.codex/skills"
   rsync -a --delete \
     "$CLAUDE_SKILLS/deck-builder" \
-    "$CLAUDE_SKILLS/ui-ux-pro-max" \
     "$CLAUDE_SKILLS/html-deck" \
     "$host:~/.claude/skills/"
   # sync to codex on remote only if the dir already exists
   ssh "$host" "[ -d ~/.codex/skills ] && echo yes || echo no" | grep -q yes && \
     rsync -a --delete \
       "$CLAUDE_SKILLS/deck-builder" \
-      "$CLAUDE_SKILLS/ui-ux-pro-max" \
       "$CLAUDE_SKILLS/html-deck" \
       "$host:~/.codex/skills/" || true
   echo "  ✓  $host"
