@@ -920,6 +920,8 @@ python3 scripts/presentation_director.py open-page --task "<short task slug>" --
 
 For batch or background runs, use `--no-open`, but still pair it with `serve-wait` or `wait` so generation resumes from a file signal, not a chat reply.
 
+If the host ends long-running commands (for example the NECTO side panel: 100 s per command, 300 s for background commands), add `--detach` to every `serve-wait`. It starts the page server in its own background session, returns at once and prints the follow-up `wait ... --timeout 90` command; repeat that command until it exits 0. The server stays up while the user is away and exits after the click. With `--then-guard`, wait for `guard-passed`; if `status/serve-wait-confirmed.log` shows `GUARD_FAILED`, stop and report it.
+
 5. Generate the handoff prompt:
 
 ```bash

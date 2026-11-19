@@ -247,6 +247,8 @@ python3 presentation_director.py --base-dir . serve-wait \
   --for images-style
 ```
 
+调用方会强制结束长命令时（例如 NECTO 侧边栏：单条命令 100 秒、后台命令 300 秒），给 `serve-wait` 加 `--detach`：页面服务在独立的后台会话里运行，命令立即返回，并打印后续要用的 `wait ... --timeout 90`；反复执行它直到退出码为 0。用户离开多久服务都在，点击后服务自行退出。日志在 `status/serve-wait-<状态>.log`。
+
 | `--for` 值 | 等待文件 | 触发时机 |
 |------------|----------|----------|
 | `confirmed` | `confirmed.ready` | 用户点击 Brief 确认页的「确认」 |

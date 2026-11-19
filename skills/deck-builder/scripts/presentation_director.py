@@ -21,6 +21,7 @@ import os
 import re
 import secrets
 import shutil
+import subprocess
 import sys
 import threading
 import time
@@ -2131,6 +2132,43 @@ def default_intake_value(question: Question, sources: list[str], ui_language: st
     return question.default
 
 
+# Ordered so the default range wins when a page count sits on a boundary (e.g. 10).
+REQUEST_PAGE_RANGES: tuple[tuple[str, int, int], ...] = (
+    ("pages-10-12", 10, 12),
+    ("pages-8-10", 8, 10),
+    ("pages-15-20", 15, 20),
+)
+
+
+def request_prefills(conversation_text: str) -> dict[str, str]:
+    """Return intake values the user already stated in the request.
+
+    Only explicit formats and page counts are read; the confirm page still needs the user's click.
+    File names such as trade-flow.html are ignored so source paths do not pick a format.
+    """
+    text: str = conversation_text.lower()
+    prefills: dict[str, str] = {}
+    not_file_suffix: str = r"(?<![.a-z0-9_/-])"
+    pptx_pattern: str = not_file_suffix + r"(?:pptx|powerpoint)(?![a-z0-9])"
+    wants_pptx: bool = re.search(pptx_pattern, text) is not None
+    wants_html: bool = re.search(not_file_suffix + r"html(?![a-z0-9])", text) is not None
+    if wants_pptx and wants_html:
+        prefills["output_format"] = "both"
+    elif wants_pptx:
+        prefills["output_format"] = "pptx"
+    elif wants_html:
+        prefills["output_format"] = "html-revealjs"
+    page_pattern: str = r"(?<!第)(?<!第 )(\d{1,3})\s*(?:页|张|slides?\b|pages?\b)"
+    page_match: re.Match[str] | None = re.search(page_pattern, text)
+    if page_match is not None:
+        page_count: int = int(page_match.group(1))
+        for value, low, high in REQUEST_PAGE_RANGES:
+            if low <= page_count <= high:
+                prefills["output_constraints"] = value
+                break
+    return prefills
+
+
 def selection_value(selections: JsonDict, key: str, default: str = "") -> str:
     item: Any = selections.get(key, {})
     if isinstance(item, dict):
@@ -3709,6 +3747,13 @@ def build_draft_brief(
         }
         for question in INTAKE_QUESTIONS
     }
+    questions_by_key: dict[str, Question] = {q.key: q for q in INTAKE_QUESTIONS}
+    for key, value in request_prefills(conversation_text).items():
+        default_selections[key] = {
+            "value": value,
+            "label": selected_choice(questions_by_key[key], value).label,
+            "source": "default",
+        }
     if enhance_mode:
         # PPTX→HTML enhance mode: content is already finalised — push toward rich HTML output.
         for key, value, label in (
@@ -6406,6 +6451,9 @@ def command_serve_wait(args: argparse.Namespace) -> None:
         stale_guard_signal.unlink(missing_ok=True)
     if target.exists() and not args.allow_existing:
         target.unlink()
+    if getattr(args, "detach", False):
+        spawn_detached_serve_wait(task_dir, args, target)
+        return
 
     handler_class: type[DirectorHandler] = type(
         "BoundDirectorHandler",
@@ -6456,6 +6504,74 @@ def command_serve_wait(args: argparse.Namespace) -> None:
         server.shutdown()
         server.server_close()
         thread.join(timeout=2)
+
+
+def detached_serve_wait_argv(args: argparse.Namespace) -> list[str]:
+    argv: list[str] = [
+        sys.executable,
+        "-u",
+        str(Path(__file__).resolve()),
+        "--base-dir",
+        str(Path(args.base_dir).resolve()),
+        "serve-wait",
+        "--task",
+        args.task,
+        "--host",
+        args.host,
+        "--port",
+        str(args.port),
+        "--open-page",
+        args.open_page,
+        "--for",
+        args.for_status,
+        "--timeout",
+        str(args.timeout),
+        "--interval",
+        str(args.interval),
+    ]
+    for flag, enabled in (
+        ("--no-open", args.no_open),
+        ("--allow-existing", args.allow_existing),
+        ("--then-guard", getattr(args, "then_guard", False)),
+    ):
+        if enabled:
+            argv.append(flag)
+    return argv
+
+
+def spawn_detached_serve_wait(task_dir: Path, args: argparse.Namespace, target: Path) -> None:
+    """Run serve-wait in its own session and return once the page server is listening.
+
+    Hosts such as the NECTO side panel end a command after 100-300 s, but the user may take
+    hours to click; a server tied to that command dies and the click is lost.
+    """
+    log_path: Path = status_dir(task_dir) / f"serve-wait-{args.for_status}.log"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    with log_path.open("w", encoding="utf-8") as log_file:
+        process: subprocess.Popen[bytes] = subprocess.Popen(
+            detached_serve_wait_argv(args),
+            stdin=subprocess.DEVNULL,
+            stdout=log_file,
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
+        )
+    deadline: float = time.time() + 15
+    while "Serving Presentation Director" not in log_path.read_text(encoding="utf-8"):
+        if process.poll() is not None or time.time() > deadline:
+            print(log_path.read_text(encoding="utf-8"), file=sys.stderr)
+            raise SystemExit(f"Detached serve-wait did not start (log: {log_path}).")
+        time.sleep(0.2)
+    ready_status: str = "guard-passed" if getattr(args, "then_guard", False) else args.for_status
+    print(f"Director page server running in the background (pid {process.pid}).")
+    print(f"Log:          {log_path}")
+    print(f"Waiting for:  {target}")
+    print("Check for the user's click with short waits, repeating until it returns 0:")
+    print(
+        f'  python3 "{Path(__file__).resolve()}" --base-dir "{Path(args.base_dir).resolve()}" '
+        f"wait --task {args.task} --for {ready_status} --timeout 90"
+    )
+    if getattr(args, "then_guard", False):
+        print("If the log shows GUARD_FAILED, stop waiting and report the errors listed there.")
 
 
 def _run_guard_after_wait(task_dir: Path) -> None:
@@ -6654,6 +6770,15 @@ def build_parser() -> argparse.ArgumentParser:
             "Prints GUARD_PASSED and the generation prompt on success; "
             "prints GUARD_FAILED with error details and exits with code 2 on failure. "
             "Writes status/guard-passed.ready as the authoritative start-generation signal."
+        ),
+    )
+    serve_wait_parser.add_argument(
+        "--detach",
+        action="store_true",
+        help=(
+            "Start the server and wait in a separate background session, then return immediately. "
+            "Use when the calling host ends long commands (e.g. NECTO); "
+            "poll with `wait --timeout 90`."
         ),
     )
     serve_wait_parser.set_defaults(func=command_serve_wait)

@@ -2,13 +2,18 @@ from __future__ import annotations
 
 import filecmp
 import importlib.util
+import io
 import json
+import os
+import re
+import signal
 import subprocess
 import sys
 import tempfile
 import threading
+import time
 import unittest
-from contextlib import contextmanager
+from contextlib import contextmanager, redirect_stdout
 from argparse import Namespace
 from http import HTTPStatus
 from http.server import ThreadingHTTPServer
@@ -420,6 +425,55 @@ class PreviewReviewGateTest(unittest.TestCase):
             self.assertEqual(1, raised.exception.code)
             self.assertEqual(first_brief, (task_dir / "brief-draft.json").read_text(encoding="utf-8"))
             self.assertTrue((task_dir / "sources" / "facts.md").exists())
+
+    def test_request_prefills_only_explicit_format_and_page_count(self) -> None:
+        self.assertEqual(
+            {"output_format": "pptx", "output_constraints": "pages-8-10"},
+            PD.request_prefills("做一份 8 页、中文 PPTX 给自己复盘用"),
+        )
+        self.assertEqual({}, PD.request_prefills("资料见 trade-flow.html 和 old.pptx; 第 5 页有图"))
+        self.assertEqual(
+            {"output_format": "both", "output_constraints": "pages-15-20"},
+            PD.request_prefills("HTML deck and PowerPoint, 16 slides"),
+        )
+        brief: dict[str, object] = PD.build_draft_brief("t", "", [], "zh", "做一份 8 页中文PPTX")
+        self.assertEqual("pptx", brief["output_format"])
+        self.assertEqual("pages-8-10", brief["selections"]["output_constraints"]["value"])
+
+    def test_detached_serve_wait_outlives_caller_and_stops_after_click(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            task_dir: Path = write_task(Path(tmp_dir), GOOD_HTML)
+            args: Namespace = command_args(
+                Path(tmp_dir),
+                "serve-wait",
+                open_page="preview-review",
+                no_open=True,
+                for_status="preview-review",
+                timeout=60.0,
+                interval=0.2,
+                allow_existing=False,
+                then_guard=False,
+                detach=True,
+            )
+            output = io.StringIO()
+            with redirect_stdout(output):
+                PD.command_serve_wait(args)
+            pid: int = int(re.search(r"pid (\d+)", output.getvalue()).group(1))
+            log_path: Path = PD.status_dir(task_dir) / "serve-wait-preview-review.log"
+            exited_pid: int = 0
+            try:
+                self.assertIn("Serving Presentation Director", log_path.read_text(encoding="utf-8"))
+                self.assertEqual((0, 0), os.waitpid(pid, os.WNOHANG))
+                (PD.status_dir(task_dir) / PD.STATUS_FILES["preview-review"]).touch()
+                deadline: float = time.time() + 10
+                while exited_pid == 0 and time.time() < deadline:
+                    exited_pid, _status = os.waitpid(pid, os.WNOHANG)
+                    time.sleep(0.1)
+                self.assertEqual(pid, exited_pid)
+                self.assertIn("Ready:", log_path.read_text(encoding="utf-8"))
+            finally:
+                if exited_pid == 0:
+                    os.kill(pid, signal.SIGTERM)
 
     def test_keep_final_signals_review_only_after_final_copy(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

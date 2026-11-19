@@ -64,7 +64,7 @@ $HOME/.codex/plugins/cache/openai-primary-runtime/presentations/*/skills/present
 
 Codex 环境下创建全新演示文稿前的交互增强层。它不直接生成 PPTX 或 HTML，而是先用点击式 intake 收集输出格式、听众、目标、资料路径或网页地址、资料研究策略、资料边界、内容语言、logo/品牌素材、AI 生图许可、页数/时长限制和视觉方向，再通过 brief confirmation gate 让用户确认，之后才按 `output_format` 路由到 HTML deck、Codex Presentations 或两者并行。
 
-Director 的沟通界面语言和 PPT 正文语言是两个不同概念：`ui_language` 默认根据当前对话文本自动检测，用于 intake、visual-inspiration、confirm、style-review、compare 等 HTML gate 页面和按钮文案；`content_language` 用于控制 PPT 正文、标题和讲稿语言。运行 `init` 时应传入最近用户请求作为 `--conversation-text`，让自动打开的 HTML 页面跟随用户对话语言。
+Director 的沟通界面语言和 PPT 正文语言是两个不同概念：`ui_language` 默认根据当前对话文本自动检测，用于 intake、visual-inspiration、confirm、style-review、compare 等 HTML gate 页面和按钮文案；`content_language` 用于控制 PPT 正文、标题和讲稿语言。运行 `init` 时应传入最近用户请求作为 `--conversation-text`，让自动打开的 HTML 页面跟随用户对话语言；请求里明确写了 PPTX / PowerPoint / HTML 或页数时，intake 也按它预选输出格式和页数档位，仍须用户点击确认（文件名里的 `.html`、`.pptx` 不算）。
 
 Director 交互页应自动打开，不要让用户复制本地 URL、粘贴 JSON、或回到聊天里回复“已确认”。交互式流程应优先使用 `serve-wait --for confirmed --then-guard`：用户点“下一步”后进入 `visual-inspiration`，再进入确认页；点击确认后写入 `confirmed.ready`，guard 通过后写入 `guard-passed.ready`，agent 以 `guard-passed.ready` 作为开始生成的权威信号。批处理或后台运行可显式传 `--no-open`，但仍应通过状态文件恢复，而不是通过聊天确认。
 
