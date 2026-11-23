@@ -46,13 +46,19 @@ try {
 
     Say '[2/4] 检查用来逐页预览检查的软件…'
     # PowerPoint or WPS already on the computer does the page renders; LibreOffice is only a fallback.
+    # WPS also registers "PowerPoint.Application", so PowerPoint counts only if POWERPNT.EXE answers it.
     $officeApp = $null
-    foreach ($progId in @('PowerPoint.Application', 'KWPP.Application')) {
-        if (Test-Path "Registry::HKEY_CLASSES_ROOT\$progId") { $officeApp = $progId; break }
+    $pptClsid = (Get-ItemProperty 'Registry::HKEY_CLASSES_ROOT\PowerPoint.Application\CLSID' -EA SilentlyContinue).'(default)'
+    if ($pptClsid) {
+        foreach ($view in @('CLSID', 'WOW6432Node\CLSID')) {
+            $server = (Get-ItemProperty "Registry::HKEY_CLASSES_ROOT\$view\$pptClsid\LocalServer32" -EA SilentlyContinue).'(default)'
+            if ($server -match 'POWERPNT\.EXE') { $officeApp = 'PowerPoint'; break }
+        }
     }
+    if (-not $officeApp -and (Test-Path 'Registry::HKEY_CLASSES_ROOT\KWPP.Application')) { $officeApp = 'WPS' }
     $soffice = Find-Soffice
     if ($officeApp) {
-        Say "    使用已安装的 $(if ($officeApp -eq 'KWPP.Application') { 'WPS' } else { 'PowerPoint' })，无需另装软件"
+        Say "    使用已安装的 $officeApp，无需另装软件"
     } elseif (-not $soffice) {
         Say '    没有找到 PowerPoint 或 WPS，改为安装免费的 LibreOffice'
         $msi = Join-Path $env:TEMP "LibreOffice_${LoVersion}_Win_x86-64.msi"

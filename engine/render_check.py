@@ -93,6 +93,29 @@ def _windows_progid_exists(progid: str) -> bool:
         return False
 
 
+def _windows_com_server(progid: str) -> str:
+    """The program that actually answers this COM name ("" if none).
+
+    WPS registers itself under "PowerPoint.Application" too, so the name alone does not mean
+    PowerPoint is installed.
+    """
+    try:
+        import winreg
+
+        with winreg.OpenKey(winreg.HKEY_CLASSES_ROOT, progid + r"\CLSID") as key:
+            clsid = winreg.QueryValueEx(key, "")[0]
+        for view in (winreg.KEY_WOW64_64KEY, winreg.KEY_WOW64_32KEY):
+            try:
+                path = rf"CLSID\{clsid}\LocalServer32"
+                with winreg.OpenKey(winreg.HKEY_CLASSES_ROOT, path, 0, winreg.KEY_READ | view) as key:
+                    return str(winreg.QueryValueEx(key, "")[0])
+            except OSError:
+                continue
+    except OSError:
+        pass
+    return ""
+
+
 def find_pptx_renderer() -> tuple[str, str] | None:
     """The office app already on this computer, preferred over LibreOffice: (kind, display name)."""
     forced = os.environ.get("PD_PPTX_RENDERER")
@@ -103,7 +126,11 @@ def find_pptx_renderer() -> tuple[str, str] | None:
         ]
     elif os.name == "nt":
         options = [
-            ("powerpoint-win", "PowerPoint", _windows_progid_exists("PowerPoint.Application")),
+            (
+                "powerpoint-win",
+                "PowerPoint",
+                "powerpnt.exe" in _windows_com_server("PowerPoint.Application").lower(),
+            ),
             ("wps", "WPS", _windows_progid_exists("KWPP.Application")),
         ]
     else:
