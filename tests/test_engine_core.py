@@ -47,6 +47,13 @@ def confirm_like_user(eng: Engine, task: str, output_format: str | None = None) 
     eng.close_confirmation(task)
 
 
+@pytest.fixture(autouse=True)
+def _render_with_libreoffice_in_tests(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Tests compare page counts only; keep them from opening the developer's PowerPoint or Keynote.
+    if render_check.find_soffice() is not None:
+        monkeypatch.setenv("PD_PPTX_RENDERER", "libreoffice")
+
+
 @pytest.fixture()
 def eng(tmp_path: Path) -> Engine:
     return Engine(tmp_path / "ws")
@@ -215,3 +222,11 @@ def test_both_formats_generate_check_and_export(eng: Engine, tmp_path: Path) -> 
         pytest.skip("renderer missing on this machine: " + "; ".join(report["issues"]))
     exported = eng.export(task, dest_dir=str(tmp_path / "out"))
     assert exported["pptx"].endswith(".pptx") and exported["html"].endswith(".html")
+
+
+def test_office_app_is_preferred_over_libreoffice(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("PD_PPTX_RENDERER", raising=False)
+    found = render_check.find_pptx_renderer()
+    if found is None or found[0] == "libreoffice":
+        pytest.skip("no PowerPoint, WPS or Keynote on this machine")
+    assert found[0] in {"powerpoint-mac", "keynote", "powerpoint-win", "wps"}

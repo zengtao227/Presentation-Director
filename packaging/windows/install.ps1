@@ -44,9 +44,17 @@ try {
     $Python = Join-Path $Dest 'python\python.exe'
     $Node = Join-Path $Dest 'node\node.exe'
 
-    Say '[2/4] 检查 LibreOffice（用于逐页预览检查）…'
+    Say '[2/4] 检查用来逐页预览检查的软件…'
+    # PowerPoint or WPS already on the computer does the page renders; LibreOffice is only a fallback.
+    $officeApp = $null
+    foreach ($progId in @('PowerPoint.Application', 'KWPP.Application')) {
+        if (Test-Path "Registry::HKEY_CLASSES_ROOT\$progId") { $officeApp = $progId; break }
+    }
     $soffice = Find-Soffice
-    if (-not $soffice) {
+    if ($officeApp) {
+        Say "    使用已安装的 $(if ($officeApp -eq 'KWPP.Application') { 'WPS' } else { 'PowerPoint' })，无需另装软件"
+    } elseif (-not $soffice) {
+        Say '    没有找到 PowerPoint 或 WPS，改为安装免费的 LibreOffice'
         $msi = Join-Path $env:TEMP "LibreOffice_${LoVersion}_Win_x86-64.msi"
         $ok = (Test-Path $msi) -and ((Get-FileHash $msi -Algorithm SHA256).Hash -eq $LoSha256)
         if (-not $ok) {
@@ -64,8 +72,8 @@ try {
         if ($p.ExitCode -notin 0, 3010) { throw "LibreOffice 安装没有完成（代码 $($p.ExitCode)）" }
         $soffice = Find-Soffice
         if (-not $soffice) { throw 'LibreOffice 安装后仍找不到 soffice.exe' }
+        Say "    LibreOffice: $soffice"
     }
-    Say "    LibreOffice: $soffice"
 
     Say '[3/4] 接入本机的 AI 工具…'
     $SkillSrc = Join-Path $Dest 'engine\host-skill\SKILL.md'
@@ -158,7 +166,7 @@ try {
     Say '[4/4] 自检：生成并检查一份样例演示…'
     $env:PD_NODE = $Node
     $env:PYTHONUTF8 = '1'
-    $env:PD_SOFFICE = $soffice
+    if ($soffice) { $env:PD_SOFFICE = $soffice }
     # Windows PowerShell turns any stderr line from a native program into a terminating error under 'Stop'.
     $ErrorActionPreference = 'Continue'
     $out = & $Python -m engine.cli selftest 2>&1 | Out-String

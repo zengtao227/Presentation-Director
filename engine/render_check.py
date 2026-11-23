@@ -1,4 +1,5 @@
-"""Render a PPTX page by page with LibreOffice and run a structural layout check on the file itself.
+"""Render a deck page by page with the office app already on the computer (PowerPoint, WPS or
+Keynote; LibreOffice only as a last resort) and run a structural layout check on the file itself.
 
 The report is written next to the PPTX in its version folder; export only accepts a version whose
 report passed.
@@ -11,7 +12,9 @@ import math
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
+import uuid
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
@@ -71,11 +74,111 @@ def soffice_version(soffice: Path) -> str:
     return " ".join(out.split()[:2]) or "LibreOffice"
 
 
-def render_pages(pptx: Path, out_dir: Path, soffice: Path, profile_dir: Path) -> list[Path]:
-    import pypdfium2 as pdfium
+MAC_POWERPOINT = Path("/Applications/Microsoft PowerPoint.app")
+MAC_KEYNOTE = Path("/Applications/Keynote.app")
+# Sandboxed Mac apps can read and write their own container without asking the user for file access.
+MAC_CONTAINERS = {
+    "powerpoint": Path.home() / "Library/Containers/com.microsoft.Powerpoint/Data/Documents",
+    "keynote": Path.home() / "Library/Containers/com.apple.iWork.Keynote/Data/Documents",
+}
 
-    slides_dir = out_dir / "slides"
-    slides_dir.mkdir(parents=True, exist_ok=True)
+
+def _windows_progid_exists(progid: str) -> bool:
+    try:
+        import winreg
+
+        with winreg.OpenKey(winreg.HKEY_CLASSES_ROOT, progid):
+            return True
+    except OSError:
+        return False
+
+
+def find_pptx_renderer() -> tuple[str, str] | None:
+    """The office app already on this computer, preferred over LibreOffice: (kind, display name)."""
+    forced = os.environ.get("PD_PPTX_RENDERER")
+    if sys.platform == "darwin":
+        options = [
+            ("powerpoint-mac", "PowerPoint", MAC_POWERPOINT.is_dir()),
+            ("keynote", "Keynote", MAC_KEYNOTE.is_dir()),
+        ]
+    elif os.name == "nt":
+        options = [
+            ("powerpoint-win", "PowerPoint", _windows_progid_exists("PowerPoint.Application")),
+            ("wps", "WPS", _windows_progid_exists("KWPP.Application")),
+        ]
+    else:
+        options = []
+    soffice = find_soffice()
+    options.append(
+        ("libreoffice", soffice_version(soffice) if soffice else "LibreOffice", soffice is not None)
+    )
+    for kind, name, available in options:
+        if available and (forced is None or forced == kind):
+            return kind, name
+    return None
+
+
+def _osascript(script: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["osascript", "-e", script], capture_output=True, text=True, timeout=300, check=False
+    )
+
+
+def _mac_app_to_pdf(app: str, pptx: Path, pdf: Path) -> None:
+    work = MAC_CONTAINERS[app] / "PresentationDirector" / uuid.uuid4().hex
+    work.mkdir(parents=True, exist_ok=True)
+    try:
+        src, out = work / "deck.pptx", work / "deck.pdf"
+        shutil.copyfile(pptx, src)
+        if app == "powerpoint":
+            script = f"""
+set wasRunning to application "Microsoft PowerPoint" is running
+with timeout of 240 seconds
+  tell application "Microsoft PowerPoint"
+    open POSIX file "{src}"
+    -- The file just opened is the active presentation; PowerPoint's "whose full name" lookup is unreliable.
+    save active presentation in POSIX file "{out}" as save as PDF
+    close active presentation saving no
+    if not wasRunning then quit saving no
+  end tell
+end timeout"""
+        else:
+            script = f"""
+set wasRunning to application "Keynote" is running
+with timeout of 240 seconds
+  tell application "Keynote"
+    set theDoc to open POSIX file "{src}"
+    export theDoc to POSIX file "{out}" as PDF
+    close theDoc saving no
+    if not wasRunning then quit
+  end tell
+end timeout"""
+        _osascript(script)
+        if out.is_file():
+            shutil.copyfile(out, pdf)
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+def _windows_com_to_pdf(progid: str, pptx: Path, pdf: Path) -> None:
+    # PowerPoint and WPS share the PowerPoint object model; 32 = ppSaveAsPDF.
+    script = (
+        "$ErrorActionPreference='Stop';"
+        f"$app=New-Object -ComObject {progid};"
+        "$p=$app.Presentations.Open($env:PD_IN,-1,0,0);"
+        "try{$p.SaveAs($env:PD_OUT,32)}catch{$p.ExportAsFixedFormat($env:PD_OUT,2)};"
+        "$p.Close();if($app.Presentations.Count -eq 0){$app.Quit()}"
+    )
+    subprocess.run(
+        ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
+        capture_output=True,
+        timeout=300,
+        check=False,
+        env={**os.environ, "PD_IN": str(pptx.resolve()), "PD_OUT": str(pdf.resolve())},
+    )
+
+
+def _libreoffice_to_pdf(soffice: Path, pptx: Path, pdf: Path, profile_dir: Path) -> None:
     profile_dir.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory() as tmp:
         # A private profile keeps headless runs independent of the user's own LibreOffice settings.
@@ -94,17 +197,47 @@ def render_pages(pptx: Path, out_dir: Path, soffice: Path, profile_dir: Path) ->
             timeout=300,
             check=False,
         )
-        pdf_path = Path(tmp) / (pptx.stem + ".pdf")
-        if not pdf_path.is_file():
-            return []
-        pdf = pdfium.PdfDocument(str(pdf_path))
-        images: list[Path] = []
-        for i in range(len(pdf)):
-            image_path = slides_dir / f"slide-{i + 1:02d}.png"
-            pdf[i].render(scale=1.5).to_pil().save(image_path)
-            images.append(image_path)
-        pdf.close()
+        produced = Path(tmp) / (pptx.stem + ".pdf")
+        if produced.is_file():
+            shutil.copyfile(produced, pdf)
+
+
+def pptx_to_pdf(kind: str, pptx: Path, pdf: Path, profile_dir: Path) -> None:
+    if kind == "powerpoint-mac":
+        _mac_app_to_pdf("powerpoint", pptx, pdf)
+    elif kind == "keynote":
+        _mac_app_to_pdf("keynote", pptx, pdf)
+    elif kind == "powerpoint-win":
+        _windows_com_to_pdf("PowerPoint.Application", pptx, pdf)
+    elif kind == "wps":
+        _windows_com_to_pdf("KWPP.Application", pptx, pdf)
+    else:
+        soffice = find_soffice()
+        if soffice:
+            _libreoffice_to_pdf(soffice, pptx, pdf, profile_dir)
+
+
+def pdf_to_images(pdf_path: Path, slides_dir: Path, scale: float = 1.5) -> list[Path]:
+    import pypdfium2 as pdfium
+
+    slides_dir.mkdir(parents=True, exist_ok=True)
+    if not pdf_path.is_file():
+        return []
+    pdf = pdfium.PdfDocument(str(pdf_path))
+    images: list[Path] = []
+    for i in range(len(pdf)):
+        image_path = slides_dir / f"slide-{i + 1:02d}.png"
+        pdf[i].render(scale=scale).to_pil().save(image_path)
+        images.append(image_path)
+    pdf.close()
     return images
+
+
+def render_pages(pptx: Path, out_dir: Path, kind: str, profile_dir: Path) -> list[Path]:
+    with tempfile.TemporaryDirectory() as tmp:
+        pdf = Path(tmp) / "deck.pdf"
+        pptx_to_pdf(kind, pptx, pdf, profile_dir)
+        return pdf_to_images(pdf, out_dir / "slides")
 
 
 def contact_sheet(images: list[Path], target: Path, columns: int = 3) -> None:
@@ -186,18 +319,19 @@ def structure_issues(pptx: Path) -> list[str]:
 
 def check(pptx: Path, version: str, expected_pages: int, profile_dir: Path) -> CheckReport:
     out_dir = pptx.parent
-    soffice = find_soffice()
+    renderer = find_pptx_renderer()
     issues = structure_issues(pptx)
-    if soffice is None:
+    if renderer is None:
         report = CheckReport(version, "none", expected_pages, 0, issues=issues)
-        report.issues.append("未找到 LibreOffice，无法逐页渲染检查")
+        report.issues.append("没有找到 PowerPoint、WPS、Keynote 或 LibreOffice，无法逐页出图检查")
     else:
-        images = render_pages(pptx, out_dir, soffice, profile_dir)
+        kind, name = renderer
+        images = render_pages(pptx, out_dir, kind, profile_dir)
         sheet = out_dir / "contact-sheet.png"
         contact_sheet(images, sheet)
         report = CheckReport(
             version,
-            soffice_version(soffice),
+            name,
             expected_pages,
             len(images),
             images=[str(p) for p in images],
@@ -205,7 +339,7 @@ def check(pptx: Path, version: str, expected_pages: int, profile_dir: Path) -> C
             issues=issues,
         )
         if len(images) != expected_pages:
-            report.issues.append(f"渲染得到 {len(images)} 页，应为 {expected_pages} 页")
+            report.issues.append(f"{name} 出图得到 {len(images)} 页，应为 {expected_pages} 页")
     return report
 
 

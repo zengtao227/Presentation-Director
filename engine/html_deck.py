@@ -6,6 +6,7 @@ offline by double-click and can be sent as a single attachment.
 
 from __future__ import annotations
 
+import json
 import math
 from html import escape
 from pathlib import Path
@@ -57,7 +58,7 @@ ENGINE_CSS = """
 .pd-steps li::before{content:counter(pd);flex:0 0 56px;height:56px;border-radius:50%;background:var(--accent);
   color:var(--bg);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:26px}
 @page{size:1600px 900px;margin:0}
-@media print{html,body{width:1600px}.deck{height:auto;overflow:visible}
+@media print{#pd-tip{display:none}html,body{width:1600px}.deck{height:auto;overflow:visible}
   .slide{width:1600px;height:900px!important}.notes{display:none!important}}
 body.pd-check .deck{height:auto;overflow:visible}
 body.pd-check .slide{position:relative;opacity:1;transform:none;width:1600px;height:900px}
@@ -86,6 +87,37 @@ CHECK_JS = """
   document.body.setAttribute('data-pd-check',JSON.stringify(out));
 })();
 """
+
+
+# T cycles through every bundled pakco theme inside the single file (pakco's own T loads theme files
+# from disk, which a self-contained deck does not have).
+THEME_JS = """
+(function(){
+  var themes=__THEMES__,names=Object.keys(themes),el=document.getElementById('theme');
+  var cur=names.indexOf(document.documentElement.getAttribute('data-theme'));
+  var tip=document.createElement('div');tip.id='pd-tip';
+  tip.style.cssText='position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:99;padding:8px 16px;'+
+    'border-radius:8px;background:rgba(0,0,0,.72);color:#fff;font:14px sans-serif;opacity:0;transition:opacity .3s;pointer-events:none';
+  document.body.appendChild(tip);
+  document.addEventListener('keydown',function(e){
+    if((e.key!=='t'&&e.key!=='T')||e.metaKey||e.ctrlKey||e.altKey)return;
+    if(/INPUT|TEXTAREA|SELECT/.test((e.target&&e.target.tagName)||''))return;
+    cur=(cur+1)%names.length;el.textContent=themes[names[cur]];
+    document.documentElement.setAttribute('data-theme',names[cur]);
+    tip.textContent='主题：'+names[cur]+'（'+(cur+1)+'/'+names.length+'）';tip.style.opacity=1;
+    clearTimeout(tip._t);tip._t=setTimeout(function(){tip.style.opacity=0},1400);
+  });
+})();
+"""
+
+
+def _themes_json() -> str:
+    themes = {
+        p.stem: p.read_text(encoding="utf-8")
+        for p in sorted((PAKCO_ASSETS / "themes").glob("*.css"))
+    }
+    # Keep "</style>" or "</script>" inside CSS from closing the surrounding script element.
+    return json.dumps(themes, ensure_ascii=False).replace("</", "<\\/")
 
 
 def _asset(relative: str) -> str:
@@ -287,6 +319,7 @@ def build_html(spec: DeckSpec, theme_key: str | None, out_path: Path) -> Path:
 </div>
 <script>{_asset("runtime.js")}</script>
 <script>{CHECK_JS}</script>
+<script>{THEME_JS.replace("__THEMES__", _themes_json())}</script>
 </body></html>
 """
     out_path.write_text(html, encoding="utf-8")
