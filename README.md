@@ -21,7 +21,7 @@ Presentation Director 是一套面向高质量演示文稿生成和修改的工�
 适合：没有 Codex `Presentations`、需要离线运行，或者想直接控制代码层生成逻辑的任务。
 
 1. 先写 `deck.md` 和 `design-locks/`。
-2. 读取 `skills/pptx/SKILL.md`，用 `pptxgenjs` 生成可编辑 `.pptx`。
+2. 读取 官方 `pptx` 技能的 `SKILL.md`，用 `pptxgenjs` 生成可编辑 `.pptx`（Anthropic 专有授权，本仓库不再附带；Claude Code 已内置，其他环境从 https://github.com/anthropics/skills 安装）。
 3. 再跑缩略图 / 渲染检查，修复后重新导出。
 
 ### 3. VS Code + Marp（轻量兜底）
@@ -70,7 +70,7 @@ Presentation Director 是一套面向高质量演示文稿生成和修改的工�
 
 设计知识库使用全局安装的官方 [ui-ux-pro-max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) skill（`~/.claude/skills/ui-ux-pro-max` 或 `~/.codex/skills/ui-ux-pro-max`），本仓库不再内置副本。做路演、比赛答辩、项目方案类 PPT 前，先用它检索合适的产品类型、视觉风格、字体、配色和 UX 检查项，再进入 Markdown 或 PPTX 生成。
 
-如果目标是专业、可编辑的 `.pptx`，优先按 [专业可编辑 PPTX 主流程](docs/pptx-master-workflow.md) 使用 Codex `Presentations` 能力。若 Codex 插件列表里搜不到 `Presentations`，检查 bundled 目录：`$HOME/.codex/plugins/cache/openai-primary-runtime/presentations/*/skills/presentations`，按其本地 PPTX 路径导出并用 finalizer 校验（详见 `skills/deck-builder/SKILL.md` 工具表）。Claude Code / 本地代理的备用路径是 `skills/pptx` + pptxgenjs。Marp / VS Code 只保留给快速写作、预览、PDF 和放映版输出，不作为默认的专业 PPTX 路径。
+如果目标是专业、可编辑的 `.pptx`，优先按 [专业可编辑 PPTX 主流程](docs/pptx-master-workflow.md) 使用 Codex `Presentations` 能力。若 Codex 插件列表里搜不到 `Presentations`，检查 bundled 目录：`$HOME/.codex/plugins/cache/openai-primary-runtime/presentations/*/skills/presentations`，按其本地 PPTX 路径导出并用 finalizer 校验（详见 `skills/deck-builder/SKILL.md` 工具表）。Claude Code / 本地代理的备用路径是 官方 `pptx` 技能 + pptxgenjs。Marp / VS Code 只保留给快速写作、预览、PDF 和放映版输出，不作为默认的专业 PPTX 路径。
 
 常用命令示例：
 

@@ -11,7 +11,7 @@
 | 路径 | 适合工具 | 生成引擎 | 定位 |
 |------|----------|----------|------|
 | **主路径** | Codex `Presentations` 能力 | artifact-tool `presentation-jsx`，本地 PPTX 路径 + finalizer | 高质量可编辑 PPTX，带叙事、设计系统、渲染 QA |
-| **备用路径** | Claude Code / 离线脚本 | `skills/pptx` + pptxgenjs | 没有 Codex Presentations runtime，或用户明确绕过 Codex 主路径时的可编辑 PPTX 方案 |
+| **备用路径** | Claude Code / 离线脚本 | 官方 `pptx` 技能 + pptxgenjs | 没有 Codex Presentations runtime，或用户明确绕过 Codex 主路径时的可编辑 PPTX 方案 |
 
 因此，在 Codex 里写 PPTX 时，Prompt 应该明确要求：
 
@@ -23,7 +23,7 @@
 - 通过渲染预览、contact sheet、layout JSON 做质量检查
 - 不要把 `pptxgenjs` 当成 Codex 主生成引擎
 
-`pptxgenjs` 仍然有价值，但它属于本仓库 `skills/pptx` 的备用工作流，不是 Codex 的首选路径。
+`pptxgenjs` 仍然有价值，但它属于官方 `pptx` 技能 的备用工作流，不是 Codex 的首选路径。
 
 ---
 
@@ -171,7 +171,7 @@ Codex Presentations 生成 PPTX
 | 设计情报层 | 全局 `ui-ux-pro-max` skill | 查适合行业的风格、字体、颜色、图表和 UX 检查项 |
 | 视觉合同层 | `design-locks/` | 把 Open Design 的设计语言落成 hex、字体、版式、禁用项 |
 | 生成层 | Codex `Presentations` | 叙事整理、设计系统锁定、JSX 构建、渲染 QA、导出 PPTX |
-| 备用生成层 | `skills/pptx` + pptxgenjs | Claude Code 或离线场景备用 |
+| 备用生成层 | 官方 `pptx` 技能 + pptxgenjs | Claude Code 或离线场景备用 |
 | 快速草稿层 | Marp | 快速写作、预览、PDF/不可细编辑 PPTX 导出 |
 
 `ui-ux-pro-max` 和 Open Design 都不是 PPTX 生成器。前者负责帮你做设计判断，后者负责提供设计语言，真正把它们变成可编辑 `.pptx` 的主引擎是 Codex `Presentations`。
@@ -403,11 +403,11 @@ $HOME/.codex/plugins/cache/openai-primary-runtime/presentations/*/skills/present
 ```text
 deck.md + design-lock
     ↓
-Claude Code 读取 skills/pptx/SKILL.md
+Claude Code 读取 官方 pptx 技能的 SKILL.md
     ↓
 pptxgenjs 生成可编辑 .pptx
     ↓
-skills/pptx/scripts/thumbnail.py 生成缩略图
+<pptx 技能目录>/scripts/thumbnail.py 生成缩略图
     ↓
 人工反馈并重新生成
 ```
@@ -415,11 +415,11 @@ skills/pptx/scripts/thumbnail.py 生成缩略图
 给 Claude Code 的 Prompt 可以明确：
 
 ```text
-使用本仓库 skills/pptx/SKILL.md 的 pptxgenjs 工作流。
+使用官方 pptx 技能的 SKILL.md 的 pptxgenjs 工作流。
 读取 deck.md 和 design-locks/<lock>.md。
 生成 PPTX/<task-slug>/final/<task-slug>.pptx。
 同时生成 PPTX/<task-slug>/final/<task-slug>-companion.html 作为只读分享版。
-生成后运行 skills/pptx/scripts/thumbnail.py 做缩略图检查。
+生成后运行 <pptx 技能目录>/scripts/thumbnail.py 做缩略图检查。
 ```
 
 这条路径能生成可编辑 PPTX，但叙事编辑、contact-sheet 质量门槛和渲染 QA 不如 Codex `Presentations` 完整，需要你自己更严格地审查。
@@ -432,7 +432,7 @@ skills/pptx/scripts/thumbnail.py 生成缩略图
 |------|----------|
 | 快速写内容、预览、导出 PDF | Marp |
 | 高质量可编辑 PowerPoint | Codex `Presentations` 能力；插件 UI 不显示时使用 bundled 目录中的同一技能 |
-| 没有 Codex Presentations runtime，但仍要可编辑 PPTX | 仅在用户明确绕过 Codex 主路径时用 `skills/pptx` + pptxgenjs |
+| 没有 Codex Presentations runtime，但仍要可编辑 PPTX | 仅在用户明确绕过 Codex 主路径时用 官方 `pptx` 技能 + pptxgenjs |
 | 最终要交 Google Slides 原生文件 | 先用 Presentations 生成本地 PPTX，再通过 Google Drive 导入为 native Google Slides |
 
 不要把 Marp 导出的 PPTX 当作“可编辑 PPTX”。Marp 更接近视觉成品导出，适合放映和提交，不适合对方在 PowerPoint 里逐个编辑文本框和图形。

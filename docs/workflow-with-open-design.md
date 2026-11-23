@@ -26,7 +26,7 @@ PPTX/<task-slug>/final/<task-slug>-companion.html
 | 视觉合同 | `design-locks/` | 锁定 Open Design 风格的 hex、字体、层级、版式禁用项 |
 | 生成与验证 | Codex `Presentations` | 生成 claim spine、design system、contact sheet、可编辑 PPTX |
 
-需要注意：`skills/pptx` + pptxgenjs 是 Claude Code 或离线备用路径。Codex 主路径应优先使用 `Presentations` 插件的 artifact-tool `presentation-jsx`。
+需要注意：官方 `pptx` 技能 + pptxgenjs 是 Claude Code 或离线备用路径。Codex 主路径应优先使用 `Presentations` 插件的 artifact-tool `presentation-jsx`。
 
 ## 可用设计档案
 
@@ -124,26 +124,26 @@ python3 ~/.claude/skills/ui-ux-pro-max/scripts/search.py "layout spacing contras
 
 ## 备用：Claude Code / pptxgenjs
 
-如果不用 Codex `Presentations`，可以走本地 `skills/pptx`：
+如果不用 Codex `Presentations`，可以走官方 `pptx` 技能：
 
 ```text
 Claude Code
     ↓
-读取 skills/pptx/SKILL.md
+读取 官方 pptx 技能的 SKILL.md
     ↓
 用 pptxgenjs 生成 `PPTX/<task-slug>/final/<task-slug>.pptx` 和只读分享版 HTML
     ↓
-用 skills/pptx/scripts/thumbnail.py 生成缩略图检查
+用 <pptx 技能目录>/scripts/thumbnail.py 生成缩略图检查
 ```
 
 这个路径的 Prompt 应写成：
 
 ```text
-使用本仓库 skills/pptx/SKILL.md 的 pptxgenjs 工作流。
+使用官方 pptx 技能的 SKILL.md 的 pptxgenjs 工作流。
 读取 deck.md 和 design-locks/<lock>.md。
 生成 `PPTX/<task-slug>/final/<task-slug>.pptx`。
 同时生成 `PPTX/<task-slug>/final/<task-slug>-companion.html` 作为只读分享版。
-生成后运行 skills/pptx/scripts/thumbnail.py 做缩略图检查。
+生成后运行 <pptx 技能目录>/scripts/thumbnail.py 做缩略图检查。
 ```
 
 ## 参考资源
@@ -151,6 +151,6 @@ Claude Code
 - 主流程：`docs/pptx-master-workflow.md`
 - 方案对比：`docs/pptx-generation-schemes.md`
 - Codex 主插件：`Presentations`
-- 本地备用技能：`skills/pptx/SKILL.md`
+- 本地备用技能：官方 `pptx` 技能的 `SKILL.md`
 - 设计情报：`~/.claude/skills/ui-ux-pro-max/SKILL.md`
 - Open Design 原始仓库：https://github.com/nexu-io/open-design

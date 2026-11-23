@@ -160,7 +160,7 @@ Do NOT use pptxgenjs, Marp, or Google Slides as the primary generation path.
 Use this when Codex Presentations is not available — e.g., in Claude Code or offline.
 
 ```
-Use this repository's skills/pptx/SKILL.md pptxgenjs workflow to generate an editable PPTX.
+Use the official Anthropic pptx skill's SKILL.md pptxgenjs workflow to generate an editable PPTX.
 
 [Input Files]
 - Content source: <resolved path to deck.md>
@@ -187,7 +187,7 @@ Use this repository's skills/pptx/SKILL.md pptxgenjs workflow to generate an edi
 - Keep chart code compact; use direct data labels instead of chart legends where possible
 
 [QA Requirements]
-- After generating the PPTX, run the local thumbnail script only if it exists: `python3 skills/pptx/scripts/thumbnail.py PPTX/<task-slug>/final/<task-slug>.pptx`
+- After generating the PPTX, run the local thumbnail script only if it exists: `python3 <pptx-skill-dir>/scripts/thumbnail.py PPTX/<task-slug>/final/<task-slug>.pptx`
 - Generate or copy per-slide rendered images, then create a view-only HTML companion at `PPTX/<task-slug>/final/<task-slug>-companion.html`
 - Review thumbnails for: text overflow, font substitution, layout collision, color violations
 - Fix at least one identified issue and regenerate before declaring done
@@ -306,8 +306,8 @@ After generation, verify all of the following:
 | Environment | Primary Engine | Fallback | Quick Draft / PDF |
 |-------------|----------------|----------|-------------------|
 | Codex | Presentations + artifact-tool presentation-jsx | — | Marp (not editable PPTX) |
-| Claude Code | skills/pptx + pptxgenjs | — | Marp |
-| Offline / local | skills/pptx + pptxgenjs | — | Marp |
+| Claude Code | official pptx skill + pptxgenjs | — | Marp |
+| Offline / local | official pptx skill + pptxgenjs | — | Marp |
 | HTML online sharing | installed HTML deck skill | browser print / PDF export | static HTML handoff |
 | Need Google Slides | Generate PPTX first → import via Google Drive | — | — |
 

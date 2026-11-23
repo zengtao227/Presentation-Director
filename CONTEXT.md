@@ -344,7 +344,7 @@ pre-v1 图片默认使用 `skills/deck-builder/scripts/generate_images.py show` 
 
 ### Fallback PPTX Path
 
-本地 `skills/pptx` + pptxgenjs 路径。只用于 Claude Code、本地离线代理，或用户在 Codex 中明确要求绕过 `Presentations` 插件的特殊情况。
+官方 `pptx` 技能 + pptxgenjs 路径（Anthropic 专有授权，本仓库不再附带；Claude Code 已内置，其他环境从 https://github.com/anthropics/skills 安装）。只用于 Claude Code、本地离线代理，或用户在 Codex 中明确要求绕过 `Presentations` 插件的特殊情况。
 
 在 Codex 环境中，只要 `output_format` 是 `"pptx"` 或 `"both"`，就必须使用 Codex `Presentations` 能力 / `artifact-tool presentation-jsx` 生成 PPTX。可用性判断顺序是：当前 session 暴露的 Presentations skill / plugin → Codex primary runtime bundled Presentations path。只有两者都不存在，或其运行时无法加载（`load_workspace_dependencies` 失败），agent 才能停止并说明“缺少 Codex Presentations runtime”。不得因为插件 UI 不显示就自动改用 `python-pptx`、pptxgenjs、Google Slides、Keynote、Microsoft PowerPoint 自动化或 QuickLook 等 fallback 路径。
 
@@ -353,7 +353,7 @@ Claude Code / 本地代理也要遵守同一套前置确认原则：内容语言
 ### 工作流优先级
 
 1. Codex `Presentations`：全新、可编辑、可验证 PPTX 的首选。
-2. Claude Code / 本地代理：Presentation Director 或等价确认 → `skills/pptx` + pptxgenjs，作为非 Codex 环境的可编辑备选路径。
+2. Claude Code / 本地代理：Presentation Director 或等价确认 → 官方 `pptx` 技能 + pptxgenjs，作为非 Codex 环境的可编辑备选路径。
 3. VS Code + Marp：快速草稿、预览、PDF 和放映版，不作为默认的专业 PPTX 路径。
 
 ## 当前推荐路径

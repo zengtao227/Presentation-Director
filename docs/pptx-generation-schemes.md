@@ -22,7 +22,7 @@
 - 比单纯 pptxgenjs 脚本更适合生成有专业叙事和视觉节奏的 deck。
 - 在 Codex Desktop 插件 UI 搜不到 `Presentations` 时，仍应检查 bundled runtime：`$HOME/.codex/plugins/cache/openai-primary-runtime/presentations/*/skills/presentations`。存在则按该技能的本地 PPTX 路径（Artifact Session `presentation.export({ format: "pptx" })` 或按 `references/implementation.md` 用本地 `@oai/artifact-tool`）导出，并用 `references/finalization.md` 的 finalizer 校验；Director 交付本地文件、不交 Spaces 链接（详见 `skills/deck-builder/SKILL.md` 工具表“Codex Presentations runtime”），不得直接降级到 fallback。
 
-本仓库 `skills/pptx` + pptxgenjs 保留为 Claude Code / 离线备用路径。Marp 保留为快速写作、预览和提交 PDF 的路径。
+官方 `pptx` 技能 + pptxgenjs 保留为 Claude Code / 离线备用路径。Marp 保留为快速写作、预览和提交 PDF 的路径。
 
 ---
 
@@ -31,7 +31,7 @@
 | 方案 | 预览 / QA | PPTX 可编辑 | 中文字体 | 推荐度 | 定位 |
 |------|-----------|-------------|----------|--------|------|
 | Codex `Presentations` | artifact-tool 渲染、contact sheet、layout JSON、rubric；插件 UI 不显示时使用 bundled 目录中的同一技能 | ✅ | ✅ 需检查本机字体 | ⭐⭐⭐⭐⭐ **当前首选** | 高质量可编辑 PPTX |
-| 本地 `skills/pptx` + pptxgenjs | LibreOffice/Poppler 缩略图 | ✅ | ✅ 需检查字体 | ⭐⭐⭐⭐ | Claude/离线备用 |
+| 官方 `pptx` 技能 + pptxgenjs | LibreOffice/Poppler 缩略图 | ✅ | ✅ 需检查字体 | ⭐⭐⭐⭐ | Claude/离线备用 |
 | Marp CLI 直接导出 | VS Code Marp Preview | ❌ 更接近截图/视觉成品 | ✅ | ⭐⭐⭐ | 快速草稿、PDF、放映 |
 | Google Slides 导入 | 浏览器 Google Slides | ✅ | ⚠️ 导出后可能替换 | ⭐⭐⭐ | 需要协作或原生 Slides |
 | Office-PowerPoint-MCP-Server | 无内置强 QA | ✅ | ✅ | ⭐⭐ | 可探索 |
@@ -79,14 +79,14 @@ PPTX/<task-slug>/final/<task-slug>-companion.html
 
 ---
 
-## 2. 本地 skills/pptx + pptxgenjs（备用）
+## 2. 官方 pptx 技能 + pptxgenjs（备用）
 
 **工作流：**
 
 ```text
 Claude Code / 本地 agent
         ↓
-读取 skills/pptx/SKILL.md
+读取 官方 pptx 技能的 SKILL.md
         ↓
 pptxgenjs 生成 .pptx
         ↓
@@ -98,7 +98,7 @@ thumbnail.py 生成缩略图
 **优点：**
 
 - 完全本地，可控，PPTX 可编辑。
-- `skills/pptx` 已包含读取、编辑、打包、缩略图等辅助脚本。
+- 官方 `pptx` 技能包含读取、编辑、打包、缩略图等辅助脚本。
 - 适合 Claude Code 或没有 Codex `Presentations` 插件的环境。
 
 **缺点：**
@@ -211,5 +211,5 @@ Codex Prompt 明确：
 ## 未来升级路径
 
 - 如果经常要把 PPTX 转成 Google Slides：增加 Google Drive 导入步骤说明。
-- 如果要让 Claude Code 也稳定出高质量 deck：把 Presentations 的 claim spine / design-system / contact-sheet QA 思路迁移到 `skills/pptx` Prompt 模板。
+- 如果要让 Claude Code 也稳定出高质量 deck：把 Presentations 的 claim spine / design-system / contact-sheet QA 思路迁移到 官方 `pptx` 技能 Prompt 模板。
 - 如果需要公司统一品牌模板：新增 `design-locks/<brand>.md`，而不是每次在 Prompt 里临时描述品牌色。
