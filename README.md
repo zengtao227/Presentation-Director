@@ -111,3 +111,7 @@ python3 ~/.claude/skills/ui-ux-pro-max/scripts/search.py "accessibility layout s
 - 少用透明叠加、filter、backdrop-filter、复杂阴影。
 
 完整说明见 [预览与导出一致性指南](docs/preview-export-consistency.md)。
+
+## 许可
+
+保留所有权利。可使用官方发布版本制作演示文稿，生成的成品归使用者所有；未经书面许可不得复制、修改、转发或转售本软件。第三方组件按各自许可证授权。详见 [LICENSE](LICENSE)。

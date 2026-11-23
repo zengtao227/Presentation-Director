@@ -1,0 +1,31 @@
+Presentation Director
+Copyright (c) 2026 zengtao227 (NECTO). All rights reserved.
+
+本软件（包括源代码、脚本、提示词、设计规则、模板、文档及其他随附材料）的全部权利由版权人保留。
+除下列明确授予的权利外，未经版权人书面许可，不授予任何其他权利。
+
+一、允许
+1. 个人或组织使用版权人官方渠道（NECTO 官网等）发布的本软件版本，制作演示文稿。
+2. 使用本软件生成的演示文稿及其他成品归使用者所有，可自由使用、修改和分享。
+3. 在 GitHub 上查看本仓库的公开内容。
+
+二、禁止（除非取得版权人书面许可）
+1. 复制、修改、翻译本软件或据其制作衍生作品。
+2. 转发、再分发、出租、出售、转授权本软件，或将其全部或部分并入其他产品或服务。
+3. 去除或修改本软件中的版权、许可或第三方声明。
+
+三、第三方组件
+本软件包含或使用的第三方组件按其各自许可证授权，见对应目录中的 LICENSE 文件或随包提供的第三方声明。
+本许可不限制第三方许可证赋予您的权利。
+
+四、免责
+本软件按“现状”提供，不附带任何明示或默示担保。在法律允许的最大范围内，版权人不对因使用本软件
+产生的任何损失承担责任。
+
+---
+
+English summary: All rights reserved. You may use official releases of this software to create
+presentations, and you own the presentations you create. You may view the public contents of this
+repository. You may not copy, modify, redistribute, sell, sublicense, or incorporate this software
+into other products or services without prior written permission. Third-party components are
+licensed under their own terms. Provided "AS IS", without warranty of any kind.

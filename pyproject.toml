@@ -8,6 +8,8 @@ version = "1.1.1"
 description = "Presentation Director workflow and provider-neutral presentation plan contracts"
 readme = "README.md"
 requires-python = ">=3.10"
+license = "LicenseRef-Proprietary"
+license-files = ["LICENSE"]
 dependencies = [
   "pydantic==2.13.4",
   "rfc8785==0.1.4",
