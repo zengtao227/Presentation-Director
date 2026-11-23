@@ -19,7 +19,7 @@ HAS_NODE = (
 )
 
 
-def confirm_like_user(eng: Engine, task: str) -> None:
+def confirm_like_user(eng: Engine, task: str, output_format: str | None = None) -> None:
     """Walk intake -> visual -> confirm through the real confirmation server, as the form posts do."""
     task_dir = eng.task_dir(task)
     url = eng.open_confirmation(task, open_browser=False)["url"]
@@ -32,7 +32,10 @@ def confirm_like_user(eng: Engine, task: str) -> None:
         req = Request(base + path, data=urlencode(data).encode(), method="POST", headers=headers)
         urlopen(req, timeout=5).read()
 
-    post("/api/intake", {"director_token": token})
+    intake = {"director_token": token}
+    if output_format:
+        intake["output_format"] = output_format
+    post("/api/intake", intake)
     selection = json.loads((task_dir / "intake-selection.json").read_text(encoding="utf-8"))
     candidates = eng.pd.build_visual_candidates(
         "x", selection["selections"], selection.get("figma_source_packet", {})
@@ -183,3 +186,32 @@ def test_wait_for_confirmation_returns_once_the_user_clicks(eng: Engine) -> None
     done = eng.wait_for_confirmation(task, timeout_s=20)
     clicker.join()
     assert done["still_waiting"] is False and done["ready_to_generate"] is True
+
+
+def test_html_deck_is_self_contained(tmp_path: Path) -> None:
+    from engine.deck_spec import DeckSpec
+    from engine.html_deck import build_html
+
+    out = build_html(
+        DeckSpec.model_validate_json(SAMPLE), "corporate-clean", tmp_path / "deck.html"
+    )
+    html = out.read_text(encoding="utf-8")
+    assert html.count('<section class="slide') == 6
+    assert "<svg" in html and '<table class="pd-table">' in html and 'class="notes"' in html
+    # Nothing is fetched at open time: no external stylesheets, imports or scripts.
+    assert "pd-check" in html and '<link rel="stylesheet"' not in html
+    assert "@import" not in html and "<script src=" not in html
+
+
+@pytest.mark.skipif(not HAS_NODE, reason="node or generator deps missing")
+def test_both_formats_generate_check_and_export(eng: Engine, tmp_path: Path) -> None:
+    task = eng.start_task("做一份演示")["task"]
+    confirm_like_user(eng, task, "both")
+    built = eng.generate(task, SAMPLE)
+    assert Path(built["pptx"]).is_file() and Path(built["html"]).is_file()
+    report = eng.render_check(task)
+    assert set(report["formats"]) == {"pptx", "html"}
+    if not report["passed"]:
+        pytest.skip("renderer missing on this machine: " + "; ".join(report["issues"]))
+    exported = eng.export(task, dest_dir=str(tmp_path / "out"))
+    assert exported["pptx"].endswith(".pptx") and exported["html"].endswith(".html")

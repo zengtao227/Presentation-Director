@@ -206,7 +206,130 @@ def check(pptx: Path, version: str, expected_pages: int, profile_dir: Path) -> C
         )
         if len(images) != expected_pages:
             report.issues.append(f"渲染得到 {len(images)} 页，应为 {expected_pages} 页")
-    (out_dir / "check-report.json").write_text(
-        json.dumps(report.to_json(), ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    return report
+
+
+# ---- HTML decks: checked with the Chromium browser already on the machine (Edge on Windows) ----
+
+CANDIDATE_BROWSERS = (
+    Path(os.environ.get("PROGRAMFILES(X86)", r"C:\Program Files (x86)"))
+    / "Microsoft/Edge/Application/msedge.exe",
+    Path(os.environ.get("PROGRAMFILES", r"C:\Program Files"))
+    / "Microsoft/Edge/Application/msedge.exe",
+    Path(os.environ.get("PROGRAMFILES", r"C:\Program Files"))
+    / "Google/Chrome/Application/chrome.exe",
+    Path(os.environ.get("LOCALAPPDATA", "")) / "Google/Chrome/Application/chrome.exe",
+    Path("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"),
+    Path("/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"),
+)
+
+
+def find_browser() -> Path | None:
+    configured = os.environ.get("PD_BROWSER")
+    if configured and Path(configured).is_file():
+        return Path(configured)
+    for candidate in CANDIDATE_BROWSERS:
+        if candidate.is_file():
+            return candidate
+    for name in ("msedge", "google-chrome", "chromium", "chromium-browser", "chrome"):
+        found = shutil.which(name)
+        if found:
+            return Path(found)
+    return None
+
+
+def _headless(browser: Path, profile_dir: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    # A separate profile keeps the headless run apart from the user's own open browser windows.
+    profile_dir.mkdir(parents=True, exist_ok=True)
+    return subprocess.run(
+        [
+            str(browser),
+            "--headless=new",
+            "--disable-gpu",
+            "--no-first-run",
+            "--no-default-browser-check",
+            f"--user-data-dir={profile_dir}",
+            "--window-size=1600,900",
+            "--virtual-time-budget=5000",
+            *args,
+        ],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=180,
+        check=False,
     )
+
+
+def html_issues(html: Path, browser: Path, profile_dir: Path) -> tuple[int, list[str]]:
+    """Slide count and overflow problems as measured by the deck's own ?pd-check script."""
+    import html as html_lib
+    import re
+
+    dom = _headless(
+        browser, profile_dir, "--dump-dom", html.resolve().as_uri() + "?pd-check"
+    ).stdout
+    match = re.search(r'data-pd-check="([^"]*)"', dom)
+    if not match:
+        return 0, ["浏览器没有返回版面检查结果"]
+    results = json.loads(html_lib.unescape(match.group(1)))
+    issues = [
+        f"第 {r['slide']} 页（HTML）：内容超出页面（「{'」「'.join(r['overflow'])}」）"
+        for r in results
+        if r["overflow"]
+    ]
+    return len(results), issues
+
+
+def render_html_pages(html: Path, out_dir: Path, browser: Path, profile_dir: Path) -> list[Path]:
+    import pypdfium2 as pdfium
+
+    slides_dir = out_dir / "html-slides"
+    slides_dir.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory() as tmp:
+        pdf_path = Path(tmp) / "deck.pdf"
+        _headless(
+            browser,
+            profile_dir,
+            "--no-pdf-header-footer",
+            f"--print-to-pdf={pdf_path}",
+            html.resolve().as_uri(),
+        )
+        if not pdf_path.is_file():
+            return []
+        pdf = pdfium.PdfDocument(str(pdf_path))
+        images = []
+        for i in range(len(pdf)):
+            image_path = slides_dir / f"slide-{i + 1:02d}.png"
+            pdf[i].render(scale=1.0).to_pil().save(image_path)
+            images.append(image_path)
+        pdf.close()
+    return images
+
+
+def check_html(html: Path, version: str, expected_pages: int, profile_dir: Path) -> CheckReport:
+    out_dir = html.parent
+    browser = find_browser()
+    if browser is None:
+        return CheckReport(
+            version, "none", expected_pages, 0, issues=["未找到 Edge 或 Chrome，无法检查 HTML 演示"]
+        )
+    measured, issues = html_issues(html, browser, profile_dir)
+    images = render_html_pages(html, out_dir, browser, profile_dir)
+    sheet = out_dir / "html-contact-sheet.png"
+    contact_sheet(images, sheet)
+    report = CheckReport(
+        version,
+        browser.stem,
+        expected_pages,
+        len(images),
+        images=[str(p) for p in images],
+        contact_sheet=str(sheet) if images else "",
+        issues=issues,
+    )
+    if measured != expected_pages:
+        report.issues.append(f"HTML 检查到 {measured} 页，应为 {expected_pages} 页")
+    if len(images) != expected_pages:
+        report.issues.append(f"HTML 打印得到 {len(images)} 页，应为 {expected_pages} 页")
     return report

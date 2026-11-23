@@ -9,6 +9,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -23,7 +24,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from engine import render_check
+from engine import html_deck, render_check
 from engine.deck_spec import DeckSpec, describe_errors
 
 ENGINE_DIR = Path(__file__).resolve().parent
@@ -35,6 +36,12 @@ DIRECTOR_SCRIPT = Path(
     )
 )
 GENERATOR = ENGINE_DIR / "generator" / "generate.mjs"
+# Director output_format values -> files the engine builds.
+FORMATS: dict[str, tuple[str, ...]] = {
+    "pptx": ("pptx",),
+    "html-revealjs": ("html",),
+    "both": ("pptx", "html"),
+}
 
 
 class EngineError(Exception):
@@ -103,8 +110,8 @@ class Engine:
         brief = self.pd.build_draft_brief(
             slug, topic or request_text[:80], list(sources or []), "auto", request_text
         )
-        # This engine only produces PPTX and has no image generation yet, so preselect both; the user can
-        # still change them on the intake page, and generate() refuses anything it cannot produce.
+        # Most users of AI hosts want an editable PPT, and the engine has no image generation yet; preselect
+        # both. The user can still pick HTML or both on the intake page.
         questions = {q.key: q for q in self.pd.INTAKE_QUESTIONS}
         for key, value in (("output_format", "pptx"), ("image_policy", "none")):
             label = self.pd.selected_choice(questions[key], value).label
@@ -178,15 +185,17 @@ class Engine:
 
     def generate(self, task: str, deck_spec: dict[str, Any] | str) -> dict[str, Any]:
         task_dir = self.task_dir(task)
-        errors = self.pd.validate_generation_guard(task_dir)
+        # Earlier versions' agent-authored preview gates (vN: ...) do not apply: the engine's own
+        # render_check is mandatory before export, so only the confirmation part of the guard is used here.
+        errors = [
+            e for e in self.pd.validate_generation_guard(task_dir) if not re.match(r"^v\d+: ", e)
+        ]
         if errors:
             raise EngineError(
                 "生成前检查没有通过（通常是用户还没在确认页点确认）：\n- " + "\n- ".join(errors)
             )
         brief = self.pd.read_json(task_dir / "brief-confirmed.json")
-        output_format = self.pd.output_format_from_brief(brief, "pptx")
-        if output_format != "pptx":
-            raise EngineError(f"这个版本只支持 PPTX 输出，用户选择的是 {output_format}。")
+        formats = FORMATS.get(self.pd.output_format_from_brief(brief, "pptx"), ("pptx",))
         try:
             raw = (
                 deck_spec
@@ -200,12 +209,30 @@ class Engine:
         version = f"v{int(existing[-1][1:]) + 1 if existing else 1}"
         version_dir = task_dir / version
         version_dir.mkdir()
-        pptx = self._build(spec, version_dir)
-        return {"task": task, "version": version, "pptx": str(pptx), "slides": len(spec.slides)}
+        outputs = self._build(spec, version_dir, formats, self._html_theme(brief))
+        return {"task": task, "version": version, "slides": len(spec.slides), **outputs}
 
-    def _build(self, spec: DeckSpec, out_dir: Path) -> Path:
+    @staticmethod
+    def _html_theme(brief: dict[str, Any]) -> str | None:
+        direction = brief.get("visual_direction")
+        candidate = direction.get("selected_candidate") if isinstance(direction, dict) else None
+        suggested = candidate.get("suggested_html_theme") if isinstance(candidate, dict) else None
+        return brief.get("html_theme_key") or suggested
+
+    def _build(
+        self,
+        spec: DeckSpec,
+        out_dir: Path,
+        formats: tuple[str, ...] = ("pptx",),
+        theme: str | None = None,
+    ) -> dict[str, str]:
         spec_path = out_dir / "deck-spec.json"
         spec_path.write_text(spec.model_dump_json(indent=2), encoding="utf-8")
+        outputs: dict[str, str] = {}
+        if "html" in formats:
+            outputs["html"] = str(html_deck.build_html(spec, theme, out_dir / "final.html"))
+        if "pptx" not in formats:
+            return outputs
         pptx = out_dir / "final.pptx"
         result = subprocess.run(
             [self.node, str(GENERATOR), str(spec_path), str(pptx)],
@@ -216,7 +243,8 @@ class Engine:
         )
         if result.returncode != 0 or not pptx.is_file():
             raise EngineError(f"生成失败：{result.stderr.strip()[-800:]}")
-        return pptx
+        outputs["pptx"] = str(pptx)
+        return outputs
 
     @staticmethod
     def _apply_confirmed_palette(raw: str, brief: dict[str, Any]) -> str:
@@ -245,21 +273,48 @@ class Engine:
         out.mkdir(parents=True)
         sample = (ENGINE_DIR / "samples" / "weekly-report.json").read_text(encoding="utf-8")
         spec = DeckSpec.model_validate_json(sample)
-        pptx = self._build(spec, out)
-        profile = self.workspace / ".libreoffice-profile"
-        return render_check.check(pptx, "selftest", len(spec.slides), profile).to_json()
+        self._build(spec, out, ("pptx", "html"))
+        return self._check_outputs(out, "selftest", len(spec.slides))
+
+    def _check_outputs(self, version_dir: Path, version: str, expected: int) -> dict[str, Any]:
+        reports: dict[str, render_check.CheckReport] = {}
+        if (version_dir / "final.pptx").is_file():
+            profile = self.workspace / ".libreoffice-profile"
+            reports["pptx"] = render_check.check(
+                version_dir / "final.pptx", version, expected, profile
+            )
+        if (version_dir / "final.html").is_file():
+            profile = self.workspace / ".browser-profile"
+            reports["html"] = render_check.check_html(
+                version_dir / "final.html", version, expected, profile
+            )
+        if not reports:
+            raise EngineError(f"{version} 里没有生成好的文件。")
+        first = next(iter(reports.values()))
+        combined = {
+            "version": version,
+            "passed": all(r.passed for r in reports.values()),
+            "issues": [i for r in reports.values() for i in r.issues],
+            "expected_pages": expected,
+            "pages": first.pages,
+            "renderer": " + ".join(r.renderer for r in reports.values()),
+            "contact_sheet": first.contact_sheet,
+            "images": first.images,
+            "formats": {name: r.to_json() for name, r in reports.items()},
+        }
+        (version_dir / "check-report.json").write_text(
+            json.dumps(combined, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
+        return combined
 
     def render_check(self, task: str, version: str | None = None) -> dict[str, Any]:
         task_dir = self.task_dir(task)
         version_dir = self._version_dir(task_dir, version)
         spec = json.loads((version_dir / "deck-spec.json").read_text(encoding="utf-8"))
-        report = render_check.check(
-            version_dir / "final.pptx",
-            version_dir.name,
-            len(spec["slides"]),
-            self.workspace / ".libreoffice-profile",
-        )
-        return {"task": task, **report.to_json()}
+        return {
+            "task": task,
+            **self._check_outputs(version_dir, version_dir.name, len(spec["slides"])),
+        }
 
     def export(
         self, task: str, version: str | None = None, dest_dir: str | None = None
@@ -279,6 +334,11 @@ class Engine:
         safe_title = "".join(ch for ch in spec["title"] if ch not in '\\/:*?"<>|').strip() or task
         target_dir = Path(dest_dir).expanduser() if dest_dir else task_dir / "final"
         target_dir.mkdir(parents=True, exist_ok=True)
-        target = target_dir / f"{safe_title}.pptx"
-        shutil.copyfile(version_dir / "final.pptx", target)
-        return {"task": task, "version": version_dir.name, "pptx": str(target)}
+        exported: dict[str, str] = {}
+        for ext in ("pptx", "html"):
+            source = version_dir / f"final.{ext}"
+            if source.is_file():
+                target = target_dir / f"{safe_title}.{ext}"
+                shutil.copyfile(source, target)
+                exported[ext] = str(target)
+        return {"task": task, "version": version_dir.name, **exported}

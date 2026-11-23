@@ -15,14 +15,14 @@ from engine.core import Engine, EngineError
 from engine.deck_spec import DeckSpec
 
 INSTRUCTIONS = """\
-Presentation Director：把用户的资料做成可编辑的 PPTX。必须按顺序：
+Presentation Director：把用户的资料做成可编辑的 PPTX 或可放映的 HTML 演示（按用户在确认页选的格式）。必须按顺序：
 1. start_task：传入用户原话和资料文件路径，得到 task。
 2. open_confirmation：在用户浏览器打开确认页。告诉用户在页面里选好并点「确认」，你会自动继续。
 3. wait_for_confirmation：反复调用直到 still_waiting 为 false。不要让用户回来说「已确认」。
    确认后 ready_to_generate 为 true 才能继续；confirmed_brief 是用户选的方向、页数和语言。
 4. 读资料，按 confirmed_brief 写出逐页内容，调用 generate。
 5. render_check：逐页渲染并检查；有问题就改逐页内容重新 generate（会生成新版本），再检查。
-6. 检查通过后调用 export，把返回的文件路径交给用户，并说明可以在 PowerPoint 或 WPS 里继续编辑。
+6. 检查通过后调用 export，把返回的文件路径交给用户：PPTX 可在 PowerPoint 或 WPS 里继续编辑，HTML 双击用浏览器放映。
 不要替用户点确认，也不要跳过检查直接交付。"""
 
 server: MCPServer = MCPServer(name="presentation-director", instructions=INSTRUCTIONS)
@@ -79,7 +79,7 @@ def get_status(task: str) -> dict[str, Any]:
 
 @server.tool()
 def generate(task: str, deck_spec: DeckSpec) -> dict[str, Any]:
-    """按用户已确认的方向生成一个新版本 PPTX。deck_spec 是逐页内容；未确认时会被拒绝。"""
+    """按用户已确认的方向和输出格式生成一个新版本（PPTX、HTML 或两者）。deck_spec 是逐页内容；未确认时会被拒绝。"""
     with quiet():
         return engine().generate(task, deck_spec.model_dump_json())
 
@@ -93,7 +93,7 @@ def render_check(task: str, version: str | None = None) -> dict[str, Any]:
 
 @server.tool()
 def export(task: str, version: str | None = None, dest_dir: str | None = None) -> dict[str, Any]:
-    """导出检查通过的版本（默认最新），返回 PPTX 路径；dest_dir 可指定导出文件夹。"""
+    """导出检查通过的版本（默认最新），返回 PPTX 和/或 HTML 文件路径；dest_dir 可指定导出文件夹。"""
     with quiet():
         return engine().export(task, version, dest_dir)
 

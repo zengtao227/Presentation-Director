@@ -1,6 +1,6 @@
 ---
 name: presentation-director
-description: 把用户提供的资料（周报、方案、文章、表格等）做成可在 PowerPoint 或 WPS 里继续编辑的 PPT。用户要求做 PPT、演示文稿、幻灯片、汇报材料时使用。需要已连接的 presentation-director 连接器。
+description: 把用户提供的资料（周报、方案、文章、表格等）做成可在 PowerPoint 或 WPS 里继续编辑的 PPT，或可直接在浏览器放映的 HTML 演示。用户要求做 PPT、演示文稿、幻灯片、汇报材料时使用。需要已连接的 presentation-director 连接器。
 ---
 
 # Presentation Director
@@ -31,7 +31,7 @@ description: 把用户提供的资料（周报、方案、文章、表格等）�
 - 讲稿写在每页的 `notes`。
 - 不写 `theme` 时，自动使用用户在确认页选的配色。
 
-调用 `generate`。如果返回「逐页内容格式不对」，按提示改好再调用。
+调用 `generate`。它会按用户在确认页选的输出格式生成 PPTX、HTML 或两者。如果返回「逐页内容格式不对」，按提示改好再调用。
 
 ## 3. 检查
 
@@ -41,4 +41,6 @@ description: 把用户提供的资料（周报、方案、文章、表格等）�
 
 ## 4. 交付
 
-调用 `export`，把返回的文件路径告诉用户，并说明：可以直接在 PowerPoint 或 WPS 里打开修改；图表数据可在图表上右键「编辑数据」修改。
+调用 `export`，把返回的文件路径告诉用户，并说明：
+- PPTX：可以直接在 PowerPoint 或 WPS 里打开修改；图表数据可在图表上右键「编辑数据」修改。
+- HTML：双击用浏览器打开即可放映，← → 翻页，F 全屏，S 看讲稿；不需要联网。
