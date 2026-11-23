@@ -59,7 +59,7 @@ echo "== Notices and installer"
 cp "$ROOT/LICENSE" "$FILES/LICENSE.txt"
 python3 "$HERE/collect_notices.py" "$FILES" "$FILES/THIRD_PARTY_NOTICES.txt"
 cp "$HERE/uninstall.ps1" "$FILES/"
-cp "$HERE/install.ps1" "$HERE/Setup.cmd" "$STAGE/"
+cp "$HERE/install.ps1" "$HERE/Setup.cmd" "$HERE/Uninstall.cmd" "$STAGE/"
 find "$STAGE" -name '__pycache__' -type d -prune -exec rm -rf {} +
 find "$STAGE" -name '.DS_Store' -delete
 
