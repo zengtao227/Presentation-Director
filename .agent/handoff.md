@@ -17,9 +17,15 @@
 - 顺序 2 完成（2026-11-23）：`engine/render_check.py`（LibreOffice→PDF→pypdfium2 出图、总览图、python-pptx 结构检查）、`engine/core.py`（共用步骤）、`engine/cli.py`、`engine/mcp_server.py`（MCP SDK 2.3.0，stdio，6 个工具；引擎拒绝原因经 ToolError 原样给到模型；协议输出外的打印转到 stderr）。新任务默认 PPTX、不用 AI 生图（否则守卫要求额外的生图设置页）。依赖在 pyproject 的 `engine` 附加项（pillow 用 12.3.0 以兼容 3.10）。
 - 验证：本机命令行全流程（确认前拒绝→三步确认页→v1→检查前拒绝导出→检查 6 页通过→v2→导出 v1）；真实 MCP 客户端经 stdio 列出 6 个工具并收到中文拒绝原因；全部 154 项测试通过。
 
+- 顺序 3 完成（远程，无需试用者）：WorkBuddy 自身界面文字写明用户级连接器配置是 `~/.workbuddy/mcp.json`，技能目录 `~/.workbuddy/skills/`；安装时 WorkBuddy 的技能监视器即时察觉新技能。连接器似乎在新建任务时才加载，日志里还没有连接记录——留到试用者实测时确认。
+- 顺序 4 完成：`packaging/windows/`（build.sh 在 Mac 上出 ZIP：Python 3.12.10 嵌入版 + 依赖按 uv.lock + Node 22.23.4 + 引擎 + 确认页 + 许可/第三方声明；install.ps1 按用户安装、LibreOffice 26.2.7 官方 MSI 校验后安装、自动接入 WorkBuddy/Codex/Claude 桌面版/Claude Code、自检；uninstall.ps1 反向清理）。用户入口 = 解压后双击 `Setup.cmd`。没做 Inno Setup：没有 Windows 构建机，且与“下载→解压→双击”的测试者流程一致。
+- 试用机实测（2026-11-23）：首装约 11 分钟（主要是下载 LibreOffice）、覆盖重装约数秒；自检 6 页通过，Windows 上 LibreOffice 中文渲染正确；按 mcp.json 的启动方式用真实连接器客户端连通，6 个工具、新建任务正常；Codex/Claude 桌面版接入用假用户目录测试：替换旧条目、保留其他配置、备份原文件、TOML 可解析，卸载后清理干净。
+- 确认页的上游设计库名字已从可见文案中去掉；未写 theme 时自动用确认页所选配色。
+
 ### Next Steps
-- 顺序 3：请试用者在 WorkBuddy「连接器 → 自定义连接器」里加一个连接器，远程查看配置写到哪里（约 10 分钟，需桌前）。
-- 顺序 4：Windows 安装包（Python 嵌入版 + Node + 引擎 + LibreOffice 引导），先远程静默安装并自检。顺序 3 等试用者期间可先做。
+- 顺序 5：官网测试下载入口 + 一页图文说明（W7）。
+- 顺序 6：试用者桌前实测（W8），顺带确认 WorkBuddy 新建任务时能连上连接器、点「信任」的流程。
+- 之后：Mac 安装包；再考虑插件市场（Claude Code / Codex 插件、Claude 桌面扩展 .mcpb）——发布前查官方提交规则。网页版需另做在线服务或经 Necto，未定。
 
 ### Key Decisions
 - 首轮只做 Windows x64 + WorkBuddy stdio + PPTX + A/D 检查；HTTP、豆包、Necto、第二个系统推迟。

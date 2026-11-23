@@ -33,6 +33,7 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("check")
     p.add_argument("task")
     p.add_argument("--version")
+    sub.add_parser("selftest", help="不经确认生成并检查内置样例，用于安装后自检")
     p = sub.add_parser("export")
     p.add_argument("task")
     p.add_argument("--version")
@@ -41,7 +42,9 @@ def main(argv: list[str] | None = None) -> int:
 
     eng = Engine(args.workspace)
     try:
-        if args.cmd == "start":
+        if args.cmd == "selftest":
+            result = eng.selftest()
+        elif args.cmd == "start":
             result = eng.start_task(args.request, args.topic, args.source)
         elif args.cmd == "confirm":
             opened = eng.open_confirmation(args.task, open_browser=not args.no_open)

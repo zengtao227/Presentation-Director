@@ -58,6 +58,10 @@ def find_soffice() -> Path | None:
 
 
 def soffice_version(soffice: Path) -> str:
+    # On Windows soffice.exe is a GUI program and prints nothing; its console twin soffice.com does.
+    console = soffice.with_suffix(".com")
+    if soffice.suffix.lower() == ".exe" and console.is_file():
+        soffice = console
     try:
         out = subprocess.run(
             [str(soffice), "--version"], capture_output=True, text=True, timeout=60

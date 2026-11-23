@@ -178,16 +178,20 @@ class Engine:
                 if isinstance(deck_spec, str)
                 else json.dumps(deck_spec, ensure_ascii=False)
             )
-            spec = DeckSpec.model_validate_json(raw)
+            spec = DeckSpec.model_validate_json(self._apply_confirmed_palette(raw, brief))
         except ValidationError as err:
             raise EngineError("逐页内容格式不对：\n- " + "\n- ".join(describe_errors(err))) from err
         existing = self._versions(task_dir)
         version = f"v{int(existing[-1][1:]) + 1 if existing else 1}"
         version_dir = task_dir / version
         version_dir.mkdir()
-        spec_path = version_dir / "deck-spec.json"
+        pptx = self._build(spec, version_dir)
+        return {"task": task, "version": version, "pptx": str(pptx), "slides": len(spec.slides)}
+
+    def _build(self, spec: DeckSpec, out_dir: Path) -> Path:
+        spec_path = out_dir / "deck-spec.json"
         spec_path.write_text(spec.model_dump_json(indent=2), encoding="utf-8")
-        pptx = version_dir / "final.pptx"
+        pptx = out_dir / "final.pptx"
         result = subprocess.run(
             [self.node, str(GENERATOR), str(spec_path), str(pptx)],
             capture_output=True,
@@ -197,7 +201,38 @@ class Engine:
         )
         if result.returncode != 0 or not pptx.is_file():
             raise EngineError(f"生成失败：{result.stderr.strip()[-800:]}")
-        return {"task": task, "version": version, "pptx": str(pptx), "slides": len(spec.slides)}
+        return pptx
+
+    @staticmethod
+    def _apply_confirmed_palette(raw: str, brief: dict[str, Any]) -> str:
+        """Use the colours of the visual direction the user confirmed unless the spec sets its own."""
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            return raw
+        direction = brief.get("visual_direction")
+        candidate = direction.get("selected_candidate") if isinstance(direction, dict) else None
+        palette = candidate.get("palette") if isinstance(candidate, dict) else None
+        if not isinstance(data, dict) or "theme" in data:
+            return raw
+        if not isinstance(palette, list) or len(palette) < 4:
+            return raw
+        keys = ("background", "text", "accent", "accent2")
+        data["theme"] = dict(zip(keys, palette[:4], strict=True))
+        return json.dumps(data, ensure_ascii=False)
+
+    def selftest(self) -> dict[str, Any]:
+        """Build and check the bundled sample outside any task, so an install proves node, the
+        generator and LibreOffice work before the user's first real deck."""
+        out = self.workspace / ".selftest"
+        if out.exists():
+            shutil.rmtree(out)
+        out.mkdir(parents=True)
+        sample = (ENGINE_DIR / "samples" / "weekly-report.json").read_text(encoding="utf-8")
+        spec = DeckSpec.model_validate_json(sample)
+        pptx = self._build(spec, out)
+        profile = self.workspace / ".libreoffice-profile"
+        return render_check.check(pptx, "selftest", len(spec.slides), profile).to_json()
 
     def render_check(self, task: str, version: str | None = None) -> dict[str, Any]:
         task_dir = self.task_dir(task)

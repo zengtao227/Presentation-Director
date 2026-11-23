@@ -11,3 +11,7 @@ Decks
 *.log
 __pycache__/
 *.pyc
+
+# Windows package build outputs
+packaging/windows/.cache/
+packaging/windows/out/

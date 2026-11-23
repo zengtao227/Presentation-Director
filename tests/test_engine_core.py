@@ -149,3 +149,22 @@ def test_mcp_server_lists_tools_and_passes_refusals_through(
             )
 
     anyio.run(run)
+
+
+def test_confirmed_palette_is_used_unless_spec_sets_a_theme() -> None:
+    brief = {
+        "visual_direction": {
+            "selected_candidate": {"palette": ["#ffffff", "#0f172a", "#7c3aed", "#06b6d4"]}
+        }
+    }
+    without_theme = json.loads(Engine._apply_confirmed_palette(SAMPLE, brief))
+    assert without_theme["theme"] == {
+        "background": "#ffffff",
+        "text": "#0f172a",
+        "accent": "#7c3aed",
+        "accent2": "#06b6d4",
+    }
+    own = json.loads(SAMPLE)
+    own["theme"] = {"accent": "#ff0000"}
+    kept = json.loads(Engine._apply_confirmed_palette(json.dumps(own), brief))
+    assert kept["theme"] == {"accent": "#ff0000"}
