@@ -24,6 +24,7 @@
 
 - 顺序 5 完成（2026-11-23）：官网上线不公开的测试下载页（noindex、未从任何页面链接），公网完整下载后校验值一致。页面地址、服务器版本目录与回滚方法记在 Necto 私有仓库 `.agent/handoff.md`，不写进本公开仓库。
 - 试用机已装好且不再卸载，试用者直接使用。
+- 11-23 晚三处修复，已重装到试用机并更新测试下载：① 确认后自动继续（新工具 `wait_for_confirmation`，每次约 45 秒，用户不需回到对话报告）；② 安装 LibreOffice 加 `REGISTER_NO_MSO_TYPES=1`，不抢 Office/WPS 默认打开；③ pptxgenjs 内嵌图表表格有格式错误，Excel 打开会“修复”并与图表断开——生成后自动修正，并改用 strRef 分类。owner 已在 Mac PowerPoint 实测「编辑数据」后图表随之变化；WPS 同步复测通过。
 
 ### Next Steps
 - 顺序 6：试用者桌前实测（W8），顺带确认 WorkBuddy 新建任务时能连上连接器、点「信任」的流程。
