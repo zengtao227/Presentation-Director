@@ -56,7 +56,8 @@ try {
             if ((Get-FileHash $msi -Algorithm SHA256).Hash -ne $LoSha256) { throw 'LibreOffice 安装包校验失败，请重新运行安装。' }
         }
         Say '    正在安装 LibreOffice（如果 Windows 询问是否允许更改，请点「是」）…'
-        $msiArgs = @('/i', "`"$msi`"", '/norestart', $(if ($Quiet) { '/qn' } else { '/passive' }))
+        # REGISTER_NO_MSO_TYPES=1: do not take over .pptx/.docx/.xlsx, so Office or WPS stays the user's default.
+        $msiArgs = @('/i', "`"$msi`"", '/norestart', 'REGISTER_NO_MSO_TYPES=1', $(if ($Quiet) { '/qn' } else { '/passive' }))
         $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
         if ($isAdmin) { $p = Start-Process msiexec.exe -ArgumentList $msiArgs -Wait -PassThru }
         else { $p = Start-Process msiexec.exe -ArgumentList $msiArgs -Verb RunAs -Wait -PassThru }
