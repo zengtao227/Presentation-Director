@@ -1,0 +1,151 @@
+from __future__ import annotations
+
+import json
+import shutil
+from pathlib import Path
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
+
+import anyio
+import pytest
+
+from engine import render_check
+from engine.core import Engine, EngineError
+
+ROOT = Path(__file__).resolve().parents[1]
+SAMPLE = (ROOT / "engine" / "samples" / "weekly-report.json").read_text(encoding="utf-8")
+HAS_NODE = (
+    shutil.which("node") is not None and (ROOT / "engine" / "generator" / "node_modules").exists()
+)
+
+
+def confirm_like_user(eng: Engine, task: str) -> None:
+    """Walk intake -> visual -> confirm through the real confirmation server, as the form posts do."""
+    task_dir = eng.task_dir(task)
+    url = eng.open_confirmation(task, open_browser=False)["url"]
+    base = url.rsplit("/", 1)[0]
+    urlopen(url, timeout=5).read()
+    token = (task_dir / "status" / "confirm.token").read_text(encoding="utf-8").strip()
+
+    def post(path: str, data: dict[str, str]) -> None:
+        headers = {"Content-Type": "application/x-www-form-urlencoded"}
+        req = Request(base + path, data=urlencode(data).encode(), method="POST", headers=headers)
+        urlopen(req, timeout=5).read()
+
+    post("/api/intake", {"director_token": token})
+    selection = json.loads((task_dir / "intake-selection.json").read_text(encoding="utf-8"))
+    candidates = eng.pd.build_visual_candidates(
+        "x", selection["selections"], selection.get("figma_source_packet", {})
+    )
+    post(
+        "/api/visual-inspiration", {"director_token": token, "visual_candidate": candidates[0].key}
+    )
+    post("/api/confirm", {"director_token": token, "confirm_token": token})
+    eng.close_confirmation(task)
+
+
+@pytest.fixture()
+def eng(tmp_path: Path) -> Engine:
+    return Engine(tmp_path / "ws")
+
+
+def test_new_task_preselects_pptx_without_ai_images(eng: Engine) -> None:
+    task = eng.start_task("做一份周报")["task"]
+    draft = json.loads((eng.task_dir(task) / "brief-draft.json").read_text(encoding="utf-8"))
+    assert draft["selections"]["output_format"]["value"] == "pptx"
+    assert draft["selections"]["image_policy"]["value"] == "none"
+
+
+def test_generate_is_refused_until_the_user_confirms(eng: Engine) -> None:
+    task = eng.start_task("做一份周报")["task"]
+    with pytest.raises(EngineError, match="生成前检查没有通过"):
+        eng.generate(task, SAMPLE)
+    assert eng.status(task)["ready_to_generate"] is False
+
+
+def test_unknown_task_is_reported(eng: Engine) -> None:
+    with pytest.raises(EngineError, match="任务不存在"):
+        eng.status("nope")
+
+
+@pytest.mark.skipif(not HAS_NODE, reason="node or generator deps missing")
+def test_full_flow_generate_check_export(eng: Engine, tmp_path: Path) -> None:
+    task = eng.start_task("用这份项目周报，做一份 6 页中文 PPT")["task"]
+    confirm_like_user(eng, task)
+    assert eng.status(task)["ready_to_generate"] is True
+
+    bad = json.loads(SAMPLE)
+    bad["slides"][3]["table"]["rows"][0].pop()
+    with pytest.raises(EngineError, match="逐页内容格式不对"):
+        eng.generate(task, json.dumps(bad, ensure_ascii=False))
+
+    first = eng.generate(task, SAMPLE)
+    assert first["version"] == "v1" and Path(first["pptx"]).is_file()
+    with pytest.raises(EngineError, match="还没有做渲染检查"):
+        eng.export(task)
+
+    report = eng.render_check(task)
+    if render_check.find_soffice() is None:
+        assert not report["passed"] and any("LibreOffice" in i for i in report["issues"])
+        with pytest.raises(EngineError, match="检查没有通过"):
+            eng.export(task)
+        return
+    assert report["passed"], report["issues"]
+    assert report["pages"] == 6 and Path(report["contact_sheet"]).is_file()
+
+    assert eng.generate(task, SAMPLE)["version"] == "v2"
+    exported = eng.export(task, "v1", str(tmp_path / "out"))
+    assert Path(exported["pptx"]).name == "星河项目第 12 周进展汇报.pptx"
+    assert [v["version"] for v in eng.status(task)["versions"]] == ["v1", "v2"]
+
+
+@pytest.mark.skipif(not HAS_NODE, reason="node or generator deps missing")
+def test_structure_check_flags_overflowing_text(tmp_path: Path) -> None:
+    import subprocess
+
+    from engine.core import GENERATOR
+    from engine.deck_spec import DeckSpec
+
+    spec = json.loads(SAMPLE)
+    spec["slides"] = [
+        {
+            "layout": "bullets",
+            "title": "很长的要点",
+            "bullets": ["这是一条故意写得非常长的要点" * 8] * 6,
+        }
+    ]
+    path = tmp_path / "spec.json"
+    path.write_text(DeckSpec.model_validate(spec).model_dump_json(), encoding="utf-8")
+    pptx = tmp_path / "long.pptx"
+    subprocess.run(["node", str(GENERATOR), str(path), str(pptx)], check=True, capture_output=True)
+    issues = render_check.structure_issues(pptx)
+    assert any("溢出" in i for i in issues), issues
+
+
+def test_mcp_server_lists_tools_and_passes_refusals_through(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("PD_WORKSPACE", str(tmp_path / "ws"))
+    from mcp.server.mcpserver.exceptions import ToolError
+
+    from engine import mcp_server
+
+    monkeypatch.setattr(mcp_server, "_engine", None)
+
+    async def run() -> None:
+        names = [t.name for t in await mcp_server.server.list_tools()]
+        assert names == [
+            "start_task",
+            "open_confirmation",
+            "get_status",
+            "generate",
+            "render_check",
+            "export",
+        ]
+        task = mcp_server.start_task("做一份周报")["task"]
+        with pytest.raises(ToolError, match="生成前检查没有通过"):
+            await mcp_server.server.call_tool(
+                "generate", {"task": task, "deck_spec": json.loads(SAMPLE)}
+            )
+
+    anyio.run(run)

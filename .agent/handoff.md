@@ -14,8 +14,12 @@
 - 已知：本机 LibreOffice 26.8 在 macOS 27 上丢失所有非粗体中文（与文件无关，空白文档同样复现）；Mac 版面检查暂用 PowerPoint 导出 PDF（在 PowerPoint 容器目录内操作，无授权弹窗）。Windows 上的 LibreOffice 渲染待顺序 2/4 验证。
 - 观察：pptxgenjs 依赖 image-size 有高危提示，仅解析图片时触发，首轮不传图片。
 
+- 顺序 2 完成（2026-11-23）：`engine/render_check.py`（LibreOffice→PDF→pypdfium2 出图、总览图、python-pptx 结构检查）、`engine/core.py`（共用步骤）、`engine/cli.py`、`engine/mcp_server.py`（MCP SDK 2.3.0，stdio，6 个工具；引擎拒绝原因经 ToolError 原样给到模型；协议输出外的打印转到 stderr）。新任务默认 PPTX、不用 AI 生图（否则守卫要求额外的生图设置页）。依赖在 pyproject 的 `engine` 附加项（pillow 用 12.3.0 以兼容 3.10）。
+- 验证：本机命令行全流程（确认前拒绝→三步确认页→v1→检查前拒绝导出→检查 6 页通过→v2→导出 v1）；真实 MCP 客户端经 stdio 列出 6 个工具并收到中文拒绝原因；全部 154 项测试通过。
+
 ### Next Steps
-- 顺序 2：W3 渲染与结构检查 + W4 引擎 MCP 服务。
+- 顺序 3：请试用者在 WorkBuddy「连接器 → 自定义连接器」里加一个连接器，远程查看配置写到哪里（约 10 分钟，需桌前）。
+- 顺序 4：Windows 安装包（Python 嵌入版 + Node + 引擎 + LibreOffice 引导），先远程静默安装并自检。顺序 3 等试用者期间可先做。
 
 ### Key Decisions
 - 首轮只做 Windows x64 + WorkBuddy stdio + PPTX + A/D 检查；HTTP、豆包、Necto、第二个系统推迟。
