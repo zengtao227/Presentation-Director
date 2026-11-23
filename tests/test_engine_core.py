@@ -137,6 +137,7 @@ def test_mcp_server_lists_tools_and_passes_refusals_through(
         assert names == [
             "start_task",
             "open_confirmation",
+            "wait_for_confirmation",
             "get_status",
             "generate",
             "render_check",
@@ -168,3 +169,17 @@ def test_confirmed_palette_is_used_unless_spec_sets_a_theme() -> None:
     own["theme"] = {"accent": "#ff0000"}
     kept = json.loads(Engine._apply_confirmed_palette(json.dumps(own), brief))
     assert kept["theme"] == {"accent": "#ff0000"}
+
+
+def test_wait_for_confirmation_returns_once_the_user_clicks(eng: Engine) -> None:
+    task = eng.start_task("做一份周报")["task"]
+    waiting = eng.wait_for_confirmation(task, timeout_s=1.5)
+    assert waiting["still_waiting"] is True and waiting["confirmed"] is False
+
+    import threading
+
+    clicker = threading.Timer(1.0, confirm_like_user, args=(eng, task))
+    clicker.start()
+    done = eng.wait_for_confirmation(task, timeout_s=20)
+    clicker.join()
+    assert done["still_waiting"] is False and done["ready_to_generate"] is True

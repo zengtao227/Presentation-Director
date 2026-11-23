@@ -7,6 +7,7 @@ import sys
 from collections.abc import Iterator
 from typing import Any
 
+import anyio
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 
@@ -16,8 +17,9 @@ from engine.deck_spec import DeckSpec
 INSTRUCTIONS = """\
 Presentation Director：把用户的资料做成可编辑的 PPTX。必须按顺序：
 1. start_task：传入用户原话和资料文件路径，得到 task。
-2. open_confirmation：在用户浏览器打开确认页。告诉用户在页面里选好方向并点「确认」，确认后回来说一声。
-3. get_status：用户说已确认后调用；ready_to_generate 为 true 才能继续，confirmed_brief 是用户确认的方向、页数和语言。
+2. open_confirmation：在用户浏览器打开确认页。告诉用户在页面里选好并点「确认」，你会自动继续。
+3. wait_for_confirmation：反复调用直到 still_waiting 为 false。不要让用户回来说「已确认」。
+   确认后 ready_to_generate 为 true 才能继续；confirmed_brief 是用户选的方向、页数和语言。
 4. 读资料，按 confirmed_brief 写出逐页内容，调用 generate。
 5. render_check：逐页渲染并检查；有问题就改逐页内容重新 generate（会生成新版本），再检查。
 6. 检查通过后调用 export，把返回的文件路径交给用户，并说明可以在 PowerPoint 或 WPS 里继续编辑。
@@ -59,6 +61,13 @@ def open_confirmation(task: str) -> dict[str, Any]:
     """在用户浏览器打开问询与确认页，立即返回页面地址。用户在页面里确认后再调用 get_status。"""
     with quiet():
         return engine().open_confirmation(task)
+
+
+@server.tool()
+async def wait_for_confirmation(task: str) -> dict[str, Any]:
+    """等待用户在确认页点「确认」，最多约 45 秒；still_waiting 为 true 时请再次调用，直到用户确认。"""
+    with quiet():
+        return await anyio.to_thread.run_sync(engine().wait_for_confirmation, task)
 
 
 @server.tool()

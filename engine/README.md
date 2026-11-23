@@ -4,7 +4,7 @@
 
 1. `start_task` 新建任务（默认 PPTX、不用 AI 生图）
 2. `open_confirmation` 打开问询 / 视觉方向 / 确认页（复用 `skills/deck-builder` 的页面与守卫）
-3. `get_status` 查看是否已确认、确认的方向
+3. `wait_for_confirmation` 等用户在页面点确认（每次最多约 45 秒，未确认就再调用；用户不需要回到对话里报告），`get_status` 随时查看状态
 4. `generate` 按逐页内容（`schemas/deck-spec-v1.schema.json`）生成新版本 `Decks/<任务>/vN/final.pptx`；未确认时拒绝
 5. `render_check` 用 LibreOffice 逐页出图并做版面检查，报告写在 `vN/check-report.json`
 6. `export` 只导出检查通过的版本

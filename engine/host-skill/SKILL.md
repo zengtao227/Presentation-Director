@@ -5,19 +5,19 @@ description: 把用户提供的资料（周报、方案、文章、表格等）�
 
 # Presentation Director
 
-用 presentation-director 连接器的 6 个工具，按顺序完成。不要跳步，不要替用户点确认。
+用 presentation-director 连接器的工具，按顺序完成。不要跳步，不要替用户点确认。
 
 ## 1. 开始
 
 - 调用 `start_task`：`request_text` 填用户原话；`source_paths` 填用户给的资料文件的绝对路径。
-- 调用 `open_confirmation`，然后对用户说：「确认页已在浏览器打开。请在页面里选好方向、页数和风格，点「确认」后回来告诉我。」
-- 等用户回复。用户说已确认后，调用 `get_status`：
-  - `ready_to_generate` 为 false：把 `guard_errors` 用一句话告诉用户，请他回到确认页完成。
+- 调用 `open_confirmation`，然后对用户说：「确认页已在浏览器打开。请在页面里选好类型、听众、页数和风格，点「确认并开始生成」，我会自动继续。」
+- 接着反复调用 `wait_for_confirmation`，直到 `still_waiting` 为 false。不要让用户回来说「已确认」。
+  - `ready_to_generate` 为 false：把 `guard_errors` 用一句话告诉用户，请他回到确认页完成，然后继续等待。
   - 为 true：继续下一步。
 
 ## 2. 写逐页内容并生成
 
-先读完资料，再按 `get_status` 返回的 `confirmed_brief` 写逐页内容：
+先读完资料，再按 `wait_for_confirmation` 返回的 `confirmed_brief` 写逐页内容：
 
 - 页数按 `confirmed_brief.selections.output_constraints`；正文语言按 `content_language`。
 - 听众与目的按 `audience`、`goal`，标题写成一句结论（例如「支付模块落后计划 18 个百分点」），不要只写「支付模块」。

@@ -13,6 +13,7 @@ import shutil
 import subprocess
 import sys
 import threading
+import time
 import webbrowser
 from datetime import datetime
 from http.server import ThreadingHTTPServer
@@ -160,6 +161,20 @@ class Engine:
             "confirmed_brief": brief,
             "versions": versions,
         }
+
+    def wait_for_confirmation(self, task: str, timeout_s: float = 45.0) -> dict[str, Any]:
+        """Block until the user clicks confirm on the page, or until timeout_s passes.
+
+        Short waits keep each call under hosts' tool-call time limits; the model simply calls again
+        while still_waiting is true, so the user never has to come back and say they confirmed.
+        """
+        deadline = time.monotonic() + timeout_s
+        while True:
+            state = self.status(task)
+            if state["confirmed"] or time.monotonic() >= deadline:
+                state["still_waiting"] = not state["confirmed"]
+                return state
+            time.sleep(1)
 
     def generate(self, task: str, deck_spec: dict[str, Any] | str) -> dict[str, Any]:
         task_dir = self.task_dir(task)
