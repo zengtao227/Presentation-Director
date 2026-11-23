@@ -26,6 +26,8 @@
 - 试用机已装好且不再卸载，试用者直接使用。
 - 11-23 晚三处修复，已重装到试用机并更新测试下载：① 确认后自动继续（新工具 `wait_for_confirmation`，每次约 45 秒，用户不需回到对话报告）；② 安装 LibreOffice 加 `REGISTER_NO_MSO_TYPES=1`，不抢 Office/WPS 默认打开；③ pptxgenjs 内嵌图表表格有格式错误，Excel 打开会“修复”并与图表断开——生成后自动修正，并改用 strRef 分类。owner 已在 Mac PowerPoint 实测「编辑数据」后图表随之变化；WPS 同步复测通过。
 
+- 11-23 夜：HTML 输出已加入引擎（单文件、离线放映、pakco 主题、内嵌 SVG 图表）；按确认页的输出格式生成 PPTX / HTML / 两者；HTML 检查用本机 Edge/Chrome 无界面打印成 PDF 出图 + 页内脚本量溢出。试用机自检两种格式都通过（LibreOffice + Edge）。官网正式产品页已放下载按钮。
+
 ### Next Steps
 - 顺序 6：试用者桌前实测（W8），顺带确认 WorkBuddy 新建任务时能连上连接器、点「信任」的流程。
 - 之后：Mac 安装包；再考虑插件市场（Claude Code / Codex 插件、Claude 桌面扩展 .mcpb）——发布前查官方提交规则。网页版需另做在线服务或经 Necto，未定。
