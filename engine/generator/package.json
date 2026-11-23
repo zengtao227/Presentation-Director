@@ -1,0 +1,11 @@
+{
+  "name": "presentation-director-generator",
+  "version": "0.1.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "module",
+  "description": "Builds an editable PPTX from a validated deck-spec v1 file.",
+  "dependencies": {
+    "pptxgenjs": "4.0.1"
+  }
+}
