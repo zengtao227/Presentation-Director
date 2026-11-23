@@ -95,3 +95,27 @@ def test_generator_builds_editable_native_objects(tmp_path: Path) -> None:
     assert "<a:tbl>" in z.read("ppt/slides/slide4.xml").decode()
     assert sum(1 for n in names if re.fullmatch(r"ppt/notesSlides/notesSlide\d+\.xml", n)) == 6
     assert "当场给出意见" in z.read("ppt/notesSlides/notesSlide6.xml").decode()
+
+
+@pytest.mark.skipif(
+    shutil.which("node") is None or not (GENERATOR.parent / "node_modules").exists(),
+    reason="node or generator deps missing",
+)
+def test_chart_workbook_is_one_excel_and_powerpoint_accept(tmp_path: Path) -> None:
+    """Regression: PowerPoint's Edit Data must stay linked to the chart (no Excel repair)."""
+    import io
+
+    spec = tmp_path / "spec.json"
+    spec.write_text(DeckSpec.model_validate(sample()).model_dump_json(), encoding="utf-8")
+    out = tmp_path / "deck.pptx"
+    subprocess.run(["node", str(GENERATOR), str(spec), str(out)], check=True, capture_output=True)
+    z = zipfile.ZipFile(out)
+    chart = z.read("ppt/charts/chart1.xml").decode()
+    assert "multiLvlStrRef" not in chart and "<c:strRef><c:f>Sheet1!$A$2:$A$6</c:f>" in chart
+    book_name = next(n for n in z.namelist() if re.fullmatch(r"ppt/embeddings/[^/]+\.xlsx", n))
+    book = zipfile.ZipFile(io.BytesIO(z.read(book_name)))
+    table = book.read("xl/tables/table1.xml").decode()
+    assert 'ref="A1:C6"' in table and "Column1" not in table and 'name="分类"' in table
+    assert "<tableParts" in book.read("xl/worksheets/sheet1.xml").decode()
+    assert "<cellXfs" in book.read("xl/styles.xml").decode()
+    assert "<t>分类</t>" in book.read("xl/sharedStrings.xml").decode()

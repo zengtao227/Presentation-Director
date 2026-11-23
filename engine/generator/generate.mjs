@@ -1,6 +1,7 @@
 // Builds an editable PPTX from a deck-spec v1 file that engine/deck_spec.py has already validated.
 // Usage: node generate.mjs <spec.json> <out.pptx>
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
+import JSZip from "jszip";
 import pptxgen from "pptxgenjs";
 
 const W = 13.333;
@@ -133,6 +134,73 @@ const layouts = {
   },
 };
 
+// pptxgenjs 4.0.1 writes the chart's embedded workbook with a table range ending in a stray quote
+// (ref="A1:C6'"), a header named "Column1" over an empty cell, and a table the sheet never lists.
+// Excel then "repairs" the workbook on "Edit Data", which detaches it from the chart, so edits never
+// reach the slide. Fix all three here.
+const MINIMAL_STYLES =
+  '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+  '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+  '<fonts count="1"><font><sz val="11"/><name val="Calibri"/><family val="2"/></font></fonts>' +
+  '<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>' +
+  '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>' +
+  '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+  '<cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/></cellXfs>' +
+  '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
+  '<dxfs count="0"/><tableStyles count="0" defaultTableStyle="TableStyleMedium2" defaultPivotStyle="PivotStyleLight16"/>' +
+  "</styleSheet>";
+
+// Single-level categories are written as multiLvlStrRef; PowerPoint itself writes strRef for these.
+function singleLevelCategories(chartXml) {
+  return chartXml.replace(
+    /<c:multiLvlStrRef>\s*<c:f>([^<]*)<\/c:f>\s*<c:multiLvlStrCache>\s*(<c:ptCount val="\d+"\/>)\s*<c:lvl>([\s\S]*?)<\/c:lvl>\s*<\/c:multiLvlStrCache>\s*<\/c:multiLvlStrRef>/g,
+    (_m, ref, count, points) => `<c:strRef><c:f>${ref}</c:f><c:strCache>${count}${points}</c:strCache></c:strRef>`,
+  );
+}
+
+async function repairChartWorkbooks(pptxBuffer, firstColumnLabel) {
+  const pptx = await JSZip.loadAsync(pptxBuffer);
+  for (const chartName of Object.keys(pptx.files).filter((n) => /^ppt\/charts\/chart\d+\.xml$/.test(n))) {
+    const xml = await pptx.file(chartName).async("string");
+    if ((xml.match(/<c:lvl>/g) || []).length === (xml.match(/<c:multiLvlStrRef>/g) || []).length) {
+      pptx.file(chartName, singleLevelCategories(xml));
+    }
+  }
+  const workbooks = Object.keys(pptx.files).filter((n) => /^ppt\/embeddings\/[^/]+\.xlsx$/.test(n));
+  for (const name of workbooks) {
+    const book = await JSZip.loadAsync(await pptx.file(name).async("nodebuffer"));
+    for (const tableName of Object.keys(book.files).filter((n) => /^xl\/tables\/table\d+\.xml$/.test(n))) {
+      const xml = await book.file(tableName).async("string");
+      book.file(
+        tableName,
+        xml
+          .replace(/ref="([A-Z]+\d+:[A-Z]+\d+)'"/, 'ref="$1"')
+          .replace('<tableColumn id="1" name="Column1"/>', `<tableColumn id="1" name="${firstColumnLabel}"/>`),
+      );
+    }
+    // pptxgenjs ships a stylesheet with no cellXfs and a redefinition of built-in number format 0.
+    book.file("xl/styles.xml", MINIMAL_STYLES);
+    let sheet = await book.file("xl/worksheets/sheet1.xml").async("string");
+    // The sheet's relationship points at the table but the sheet never lists it; Excel expects both.
+    if (book.file("xl/tables/table1.xml") && !sheet.includes("<tableParts")) {
+      sheet = sheet.replace("</worksheet>", '<tableParts count="1"><tablePart r:id="rId1"/></tableParts></worksheet>');
+      book.file("xl/worksheets/sheet1.xml", sheet);
+    }
+    const a1 = sheet.match(/<c r="A1" t="s"><v>(\d+)<\/v><\/c>/);
+    if (a1) {
+      const sst = await book.file("xl/sharedStrings.xml").async("string");
+      let index = -1;
+      const fixed = sst.replace(/<si>[\s\S]*?<\/si>/g, (si) => {
+        index += 1;
+        return index === Number(a1[1]) ? `<si><t>${firstColumnLabel}</t></si>` : si;
+      });
+      book.file("xl/sharedStrings.xml", fixed);
+    }
+    pptx.file(name, await book.generateAsync({ type: "nodebuffer", compression: "DEFLATE" }));
+  }
+  return pptx.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
+}
+
 export async function build(spec, outPath) {
   const pres = new pptxgen();
   pres.layout = "LAYOUT_WIDE";
@@ -148,7 +216,9 @@ export async function build(spec, outPath) {
     if (s.layout !== "cover") addFooter(slide, spec.title, i + 1, total, c, t);
     if (s.notes) slide.addNotes(s.notes);
   });
-  await pres.writeFile({ fileName: outPath, compression: true });
+  const raw = await pres.write({ outputType: "nodebuffer", compression: true });
+  const label = spec.language.toLowerCase().startsWith("zh") ? "分类" : "Category";
+  writeFileSync(outPath, await repairChartWorkbooks(raw, label));
 }
 
 if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith("generate.mjs")) {
